@@ -119,14 +119,6 @@ class TrendingFetcher(BaseFetcher):
         }
 
         try:
-            # 发送请求
-            response = self._make_request(
-                self.config['endpoint'],
-                method="POST",
-                headers=headers,
-                timeout=60
-            )
-
             # 使用 httpx 发送 POST 请求
             import httpx
             with httpx.Client(timeout=60) as client:

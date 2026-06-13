@@ -20,18 +20,19 @@ class TitleConfig:
         """获取显示文本，处理时间占位符"""
         now = datetime.now()
         result = self.text
+        date_str = now.strftime("%Y-%m-%d")
 
-        # 替换时间占位符
-        if "{time}" in result:
-            result = result.replace("{time}", now.strftime("%Y-%m-%d"))
-
-        # 处理 {xxx {time}} 格式
+        # 先处理 {xxx {time}} 格式（必须在简单替换之前，否则 {time} 会被提前替换掉）
         import re
-        pattern = r'\{([^}]+)\{time\}\}'
-        match = re.search(pattern, result)
-        if match:
-            prefix = match.group(1).strip()
-            result = f"{prefix} {now.strftime('%Y-%m-%d')}"
+        pattern = r'\{([^{}]+)\{time\}\}'
+        def _replace_complex(m):
+            prefix = m.group(1).strip()
+            return f"{prefix} {date_str}"
+        result = re.sub(pattern, _replace_complex, result)
+
+        # 再替换剩余的独立 {time}
+        if "{time}" in result:
+            result = result.replace("{time}", date_str)
 
         return result
 

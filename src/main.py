@@ -69,6 +69,7 @@ def process_results(results: List[FetchResult], tracker: DedupTracker) -> List[F
             continue
 
         # 过滤已抓取的文章
+        original_count = len(result.articles)
         new_articles = []
         for article in result.articles:
             if not tracker.is_fetched(article.url, article.title):
@@ -87,7 +88,7 @@ def process_results(results: List[FetchResult], tracker: DedupTracker) -> List[F
         processed_results.append(result)
 
         logger.info(
-            f"Processed {result.source.type}: {len(new_articles)}/{len(result.articles)} new articles"
+            f"Processed {result.source.type}: {len(new_articles)}/{original_count} new articles"
         )
 
     return processed_results

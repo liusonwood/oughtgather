@@ -32,6 +32,7 @@ class TOCGenerator:
             List[Tuple[epub.Section, List[epub.Link]]]: 目录结构
         """
         toc = []
+        chapter_counter = 0  # 与 generator.py 中的 chapter_id 保持一致
 
         for source, articles in sections:
             if not articles:
@@ -45,14 +46,16 @@ class TOCGenerator:
 
             # 二级章节（文章列表）
             links = []
-            for idx, article in enumerate(articles):
-                # 生成章节文件名
-                chapter_id = f"chapter_{source.type}_{idx}"
+            for article in articles:
+                # 生成章节文件名（必须与 generator.py._add_chapters 一致）
+                chapter_filename = f"chapter_{chapter_counter}.xhtml"
+                chapter_id = f"chapter_{chapter_counter}"
                 chapter_title = article.title
 
                 # 创建链接
-                link = epub.Link(f"{chapter_id}.xhtml", chapter_title, chapter_id)
+                link = epub.Link(chapter_filename, chapter_title, chapter_id)
                 links.append(link)
+                chapter_counter += 1
 
             toc.append((section, links))
 
@@ -100,13 +103,16 @@ class TOCGenerator:
             List[epub.Link]: 扁平化目录
         """
         toc = []
+        chapter_counter = 0
 
         for source, articles in sections:
-            for idx, article in enumerate(articles):
-                chapter_id = f"chapter_{source.type}_{idx}"
+            for article in articles:
+                chapter_filename = f"chapter_{chapter_counter}.xhtml"
+                chapter_id = f"chapter_{chapter_counter}"
                 chapter_title = f"[{source.title or source.type}] {article.title}"
 
-                link = epub.Link(f"{chapter_id}.xhtml", chapter_title, chapter_id)
+                link = epub.Link(chapter_filename, chapter_title, chapter_id)
                 toc.append(link)
+                chapter_counter += 1
 
         return toc
