@@ -50,6 +50,7 @@ class ContentSource:
     delete: Optional[str] = None
     goal: Optional[str] = None
     model: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None  # 额外的配置参数
 
     def __post_init__(self):
         """验证配置"""
@@ -138,7 +139,8 @@ def _parse_config(data: Dict[str, Any]) -> Config:
                 exclude=source_data.get("exclude"),
                 delete=source_data.get("delete"),
                 goal=source_data.get("goal"),
-                model=source_data.get("model")
+                model=source_data.get("model"),
+                metadata=source_data.get("metadata")
             )
             sources.append(source)
         except Exception as e:

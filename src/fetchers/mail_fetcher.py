@@ -3,7 +3,8 @@
 通过 testmail.app API 抓取订阅邮件
 """
 
-from typing import List
+from typing import List, Optional
+from urllib.parse import quote
 from bs4 import BeautifulSoup
 
 from src.config import ContentSource, get_testmail_config
@@ -47,14 +48,30 @@ class MailFetcher(BaseFetcher):
         try:
             # 调用 testmail.app API
             # API 文档: https://testmail.app/docs/#using-cypress-json-api
-            api_url = f"https://api.testmail.app/api/json?apikey={self.config['api_key']}&namespace=default&livequery"
+            # namespace 使用 source.src 属性，需要 URL 编码
+            namespace_encoded = quote(self.source.src, safe='')
+            api_url = (
+                f"https://api.testmail.app/api/json"
+                f"?apikey={self.config['api_key']}"
+                f"&namespace={namespace_encoded}"
+            )
+
+            # 添加可选的查询参数
+            api_url += self._build_query_params()
 
             response = self._make_request(api_url)
             data = response.json()
 
+            # 检查 API 响应
+            if data.get("result") != "success":
+                error_msg = data.get("message", "Unknown API error")
+                result.success = False
+                result.error = f"API error: {error_msg}"
+                return result
+
             # 解析邮件列表
             emails = data.get("emails", [])
-            self.logger.info(f"Found {len(emails)} emails")
+            self.logger.info(f"Found {len(emails)} emails in namespace '{self.source.src}'")
 
             for email in emails:
                 try:
@@ -155,3 +172,51 @@ class MailFetcher(BaseFetcher):
         # 这些规则将在 content_processor 中统一处理
 
         return html
+
+    def _build_query_params(self) -> str:
+        """
+        构建可选的查询参数
+
+        支持通过 source.metadata 配置以下参数：
+        - tag: 按标签过滤
+        - tag_prefix: 按标签前缀过滤
+        - timestamp_from: 起始时间戳（秒）
+        - timestamp_to: 结束时间戳（秒）
+        - limit: 返回邮件数量限制（默认 10）
+        - offset: 偏移量（默认 0）
+
+        Returns:
+            str: 查询参数字符串
+        """
+        params = []
+
+        # 从 metadata 中读取可选参数
+        metadata = self.source.metadata if hasattr(self.source, 'metadata') else {}
+
+        if not metadata:
+            # 默认只返回最新的 50 封邮件
+            params.append("limit=50")
+            return "&" + "&".join(params) if params else ""
+
+        # 标签过滤
+        if "tag" in metadata:
+            params.append(f"tag={quote(str(metadata['tag']), safe='')}")
+
+        if "tag_prefix" in metadata:
+            params.append(f"tag_prefix={quote(str(metadata['tag_prefix']), safe='')}")
+
+        # 时间范围过滤
+        if "timestamp_from" in metadata:
+            params.append(f"timestamp_from={metadata['timestamp_from']}")
+
+        if "timestamp_to" in metadata:
+            params.append(f"timestamp_to={metadata['timestamp_to']}")
+
+        # 数量和偏移
+        limit = metadata.get("limit", 50)
+        params.append(f"limit={limit}")
+
+        if "offset" in metadata:
+            params.append(f"offset={metadata['offset']}")
+
+        return "&" + "&".join(params) if params else ""
