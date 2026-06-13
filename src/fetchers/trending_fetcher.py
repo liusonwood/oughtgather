@@ -128,8 +128,7 @@ class TrendingFetcher(BaseFetcher):
                     json=payload
                 )
                 resp.raise_for_status()
-
-            data = resp.json()
+                data = resp.json()
 
             # 提取响应内容
             if "choices" in data and len(data["choices"]) > 0:

@@ -159,6 +159,7 @@ class BaseFetcher(ABC):
         with httpx.Client(timeout=timeout, follow_redirects=True) as client:
             response = client.request(method, url, headers=default_headers)
             response.raise_for_status()
+            response.read()  # 确保在客户端关闭前读取响应体
             return response
 
     def _should_delete(self, title: str) -> bool:
