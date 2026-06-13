@@ -1,0 +1,191 @@
+"""
+网页抓取器模块
+抓取单个网页并提取正文
+"""
+
+from typing import List
+from bs4 import BeautifulSoup
+import trafilatura
+
+from src.config import ContentSource
+from src.fetchers.base import BaseFetcher, FetchResult, Article
+from src.utils.logger import get_logger
+
+
+class WebFetcher(BaseFetcher):
+    """网页抓取器"""
+
+    def fetch(self) -> FetchResult:
+        """
+        执行网页抓取
+
+        Returns:
+            FetchResult: 抓取结果
+        """
+        result = FetchResult(source=self.source, articles=[])
+
+        try:
+            # 下载网页
+            response = self._make_request(self.source.src)
+            html = response.text
+
+            # 提取标题
+            title = self._extract_title(html)
+
+            # 提取正文
+            content = self._extract_content(html)
+
+            if not content:
+                result.success = False
+                result.error = "Failed to extract content from webpage"
+                return result
+
+            # 提取图片
+            images = self._extract_images(content)
+
+            # 创建文章对象
+            article = Article(
+                title=title,
+                content=content,
+                url=self.source.src,
+                images=images
+            )
+
+            # 检查是否应该删除
+            if not self._should_delete(article.title):
+                result.articles.append(article)
+
+            return result
+
+        except Exception as e:
+            self.logger.error(f"Web fetch failed: {e}")
+            result.success = False
+            result.error = str(e)
+            return result
+
+    def _extract_title(self, html: str) -> str:
+        """
+        从 HTML 中提取标题
+
+        Args:
+            html: HTML 内容
+
+        Returns:
+            str: 标题
+        """
+        soup = BeautifulSoup(html, 'lxml')
+
+        # 尝试多个可能的标题位置
+        title = None
+
+        # 1. <title> 标签
+        if soup.title and soup.title.string:
+            title = soup.title.string.strip()
+
+        # 2. <h1> 标签
+        if not title:
+            h1 = soup.find('h1')
+            if h1:
+                title = h1.get_text(strip=True)
+
+        # 3. Open Graph 标题
+        if not title:
+            og_title = soup.find('meta', property='og:title')
+            if og_title:
+                title = og_title.get('content', '')
+
+        # 4. 使用自定义标题或 URL
+        if not title:
+            title = self.source.title or self.source.src
+
+        return title
+
+    def _extract_content(self, html: str) -> str:
+        """
+        从 HTML 中提取正文
+
+        Args:
+            html: HTML 内容
+
+        Returns:
+            str: 正文 HTML
+        """
+        # 使用 trafilatura 提取正文
+        content = trafilatura.extract(
+            html,
+            include_comments=False,
+            include_tables=True,
+            include_images=True,
+            include_links=True,
+            output_format="html"
+        )
+
+        if content:
+            return content
+
+        # 回退到备用方法
+        self.logger.warning("trafilatura failed, using fallback extraction")
+        return self._fallback_extract(html)
+
+    def _fallback_extract(self, html: str) -> str:
+        """
+        备用的内容提取方法
+
+        Args:
+            html: HTML 内容
+
+        Returns:
+            str: 提取的内容
+        """
+        soup = BeautifulSoup(html, 'lxml')
+
+        # 移除不需要的元素
+        for element in soup(['script', 'style', 'nav', 'footer', 'header', 'aside']):
+            element.decompose()
+
+        # 尝试找到主要内容区域
+        main_content = (
+            soup.find('article') or
+            soup.find('main') or
+            soup.find('div', class_='content') or
+            soup.find('div', class_='post') or
+            soup.find('div', class_='article') or
+            soup.body
+        )
+
+        if main_content:
+            return str(main_content)
+
+        return ""
+
+    def _extract_images(self, html: str) -> List[str]:
+        """
+        从 HTML 中提取图片 URL
+
+        Args:
+            html: HTML 内容
+
+        Returns:
+            List[str]: 图片 URL 列表
+        """
+        if not html:
+            return []
+
+        soup = BeautifulSoup(html, 'lxml')
+        images = []
+
+        for img in soup.find_all('img'):
+            src = img.get('src')
+            if src:
+                # 处理相对 URL
+                if src.startswith('//'):
+                    src = 'https:' + src
+                elif src.startswith('/'):
+                    # 需要从原始 URL 构建完整路径
+                    from urllib.parse import urlparse
+                    parsed = urlparse(self.source.src)
+                    src = f"{parsed.scheme}://{parsed.netloc}{src}"
+
+                images.append(src)
+
+        return images

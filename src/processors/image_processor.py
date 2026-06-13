@@ -1,0 +1,242 @@
+"""
+图片处理器模块
+负责图片下载、压缩和嵌入
+"""
+
+import io
+import os
+from typing import List, Tuple, Optional
+from urllib.parse import urlparse
+import httpx
+from PIL import Image
+
+from src.utils.logger import get_logger
+
+
+class ImageProcessor:
+    """图片处理器"""
+
+    MAX_SIZE_KB = 500  # 单张图片最大大小（KB）
+    MAX_WIDTH = 800  # 最大宽度
+    MAX_HEIGHT = 1200  # 最大高度
+    JPEG_QUALITY = 85  # JPEG 质量
+
+    def __init__(self):
+        """初始化图片处理器"""
+        self.logger = get_logger()
+        self.processed_images: List[Tuple[str, bytes]] = []  # (filename, data)
+
+    def download_and_process(self, url: str, base_url: Optional[str] = None) -> Optional[Tuple[str, bytes]]:
+        """
+        下载并处理图片
+
+        Args:
+            url: 图片 URL
+            base_url: 基础 URL（用于处理相对路径）
+
+        Returns:
+            Tuple[str, bytes]: (文件名, 图片数据)
+        """
+        try:
+            # 处理相对 URL
+            full_url = self._resolve_url(url, base_url)
+
+            # 下载图片
+            self.logger.debug(f"Downloading image: {full_url}")
+            response = self._download_image(full_url)
+
+            if not response:
+                return None
+
+            # 处理图片
+            filename, image_data = self._process_image(response, url)
+
+            if filename and image_data:
+                self.processed_images.append((filename, image_data))
+                return (filename, image_data)
+
+            return None
+
+        except Exception as e:
+            self.logger.error(f"Failed to process image {url}: {e}")
+            return None
+
+    def _resolve_url(self, url: str, base_url: Optional[str] = None) -> str:
+        """
+        解析 URL（处理相对路径）
+
+        Args:
+            url: 图片 URL
+            base_url: 基础 URL
+
+        Returns:
+            str: 完整的 URL
+        """
+        if url.startswith(('http://', 'https://')):
+            return url
+
+        if url.startswith('//'):
+            return 'https:' + url
+
+        if url.startswith('/') and base_url:
+            parsed = urlparse(base_url)
+            return f"{parsed.scheme}://{parsed.netloc}{url}"
+
+        if base_url:
+            return f"{base_url.rstrip('/')}/{url.lstrip('/')}"
+
+        return url
+
+    def _download_image(self, url: str) -> Optional[bytes]:
+        """
+        下载图片
+
+        Args:
+            url: 图片 URL
+
+        Returns:
+            Optional[bytes]: 图片数据
+        """
+        try:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (compatible; OughtGather/1.0)"
+            }
+
+            with httpx.Client(timeout=30, follow_redirects=True) as client:
+                response = client.get(url, headers=headers)
+                response.raise_for_status()
+                return response.content
+
+        except Exception as e:
+            self.logger.error(f"Failed to download image from {url}: {e}")
+            return None
+
+    def _process_image(self, image_data: bytes, original_url: str) -> Optional[Tuple[str, bytes]]:
+        """
+        处理图片（压缩、转换格式）
+
+        Args:
+            image_data: 原始图片数据
+            original_url: 原始 URL
+
+        Returns:
+            Tuple[str, bytes]: (文件名, 处理后的图片数据)
+        """
+        try:
+            # 打开图片
+            img = Image.open(io.BytesIO(image_data))
+
+            # 转换为 RGB（如果是 RGBA 或其他模式）
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+
+            # 调整尺寸
+            img = self._resize_image(img)
+
+            # 压缩并转换为 JPEG
+            compressed_data = self._compress_image(img)
+
+            # 生成文件名
+            filename = self._generate_filename(original_url)
+
+            return (filename, compressed_data)
+
+        except Exception as e:
+            self.logger.error(f"Failed to process image: {e}")
+            return None
+
+    def _resize_image(self, img: Image.Image) -> Image.Image:
+        """
+        调整图片尺寸
+
+        Args:
+            img: PIL Image 对象
+
+        Returns:
+            Image.Image: 调整后的图片
+        """
+        width, height = img.size
+
+        # 如果尺寸在限制内，不调整
+        if width <= self.MAX_WIDTH and height <= self.MAX_HEIGHT:
+            return img
+
+        # 计算缩放比例
+        ratio = min(self.MAX_WIDTH / width, self.MAX_HEIGHT / height)
+        new_size = (int(width * ratio), int(height * ratio))
+
+        # 调整尺寸（使用高质量重采样）
+        return img.resize(new_size, Image.Resampling.LANCZOS)
+
+    def _compress_image(self, img: Image.Image) -> bytes:
+        """
+        压缩图片
+
+        Args:
+            img: PIL Image 对象
+
+        Returns:
+            bytes: 压缩后的图片数据
+        """
+        # 逐步降低质量，直到满足大小要求
+        quality = self.JPEG_QUALITY
+
+        while quality >= 20:
+            buffer = io.BytesIO()
+            img.save(buffer, format='JPEG', quality=quality, optimize=True)
+            data = buffer.getvalue()
+
+            # 检查大小
+            size_kb = len(data) / 1024
+            if size_kb <= self.MAX_SIZE_KB:
+                return data
+
+            # 降低质量
+            quality -= 5
+
+        # 如果仍然太大，进一步降低尺寸
+        self.logger.warning("Image still too large after quality reduction, resizing further")
+        width, height = img.size
+        new_size = (int(width * 0.7), int(height * 0.7))
+        img = img.resize(new_size, Image.Resampling.LANCZOS)
+
+        buffer = io.BytesIO()
+        img.save(buffer, format='JPEG', quality=60, optimize=True)
+        return buffer.getvalue()
+
+    def _generate_filename(self, url: str) -> str:
+        """
+        生成文件名
+
+        Args:
+            url: 原始 URL
+
+        Returns:
+            str: 文件名
+        """
+        # 使用 URL 的哈希作为文件名
+        import hashlib
+        url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()[:12]
+        return f"image_{url_hash}.jpg"
+
+    def get_total_size(self) -> int:
+        """
+        获取所有已处理图片的总大小
+
+        Returns:
+            int: 总大小（字节）
+        """
+        return sum(len(data) for _, data in self.processed_images)
+
+    def get_total_size_mb(self) -> float:
+        """
+        获取所有已处理图片的总大小（MB）
+
+        Returns:
+            float: 总大小（MB）
+        """
+        return self.get_total_size() / (1024 * 1024)
+
+    def clear(self):
+        """清除已处理的图片"""
+        self.processed_images.clear()

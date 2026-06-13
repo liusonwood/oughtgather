@@ -1,0 +1,86 @@
+name: Daily Gather
+
+on:
+  schedule:
+    # 每天 UTC 00:00 运行（北京时间 08:00）
+    - cron: '0 0 * * *'
+  workflow_dispatch:  # 支持手动触发
+
+jobs:
+  gather:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # 需要写入权限来更新去重文件
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create config.json from secret
+        if: env.CONFIG_JSON != ''
+        env:
+          CONFIG_JSON: ${{ secrets.CONFIG_JSON }}
+        run: |
+          echo "$CONFIG_JSON" > config.json
+
+      - name: Create config.json from template
+        if: env.CONFIG_JSON == ''
+        run: |
+          if [ -f config.template.json ]; then
+            cp config.template.json config.json
+          else
+            echo "Error: No config.json or config.template.json found"
+            exit 1
+          fi
+
+      - name: Run Ought Gather
+        env:
+          # SMTP 配置（必需）
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          KINDLE_EMAIL: ${{ secrets.KINDLE_EMAIL }}
+
+          # 可选配置
+          TESTMAIL_APP_API_KEY: ${{ secrets.TESTMAIL_APP_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_ENDPOINT: ${{ secrets.OPENROUTER_API_ENDPOINT }}
+        run: |
+          python src/main.py
+
+      - name: Commit dedup file updates
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add data/fetched_urls.txt || true
+          git diff --staged --quiet || git commit -m "Update dedup records [skip ci]"
+          git push || echo "No changes to push"
+
+      - name: Upload EPUB artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: epub-files
+          path: output/*.epub
+          retention-days: 7
+
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs
+          path: logs/*.log
+          retention-days: 7

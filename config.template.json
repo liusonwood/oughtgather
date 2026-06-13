@@ -1,0 +1,37 @@
+{
+  "title": {
+    "text": "{Daily News {time}}",
+    "img": ""
+  },
+  "body": [
+    {
+      "type": "rss",
+      "title": "科技新闻",
+      "src": "https://example.com/rss",
+      "priority": 10,
+      "keep_link": "Y",
+      "full_text": "Y"
+    },
+    {
+      "type": "web",
+      "title": "热门文章",
+      "src": "https://example.com/article",
+      "priority": 5,
+      "keep_link": "N"
+    },
+    {
+      "type": "mail",
+      "title": "订阅邮件",
+      "src": "your-email@example.com",
+      "priority": 8
+    },
+    {
+      "type": "trending",
+      "title": "AI 热点",
+      "src": "人工智能最新发展趋势",
+      "priority": 15,
+      "goal": "分析最新的 AI 技术突破和应用案例",
+      "model": ""
+    }
+  ]
+}
