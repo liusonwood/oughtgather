@@ -32,7 +32,7 @@ class ImageProcessor:
 
         Args:
             url: 图片 URL
-            base_url: 基础 URL（用于处理相对路径）
+            base_url: 基础 URL（用于处理相对路径和作为 Referer）
 
         Returns:
             Tuple[str, bytes]: (文件名, 图片数据)
@@ -43,7 +43,8 @@ class ImageProcessor:
 
             # 下载图片
             self.logger.debug(f"Downloading image: {full_url}")
-            response = self._download_image(full_url)
+            # 将 base_url 传给下载器作为 Referer
+            response = self._download_image(full_url, referer=base_url)
 
             if not response:
                 return None
@@ -72,35 +73,32 @@ class ImageProcessor:
         Returns:
             str: 完整的 URL
         """
-        if url.startswith(('http://', 'https://')):
+        from urllib.parse import urljoin
+        
+        if not base_url:
+            if url.startswith('//'):
+                return 'https:' + url
             return url
+            
+        return urljoin(base_url, url)
 
-        if url.startswith('//'):
-            return 'https:' + url
-
-        if url.startswith('/') and base_url:
-            parsed = urlparse(base_url)
-            return f"{parsed.scheme}://{parsed.netloc}{url}"
-
-        if base_url:
-            return f"{base_url.rstrip('/')}/{url.lstrip('/')}"
-
-        return url
-
-    def _download_image(self, url: str) -> Optional[bytes]:
+    def _download_image(self, url: str, referer: Optional[str] = None) -> Optional[bytes]:
         """
         下载图片
 
         Args:
             url: 图片 URL
+            referer: 引用页 URL（用于绕过防盗链）
 
         Returns:
             Optional[bytes]: 图片数据
         """
         try:
             headers = {
-                "User-Agent": "Mozilla/5.0 (compatible; OughtGather/1.0)"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             }
+            if referer:
+                headers["Referer"] = referer
 
             with httpx.Client(timeout=30, follow_redirects=True) as client:
                 response = client.get(url, headers=headers)

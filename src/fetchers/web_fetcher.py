@@ -40,8 +40,17 @@ class WebFetcher(BaseFetcher):
                 result.error = "Failed to extract content from webpage"
                 return result
 
-            # 提取图片
-            images = self._extract_images(content)
+            # Bug 1: 优先从原始 HTML 提取图片，因为 trafilatura 可能会剥离它们
+            images = self._extract_images(html)
+            
+            # 如果正文中没有 <img> 标签，但我们提取到了图片，
+            # 说明 trafilatura 可能剥离了图片。
+            # 在这种情况下，我们可能需要回退到更保守的提取方式，或者手动将图片重新插入（较难）。
+            # 目前的策略是：如果 images 列表不为空但在 content 中找不到 <img>，
+            # 且用户没有明确禁用图片，我们尝试使用 fallback 提取。
+            if images and "<img" not in content:
+                self.logger.warning("trafilatura stripped images, falling back to BeautifulSoup extraction")
+                content = self._fallback_extract(html)
 
             # 创建文章对象
             article = Article(
@@ -175,17 +184,19 @@ class WebFetcher(BaseFetcher):
         images = []
 
         for img in soup.find_all('img'):
-            src = img.get('src')
-            if src:
-                # 处理相对 URL
-                if src.startswith('//'):
-                    src = 'https:' + src
-                elif src.startswith('/'):
-                    # 需要从原始 URL 构建完整路径
-                    from urllib.parse import urlparse
-                    parsed = urlparse(self.source.src)
-                    src = f"{parsed.scheme}://{parsed.netloc}{src}"
+            # 优先检查懒加载属性 (Bug 3)
+            src = None
+            for attr in ['data-src', 'data-original', 'data-actualsrc', 'src']:
+                val = img.get(attr)
+                # 排除明显的占位图
+                if val and not val.endswith(('.gif', '.svg')) and not val.startswith('data:image'):
+                    src = val
+                    break
+            
+            if not src:
+                src = img.get('src')
 
+            if src:
                 images.append(src)
 
         return images

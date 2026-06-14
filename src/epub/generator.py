@@ -220,24 +220,79 @@ class EPUBGenerator:
             chapter: 章节对象
             article: 文章对象
         """
-        # 处理文章中的图片
-        for img_url in article.images:
-            result = self.image_processor.download_and_process(img_url, article.url)
+        if not chapter.content:
+            return
+
+        soup = BeautifulSoup(chapter.content, 'lxml')
+        img_tags = soup.find_all('img')
+
+        if not img_tags:
+            return
+
+        # 用于存储已处理的图片 URL，避免在同一章节中重复处理
+        url_to_filename = {}
+
+        for img in img_tags:
+            # 优先检查懒加载属性 (Bug 3)
+            src = None
+            for attr in ['data-src', 'data-original', 'data-actualsrc', 'src']:
+                val = img.get(attr)
+                if val and not val.endswith(('.gif', '.svg')): # 简单排除占位图
+                    src = val
+                    break
+            
+            if not src:
+                src = img.get('src')
+            
+            if not src:
+                continue
+
+            # 如果已经处理过这个 URL
+            if src in url_to_filename:
+                img['src'] = f"images/{url_to_filename[src]}"
+                # 移除懒加载属性，防止阅读器混淆
+                for attr in ['data-src', 'data-original', 'data-actualsrc']:
+                    if img.has_attr(attr):
+                        del img[attr]
+                continue
+
+            # 处理图片
+            # image_processor.download_and_process 会处理相对 URL
+            result = self.image_processor.download_and_process(src, article.url)
 
             if result:
                 filename, img_data = result
+                url_to_filename[src] = filename
 
-                # 添加图片到书籍
-                epub_image = epub.EpubItem(
-                    uid=f"image_{filename}",
-                    file_name=f"images/{filename}",
-                    media_type="image/jpeg",
-                    content=img_data
-                )
-                book.add_item(epub_image)
+                # 检查是否已经添加过这个 item（避免跨章节重复添加）
+                image_uid = f"image_{filename}"
+                is_already_added = False
+                for item in book.items:
+                    if item.id == image_uid:
+                        is_already_added = True
+                        break
 
-                # 在章节内容中替换图片 URL
-                chapter.content = chapter.content.replace(img_url, f"images/{filename}")
+                if not is_already_added:
+                    epub_image = epub.EpubItem(
+                        uid=image_uid,
+                        file_name=f"images/{filename}",
+                        media_type="image/jpeg",
+                        content=img_data
+                    )
+                    book.add_item(epub_image)
+
+                # 在章节内容中更新图片 URL
+                img['src'] = f"images/{filename}"
+                # 移除懒加载属性 (Bug 3)
+                for attr in ['data-src', 'data-original', 'data-actualsrc']:
+                    if img.has_attr(attr):
+                        del img[attr]
+            else:
+                self.logger.warning(f"Failed to process image: {src}")
+
+        # 将修改后的 HTML 写回 chapter.content (Bug 2)
+        # BeautifulSoup 会生成完整的 HTML 结构并正确处理转义字符
+        chapter.content = str(soup)
 
     def _add_error_log_chapter(self, book: epub.EpubBook, error_log: List[str]):
         """
