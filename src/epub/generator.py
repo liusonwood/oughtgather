@@ -182,9 +182,6 @@ class EPUBGenerator:
 </head>
 <body>
     <h1>{article.title}</h1>
-    <p class="back-to-toc">
-        <a href="nav.xhtml">返回目录</a>
-    </p>
 """
 
         # 添加元信息
@@ -298,28 +295,14 @@ body {
     margin: 1em;
 }
 h1 {
-    font-size: 1.8em;
-    font-weight: bold;
-    margin-bottom: 0.8em;
-    color: #000000;
-    padding-bottom: 0.3em;
-    border-bottom: 2px solid #666666;
-}
-h2 {
-    font-size: 1.4em;
+    font-size: 1.5em;
     font-weight: bold;
     margin-bottom: 0.5em;
-    color: #333333;
-}
-h3 {
-    font-size: 1.2em;
-    font-weight: bold;
-    margin-bottom: 0.5em;
-    color: #555555;
+    color: #333;
 }
 .author, .date {
     font-size: 0.9em;
-    color: #666666;
+    color: #666;
     margin: 0.2em 0;
 }
 .content {
@@ -333,7 +316,7 @@ h3 {
 .link {
     margin-top: 2em;
     font-size: 0.8em;
-    color: #999999;
+    color: #999;
 }
 a {
     color: #0066cc;
@@ -345,16 +328,6 @@ ul {
 }
 li {
     margin: 0.5em 0;
-}
-.back-to-toc {
-    text-align: center;
-    margin-top: 1em;
-    margin-bottom: 1em;
-    font-size: 0.9em;
-}
-.back-to-toc a {
-    color: #0066cc;
-    text-decoration: none;
 }
 """
         )
@@ -372,7 +345,7 @@ li {
         """
         # 生成文件名
         from src.utils.helpers import sanitize_filename
-        title = self.config.title.get_plain_text()
+        title = self.config.title.get_display_text()
         filename = sanitize_filename(title) + ".epub"
 
         # 确保输出目录存在
