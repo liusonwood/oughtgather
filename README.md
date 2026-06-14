@@ -1,6 +1,14 @@
 # Ought Gather
 
-自动化信息聚合工具，将邮件订阅、RSS、网页内容整合为 EPUB 电子书，并推送到 Kindle 设备。
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-green.svg)](https://www.python.org/downloads/)
+[![CI Status](https://github.com/liusonwood/oughtgather/workflows/Daily%20Gather/badge.svg)](https://github.com/liusonwood/oughtgather/actions)
+
+**每天早上 8 点，自动为你生成一份专属的电子书，推送至 Kindle —— 从此告别碎片化阅读，拥抱深度思考。**
+
+在信息爆炸的时代，我们每天被各种邮件订阅、RSS 推送、社交媒体热点所淹没。Ought Gather 为你提供了一个优雅的解决方案：它自动化聚合来自不同渠道的优质内容，生成格式精美的 EPUB 电子书，直接发送到你的 Kindle。无论是通勤路上、睡前时光，还是周末午后，你都可以在纸质般的阅读体验中，专注地消化这一天最有价值的信息。
+
+无需手动整理，无需切换应用，只需一次配置，每天都能收获一份为你量身定制的"数字晨报"。
 
 ## 功能特性
 
@@ -74,6 +82,29 @@
 
 - **自动运行**：每天 UTC 00:00（北京时间 08:00）自动执行
 - **手动运行**：在 GitHub Actions 页面手动触发 "Daily Gather" 工作流
+- **修改运行时间**：
+  1. 编辑 `.github/workflows/daily-gather.yml` 文件
+  2. 找到 `cron` 字段，修改调度时间
+  
+  **示例**（修改为北京时间 09:00 运行）：
+  ```yaml
+  schedule:
+    - cron: '0 1 * * *'  # UTC 01:00 = 北京时间 09:00
+  ```
+  
+  **时区说明**：
+  - GitHub Actions 的 cron 使用 **UTC 时区**
+  - 北京时间 = UTC + 8 小时
+  - 如需北京时间 09:00，对应 UTC 01:00（即 `0 1 * * *`）
+  
+  **常用时间对照表**：
+  | 北京时间 | UTC 时区 | cron 表达式 |
+  |---------|---------|------------|
+  | 08:00   | 00:00   | `0 0 * * *` |
+  | 09:00   | 01:00   | `0 1 * * *` |
+  | 10:00   | 02:00   | `0 2 * * *` |
+  | 12:00   | 04:00   | `0 4 * * *` |
+  | 20:00   | 12:00   | `0 12 * * *` |
 
 ## 配置
 
