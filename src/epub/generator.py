@@ -364,6 +364,9 @@ ul {
 li {
     margin: 0.5em 0;
 }
+nav {
+    font-family: initial;
+}
 nav ol {
     list-style-type: none;
 }
