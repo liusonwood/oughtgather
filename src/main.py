@@ -68,18 +68,20 @@ def process_results(results: List[FetchResult], tracker: DedupTracker) -> List[F
             processed_results.append(result)
             continue
 
-        # 过滤已抓取的文章
+        # 过滤已抓取的文章（web 类型不记录到去重文件）
         original_count = len(result.articles)
         new_articles = []
+        skip_dedup = result.source.type == "web"
         for article in result.articles:
-            if not tracker.is_fetched(article.url, article.title):
+            if skip_dedup or not tracker.is_fetched(article.url, article.title):
                 # 应用内容处理规则
                 processor = ContentProcessor(result.source)
                 article = processor.process(article)
                 new_articles.append(article)
 
-                # 标记为已抓取
-                tracker.mark_as_fetched(article.url, article.title)
+                # 标记为已抓取（web 类型跳过）
+                if not skip_dedup:
+                    tracker.mark_as_fetched(article.url, article.title)
             else:
                 logger.debug(f"Skipping already fetched: {article.title}")
 
