@@ -270,7 +270,7 @@
         type: 'rss',
         src: '',
         title: '',
-        priority: 10,
+        priority: '20',
         keep_link: 'Y',
         full_text: 'N',
         chop: '',
@@ -347,8 +347,8 @@
       const container = document.getElementById('sources-list');
       container.innerHTML = sources.map((s, i) => {
         const badgeClass = `badge-${s.type}`;
-        const typeOptions = ['rss', 'mail', 'web', 'trending']
-          .map(t => `<option value="${t}" ${s.type === t ? 'selected' : ''}>${t}</option>`).join('');
+        const typeOptions = ['', 'rss', 'mail', 'web', 'trending']
+          .map(t => `<option value="${t}" ${s.type === t ? 'selected' : ''}>${t || '-- 请选择 --'}</option>`).join('');
 
         return `
         <div class="source-card" data-id="${s._id}">
@@ -661,31 +661,8 @@
       renderSources();
     }
 
-    // ---- Init with sample data ----
-    addSource({
-      _id: sourceIdCounter++,
-      type: 'rss', src: 'https://hnrss.org/frontpage', title: 'Hacker News 热门',
-      priority: 15, keep_link: 'Y', full_text: 'N', chop: '/[0:1500]',
-      exclude: [{ type: 'start', value: 'Comments' }], delete: 'Show HN',
-      metadata_tag: '', metadata_tag_prefix: '', metadata_timestamp_from: '',
-      metadata_timestamp_to: '', metadata_limit: '', metadata_offset: '', goal: ''
-    });
-    addSource({
-      _id: sourceIdCounter++,
-      type: 'rss', src: 'https://sspai.com/feed', title: '少数派',
-      priority: 10, keep_link: 'Y', full_text: 'N', chop: '',
-      exclude: [{ type: 'exact', value: '广告' }], delete: '',
-      metadata_tag: '', metadata_tag_prefix: '', metadata_timestamp_from: '',
-      metadata_timestamp_to: '', metadata_limit: '', metadata_offset: '', goal: ''
-    });
-    addSource({
-      _id: sourceIdCounter++,
-      type: 'web', src: 'https://meirishici.com/poetry/dailies', title: '古诗文',
-      priority: 5, keep_link: 'N', full_text: 'N', chop: '',
-      exclude: [{ type: 'start', value: '分享到：' }], delete: '',
-      metadata_tag: '', metadata_tag_prefix: '', metadata_timestamp_from: '',
-      metadata_timestamp_to: '', metadata_limit: '', metadata_offset: '', goal: ''
-    });
+    // ---- Init ----
+    renderSources();
   </script>
 </body>
 </html>
