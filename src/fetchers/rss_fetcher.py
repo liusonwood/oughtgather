@@ -17,6 +17,8 @@ from src.utils.helpers import format_date
 class RSSFetcher(BaseFetcher):
     """RSS 抓取器"""
 
+    MAX_ENTRIES = 50  # 每个 RSS 源最多抓取的条目数，可通过 metadata.limit 覆盖
+
     def fetch(self) -> FetchResult:
         """
         执行 RSS 抓取
@@ -41,8 +43,16 @@ class RSSFetcher(BaseFetcher):
 
             self.logger.info(f"Found {len(feed.entries)} entries in RSS feed")
 
+            # 限制条目数量（默认最多 50 条，可通过 metadata.limit 覆盖）
+            metadata = self.source.metadata or {}
+            limit = min(int(metadata.get("limit", self.MAX_ENTRIES)), len(feed.entries))
+            entries = feed.entries[:limit]
+
+            if limit < len(feed.entries):
+                self.logger.info(f"Limiting RSS entries to {limit} (feed has {len(feed.entries)})")
+
             # 遍历所有条目
-            for entry in feed.entries:
+            for entry in entries:
                 try:
                     article = self._parse_entry(entry)
                     if article and not self._should_delete(article.title):

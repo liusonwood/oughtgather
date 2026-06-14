@@ -222,6 +222,91 @@ class TestRSSFetcher:
 
         assert result.articles[0].content == "<p>Desc</p>"
 
+    @patch("src.fetchers.rss_fetcher.feedparser.parse")
+    def test_rss_max_50_entries_limit(self, mock_parse):
+        """测试 RSS 默认最多 50 条限制"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+
+        # 生成 80 个条目（超过默认的 50 条限制）
+        entries = []
+        for i in range(80):
+            entries.append(_make_feedparser_dict({
+                "title": f"Entry {i}",
+                "content": [_make_feedparser_dict({"value": f"<p>Content {i}</p>"})],
+                "tags": [],
+            }))
+
+        mock_feed = MagicMock()
+        mock_feed.bozo = False
+        mock_feed.feed = {}
+        mock_feed.entries = entries
+        mock_parse.return_value = mock_feed
+
+        fetcher = RSSFetcher(source)
+        result = fetcher.fetch()
+
+        # 验证只返回 50 条
+        assert len(result.articles) == 50
+        # 验证返回的是前 50 条
+        assert result.articles[0].title == "Entry 0"
+        assert result.articles[49].title == "Entry 49"
+
+    @patch("src.fetchers.rss_fetcher.feedparser.parse")
+    def test_rss_metadata_limit_override(self, mock_parse):
+        """测试通过 metadata.limit 覆盖默认限制"""
+        source = ContentSource(
+            type="rss",
+            src="https://example.com/rss",
+            metadata={"limit": 20}
+        )
+
+        # 生成 80 个条目
+        entries = []
+        for i in range(80):
+            entries.append(_make_feedparser_dict({
+                "title": f"Entry {i}",
+                "content": [_make_feedparser_dict({"value": f"<p>Content {i}</p>"})],
+                "tags": [],
+            }))
+
+        mock_feed = MagicMock()
+        mock_feed.bozo = False
+        mock_feed.feed = {}
+        mock_feed.entries = entries
+        mock_parse.return_value = mock_feed
+
+        fetcher = RSSFetcher(source)
+        result = fetcher.fetch()
+
+        # 验证返回 20 条（metadata 中设置的限制）
+        assert len(result.articles) == 20
+
+    @patch("src.fetchers.rss_fetcher.feedparser.parse")
+    def test_rss_fewer_entries_than_limit(self, mock_parse):
+        """测试当条目数少于限制时返回全部"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+
+        # 生成 30 个条目（少于 50 条限制）
+        entries = []
+        for i in range(30):
+            entries.append(_make_feedparser_dict({
+                "title": f"Entry {i}",
+                "content": [_make_feedparser_dict({"value": f"<p>Content {i}</p>"})],
+                "tags": [],
+            }))
+
+        mock_feed = MagicMock()
+        mock_feed.bozo = False
+        mock_feed.feed = {}
+        mock_feed.entries = entries
+        mock_parse.return_value = mock_feed
+
+        fetcher = RSSFetcher(source)
+        result = fetcher.fetch()
+
+        # 验证返回全部 30 条
+        assert len(result.articles) == 30
+
 
 # =========================================================================
 # WebFetcher 测试
