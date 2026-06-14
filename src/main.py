@@ -73,13 +73,19 @@ def process_results(results: List[FetchResult], tracker: DedupTracker) -> List[F
         new_articles = []
         for article in result.articles:
             if not tracker.is_fetched(article.url, article.title, article.published_date):
-                # 应用内容处理规则
-                processor = ContentProcessor(result.source)
-                article = processor.process(article)
-                new_articles.append(article)
-
-                # 标记为已抓取
+                # 只要读取就标记为已处理，无论后续处理是否成功
                 tracker.mark_as_fetched(article.url, article.title, article.published_date)
+
+                # 应用内容处理规则，处理失败则保留原文
+                try:
+                    processor = ContentProcessor(result.source)
+                    article = processor.process(article)
+                except Exception as e:
+                    logger.error(
+                        f"Failed to process article '{article.title}': {e}, "
+                        f"keeping original content"
+                    )
+                new_articles.append(article)
             else:
                 logger.debug(f"Skipping already fetched: {article.title}")
 
