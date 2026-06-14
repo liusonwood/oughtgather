@@ -84,3 +84,37 @@ class TestTitleConfig:
         assert plain_text == f"AI Trends Daily Summary {today}"
         # 验证显示文本保留换行标签
         assert config.get_display_text() == f"AI Trends</br>Daily Summary {today}"
+
+    def test_get_title_without_date_simple(self):
+        """测试 get_title_without_date() 简单情况"""
+        config = TitleConfig(text="每日新闻 {time}")
+        result = config.get_title_without_date()
+        assert result == "每日新闻"
+
+    def test_get_title_without_date_nested(self):
+        """测试 get_title_without_date() 嵌套占位符"""
+        config = TitleConfig(text="{Daily News {time}}")
+        result = config.get_title_without_date()
+        assert result == "Daily News"
+
+    def test_get_title_without_date_removes_br_tags(self):
+        """测试 get_title_without_date() 移除 </br> 标签"""
+        config = TitleConfig(text="AI Trends</br>{Daily Summary {time}}")
+        result = config.get_title_without_date()
+        # 验证换行标签被空格替换
+        assert result == "AI Trends Daily Summary"
+        # 验证显示文本保留换行标签
+        today = datetime.now().strftime("%Y-%m-%d")
+        assert config.get_display_text() == f"AI Trends</br>Daily Summary {today}"
+
+    def test_get_title_without_date_no_placeholder(self):
+        """测试 get_title_without_date() 不含占位符"""
+        config = TitleConfig(text="固定书名")
+        result = config.get_title_without_date()
+        assert result == "固定书名"
+
+    def test_get_title_without_date_multiple_time(self):
+        """测试 get_title_without_date() 多个 {time} 占位符"""
+        config = TitleConfig(text="{time} - 每日新闻 - {time}")
+        result = config.get_title_without_date()
+        assert result == "- 每日新闻 -"

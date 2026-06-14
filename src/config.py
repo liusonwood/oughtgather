@@ -46,6 +46,28 @@ class TitleConfig:
         text = re.sub(r'\s+', ' ', text).strip()
         return text
 
+    def get_title_without_date(self) -> str:
+        """获取不带日期的标题文本，用于内容中的书标题显示"""
+        result = self.text
+
+        # 移除 {xxx {time}} 格式
+        import re
+        pattern = r'\{([^{}]+)\{time\}\}'
+        def _remove_date(m):
+            prefix = m.group(1).strip()
+            return prefix
+        result = re.sub(pattern, _remove_date, result)
+
+        # 移除独立的 {time}
+        result = result.replace('{time}', '').strip()
+
+        # 移除</br>标签，替换为空格
+        result = result.replace('</br>', ' ').replace('<br>', ' ')
+        # 压缩多个连续空格为单个空格
+        result = re.sub(r'\s+', ' ', result).strip()
+
+        return result
+
 
 @dataclass
 class ContentSource:

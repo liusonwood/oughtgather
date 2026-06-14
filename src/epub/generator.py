@@ -74,8 +74,9 @@ class EPUBGenerator:
         self._add_style(book)
 
         # 9. 添加导航文件
+        nav = self._create_nav(sections)
+        book.add_item(nav)
         book.add_item(epub.EpubNcx())
-        book.add_item(epub.EpubNav())
 
         # 10. 保存文件
         output_path = self._save_book(book)
@@ -126,6 +127,57 @@ class EPUBGenerator:
                 sections.append((result.source, result.articles, result.source_title))
 
         return sections
+
+    def _create_nav(
+        self,
+        sections: List[Tuple[ContentSource, List[Article], Optional[str]]]
+    ) -> epub.EpubNav:
+        """
+        创建导航页面（目录）
+        """
+        nav = epub.EpubNav()
+        nav.title = 'Table of Contents'
+        nav.lang = 'zh-CN'
+
+        # 使用不带日期的标题
+        book_title = self.config.title.get_title_without_date()
+
+        html = f"""<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN" lang="zh-CN">
+<head>
+    <title>目录</title>
+    <link rel="stylesheet" type="text/css" href="style/default.css"/>
+</head>
+<body>
+    <h1>{book_title}</h1>
+"""
+
+        chapter_id = 0
+        for source, articles, source_title in sections:
+            if not articles:
+                continue
+
+            # web/trending: 扁平结构
+            if source.type in ("web", "trending"):
+                link_title = self.toc_generator._get_source_title(source, articles, source_title)
+                html += f'<h2><a href="chapter_{chapter_id}.xhtml">{link_title}</a></h2>\n'
+                chapter_id += 1
+                continue
+
+            # mail/rss: 两级结构
+            section_title = self.toc_generator._get_source_title(source, articles, source_title)
+            html += f'<h2>{section_title}</h2>\n<ul>\n'
+            for article in articles:
+                html += f'    <li><a href="chapter_{chapter_id}.xhtml">{article.title}</a></li>\n'
+                chapter_id += 1
+            html += '</ul>\n'
+
+        html += """</body>
+</html>"""
+
+        nav.content = html
+        return nav
 
     def _add_chapters(
         self,
