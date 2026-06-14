@@ -182,6 +182,9 @@ class EPUBGenerator:
 </head>
 <body>
     <h1>{article.title}</h1>
+    <p class="back-to-toc">
+        <a href="nav.xhtml">返回目录</a>
+    </p>
 """
 
         # 添加元信息
@@ -328,6 +331,16 @@ ul {
 }
 li {
     margin: 0.5em 0;
+}
+.back-to-toc {
+    text-align: center;
+    margin-top: 1em;
+    margin-bottom: 1em;
+    font-size: 0.9em;
+}
+.back-to-toc a {
+    color: #0066cc;
+    text-decoration: none;
 }
 """
         )
