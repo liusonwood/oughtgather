@@ -11,6 +11,7 @@ from typing import Optional, Dict, Any
 from src.config import ContentSource, get_openrouter_config
 from src.fetchers.base import BaseFetcher, FetchResult, Article
 from src.utils.logger import get_logger
+from src.utils.helpers import generate_content_id
 
 
 class TrendingFetcher(BaseFetcher):
@@ -61,19 +62,24 @@ class TrendingFetcher(BaseFetcher):
                 result.error = "Failed to get analysis from LLM"
                 return result
 
-            # 创建文章对象
+            # 创建文章对象（带当日时间戳，用于去重哈希计算）
             title = self.source.title or f"热点分析: {self.source.src}"
+            today = datetime.now().strftime("%Y-%m-%d")
             article = Article(
                 title=title,
                 content=analysis,
                 url=self.source.src,
                 author="AI Analysis",
-                published_date=datetime.now().isoformat(),
+                published_date=today,
                 metadata={
                     "goal": self.source.goal,
                     "model": self.source.model or "default"
                 }
             )
+
+            # 记录带时间戳的去重哈希
+            content_id = generate_content_id(article.url, article.title, today)
+            self.logger.info(f"Trending dedup hash [{today}]: src={self.source.src}, hash={content_id}")
 
             result.articles.append(article)
             return result

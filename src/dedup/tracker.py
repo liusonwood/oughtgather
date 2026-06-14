@@ -47,34 +47,43 @@ class DedupTracker:
         except Exception as e:
             self.logger.error(f"Failed to load dedup file: {e}")
 
-    def is_fetched(self, url: str, title: str = None) -> bool:
+    def is_fetched(self, url: str, title: str = None, published_date: str = None) -> bool:
         """
         检查内容是否已抓取
 
         Args:
             url: 内容 URL
             title: 内容标题
+            published_date: 发布日期（用于 trending/web 等每日刷新场景）
 
         Returns:
             bool: 是否已抓取
         """
-        content_id = generate_content_id(url, title)
+        content_id = generate_content_id(url, title, published_date)
+        if published_date:
+            self.logger.debug(f"Dedup check [{published_date}]: url={url}, hash={content_id}")
         return content_id in self.fetched_ids
 
-    def mark_as_fetched(self, url: str, title: str = None):
+    def mark_as_fetched(self, url: str, title: str = None, published_date: str = None):
         """
         标记内容为已抓取
 
         Args:
             url: 内容 URL
             title: 内容标题
+            published_date: 发布日期（用于 trending/web 等每日刷新场景）
         """
-        content_id = generate_content_id(url, title)
+        content_id = generate_content_id(url, title, published_date)
 
         if content_id not in self.fetched_ids:
             self.fetched_ids.add(content_id)
             self.new_ids.add(content_id)
-            self.logger.debug(f"Marked as fetched: {content_id}")
+            if published_date:
+                self.logger.info(
+                    f"Marked as fetched [{published_date}]: url={url}, hash={content_id}"
+                )
+            else:
+                self.logger.debug(f"Marked as fetched: {content_id}")
 
     def save(self):
         """保存新的抓取记录"""

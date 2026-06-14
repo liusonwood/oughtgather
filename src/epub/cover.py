@@ -167,7 +167,7 @@ class CoverGenerator:
         lines = title_text.replace('</br>', '\n').split('\n')
 
         # 为每行文字计算合适的字体大小（自动适应）
-        max_line_width = max(self.WIDTH * 0.8, 1000)  # 最大行宽（封面宽度的80%）
+        max_line_width = max(self.WIDTH * 0.9, 1200)  # 最大行宽（封面宽度的90%）
         max_total_height = self.HEIGHT * 0.4  # 最大总高度（封面高度的40%）
 
         # 估算每行的字体大小
@@ -235,7 +235,7 @@ class CoverGenerator:
             int: 合适的字体大小
         """
         # 从大到小尝试字体大小
-        for font_size in range(150, 40, -5):
+        for font_size in range(300, 40, -5):
             font = self._load_font(font_size, bold=True)
             bbox = draw.textbbox((0, 0), text, font=font)
             width = bbox[2] - bbox[0]

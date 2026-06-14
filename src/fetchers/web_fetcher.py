@@ -3,6 +3,7 @@
 抓取单个网页并提取正文
 """
 
+from datetime import datetime
 from typing import List
 from bs4 import BeautifulSoup
 import trafilatura
@@ -10,6 +11,7 @@ import trafilatura
 from src.config import ContentSource
 from src.fetchers.base import BaseFetcher, FetchResult, Article
 from src.utils.logger import get_logger
+from src.utils.helpers import generate_content_id
 
 
 class WebFetcher(BaseFetcher):
@@ -53,13 +55,19 @@ class WebFetcher(BaseFetcher):
                         content = fallback_content
                         images = self._extract_images(content)
 
-            # 创建文章对象
+            # 创建文章对象（带当日时间戳，用于去重哈希计算）
+            today = datetime.now().strftime("%Y-%m-%d")
             article = Article(
                 title=title,
                 content=content,
                 url=self.source.src,
-                images=images
+                images=images,
+                published_date=today
             )
+
+            # 记录带时间戳的去重哈希
+            content_id = generate_content_id(article.url, article.title, today)
+            self.logger.info(f"Web dedup hash [{today}]: url={self.source.src}, hash={content_id}")
 
             # 检查是否应该删除
             if not self._should_delete(article.title):
