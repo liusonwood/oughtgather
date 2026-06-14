@@ -1,0 +1,221 @@
+"""
+辅助函数模块测试
+测试 src/utils/helpers.py 中的所有工具函数
+"""
+
+import pytest
+from src.utils.helpers import (
+    normalize_url,
+    generate_content_id,
+    extract_text_from_html,
+    truncate_text,
+    is_valid_url,
+    sanitize_filename,
+)
+
+
+# =========================================================================
+# normalize_url 测试
+# =========================================================================
+
+class TestNormalizeUrl:
+    """URL 标准化测试"""
+
+    def test_removes_trailing_slash(self):
+        assert normalize_url("https://example.com/") == "https://example.com"
+
+    def test_removes_multiple_trailing_slashes(self):
+        assert normalize_url("https://example.com///") == "https://example.com"
+
+    def test_removes_query_params(self):
+        assert normalize_url("https://example.com/page?utm=123") == "https://example.com/page"
+
+    def test_removes_fragment(self):
+        assert normalize_url("https://example.com/page#section") == "https://example.com/page"
+
+    def test_removes_both_query_and_fragment(self):
+        assert normalize_url("https://example.com/page?q=1#s") == "https://example.com/page"
+
+    def test_preserves_path(self):
+        assert normalize_url("https://example.com/a/b/c") == "https://example.com/a/b/c"
+
+    def test_empty_string(self):
+        assert normalize_url("") == ""
+
+    def test_no_trailing_slash_unchanged(self):
+        assert normalize_url("https://example.com/path") == "https://example.com/path"
+
+
+# =========================================================================
+# generate_content_id 测试
+# =========================================================================
+
+class TestGenerateContentId:
+    """内容 ID 生成测试"""
+
+    def test_same_input_same_id(self):
+        """相同输入生成相同 ID"""
+        id1 = generate_content_id("https://example.com", "标题")
+        id2 = generate_content_id("https://example.com", "标题")
+        assert id1 == id2
+
+    def test_different_url_different_id(self):
+        """不同 URL 生成不同 ID"""
+        id1 = generate_content_id("https://example.com/a", "标题")
+        id2 = generate_content_id("https://example.com/b", "标题")
+        assert id1 != id2
+
+    def test_different_title_different_id(self):
+        """不同标题生成不同 ID"""
+        id1 = generate_content_id("https://example.com", "标题A")
+        id2 = generate_content_id("https://example.com", "标题B")
+        assert id1 != id2
+
+    def test_no_title(self):
+        """不提供标题也能正常生成 ID"""
+        content_id = generate_content_id("https://example.com")
+        assert isinstance(content_id, str)
+        assert len(content_id) == 32  # MD5 hex 长度
+
+    def test_returns_md5_hex(self):
+        """返回值为 32 位十六进制字符串"""
+        content_id = generate_content_id("https://example.com", "测试")
+        assert len(content_id) == 32
+        # 验证是合法十六进制
+        int(content_id, 16)
+
+
+# =========================================================================
+# extract_text_from_html 测试
+# =========================================================================
+
+class TestExtractTextFromHtml:
+    """HTML 文本提取测试"""
+
+    def test_basic_html(self):
+        html = "<p>Hello <b>World</b></p>"
+        assert extract_text_from_html(html) == "Hello World"
+
+    def test_removes_script_tags(self):
+        html = "<p>Text</p><script>alert('hi')</script>"
+        assert extract_text_from_html(html) == "Text"
+
+    def test_removes_style_tags(self):
+        html = "<style>body{color:red}</style><p>Content</p>"
+        assert extract_text_from_html(html) == "Content"
+
+    def test_decodes_html_entities(self):
+        html = "<p>&amp; &lt; &gt; &quot; &#39;</p>"
+        result = extract_text_from_html(html)
+        assert "&" in result
+        assert "<" in result
+        assert ">" in result
+
+    def test_decodes_nbsp(self):
+        html = "<p>Hello&nbsp;World</p>"
+        assert extract_text_from_html(html) == "Hello World"
+
+    def test_collapses_whitespace(self):
+        html = "<p>Hello   \n\n  World</p>"
+        assert extract_text_from_html(html) == "Hello World"
+
+    def test_empty_html(self):
+        assert extract_text_from_html("") == ""
+
+    def test_none_html(self):
+        assert extract_text_from_html(None) == ""
+
+
+# =========================================================================
+# truncate_text 测试
+# =========================================================================
+
+class TestTruncateText:
+    """文本截断测试"""
+
+    def test_short_text_unchanged(self):
+        assert truncate_text("Hello", 10) == "Hello"
+
+    def test_exact_length_unchanged(self):
+        assert truncate_text("Hello", 5) == "Hello"
+
+    def test_long_text_truncated(self):
+        result = truncate_text("Hello World", 5)
+        assert result == "Hello..."
+
+    def test_default_max_length(self):
+        text = "a" * 300
+        result = truncate_text(text)
+        assert result == "a" * 200 + "..."
+
+    def test_empty_text(self):
+        assert truncate_text("") == ""
+
+    def test_none_text(self):
+        assert truncate_text(None) is None
+
+
+# =========================================================================
+# is_valid_url 测试
+# =========================================================================
+
+class TestIsValidUrl:
+    """URL 有效性验证测试"""
+
+    def test_valid_http(self):
+        assert is_valid_url("http://example.com") is True
+
+    def test_valid_https(self):
+        assert is_valid_url("https://example.com/path") is True
+
+    def test_invalid_no_scheme(self):
+        assert is_valid_url("example.com") is False
+
+    def test_invalid_no_netloc(self):
+        assert is_valid_url("http://") is False
+
+    def test_empty_string(self):
+        assert is_valid_url("") is False
+
+    def test_none(self):
+        assert is_valid_url(None) is False
+
+    def test_ftp_valid(self):
+        assert is_valid_url("ftp://files.example.com") is True
+
+
+# =========================================================================
+# sanitize_filename 测试
+# =========================================================================
+
+class TestSanitizeFilename:
+    """文件名清理测试"""
+
+    def test_removes_illegal_chars(self):
+        result = sanitize_filename('file<>:"/\\|?*.txt')
+        assert "<" not in result
+        assert ">" not in result
+        assert ":" not in result
+        assert "*" not in result
+        assert "?" not in result
+
+    def test_preserves_valid_chars(self):
+        result = sanitize_filename("hello-world_2024.txt")
+        assert result == "hello-world_2024.txt"
+
+    def test_truncates_long_name(self):
+        long_name = "a" * 300
+        result = sanitize_filename(long_name)
+        assert len(result) == 200
+
+    def test_strips_whitespace(self):
+        result = sanitize_filename("  hello.txt  ")
+        assert result == "hello.txt"
+
+    def test_chinese_filename(self):
+        result = sanitize_filename("每日新闻_2024-01-01.epub")
+        assert result == "每日新闻_2024-01-01.epub"
+
+    def test_empty_string(self):
+        result = sanitize_filename("")
+        assert result == ""

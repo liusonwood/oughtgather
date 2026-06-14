@@ -58,7 +58,8 @@ class ContentProcessor:
     def _apply_chop(self, html: str) -> str:
         """
         应用 chop 规则
-        支持 Python 切片语法，如 "/[0:100]" 表示删除前 100 个字符
+        支持 Python 切片语法，如 "/[0:100]" 表示只保留前 100 个字符
+        支持负数索引，如 "/[:-200]" 表示删除最后 200 个字符
 
         Args:
             html: HTML 内容
@@ -70,8 +71,8 @@ class ContentProcessor:
             return html
 
         try:
-            # 解析切片语法
-            chop_pattern = r'/\[(\d*):(\d*)\]'
+            # 解析切片语法（支持负数索引，如 /[:-200]、/[-50:]）
+            chop_pattern = r'/\[(-?\d*):(-?\d*)\]'
             match = re.match(chop_pattern, self.source.chop)
 
             if match:
