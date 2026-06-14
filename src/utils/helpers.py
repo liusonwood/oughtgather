@@ -5,7 +5,7 @@
 
 import re
 import hashlib
-from typing import List, Optional
+from typing import Optional
 from urllib.parse import urlparse
 
 
@@ -175,105 +175,3 @@ def format_date(date_str: str) -> str:
     except (ImportError, ValueError, TypeError, OverflowError):
         # 最后手段：返回原始字符串
         return date_str
-
-
-def extract_image_urls(html: str, base_url: Optional[str] = None) -> List[str]:
-    """
-    从 HTML 中提取图片 URL。
-
-    特性：
-    - 支持懒加载属性（data-src、data-original 等），优先于 src
-    - 跳过 data URI 占位符（data:image/...）
-    - 将相对 URL 解析为绝对 URL（需要 base_url）
-    - 自动去重，保持文档顺序
-
-    Args:
-        html: HTML 内容
-        base_url: 基础 URL，用于解析相对路径
-
-    Returns:
-        List[str]: 图片绝对 URL 列表
-    """
-    if not html:
-        return []
-
-    from bs4 import BeautifulSoup
-
-    soup = BeautifulSoup(html, 'lxml')
-    images: List[str] = []
-    seen: set = set()
-
-    for img in soup.find_all('img'):
-        src = _resolve_img_src(img)
-        if not src:
-            continue
-
-        # 将相对 URL 解析为绝对 URL
-        src = _resolve_relative_url(src, base_url)
-
-        if src and src not in seen:
-            seen.add(src)
-            images.append(src)
-
-    return images
-
-
-def _resolve_img_src(img_tag) -> Optional[str]:
-    """
-    从 <img> 标签中解析出真实图片 URL。
-
-    优先使用 data-src / data-original / data-lazy-src 等懒加载属性，
-    回退到 src 属性。跳过 data URI 占位符。
-
-    Args:
-        img_tag: BeautifulSoup 的 <img> 标签
-
-    Returns:
-        Optional[str]: 图片 URL，无法解析时返回 None
-    """
-    # 按优先级检查懒加载属性
-    for attr in ('data-src', 'data-original', 'data-lazy', 'data-lazy-src',
-                 'data-original-src'):
-        value = img_tag.get(attr)
-        if value and not value.startswith('data:'):
-            return value.strip()
-
-    # 检查 data-srcset（可能包含多张图片，取第一张）
-    srcset = img_tag.get('data-srcset')
-    if srcset and not srcset.startswith('data:'):
-        first_entry = srcset.split(',')[0].strip().split()[0]
-        if first_entry:
-            return first_entry
-
-    src = img_tag.get('src')
-    if src and not src.startswith('data:'):
-        return src
-
-    return None
-
-
-def _resolve_relative_url(url: str, base_url: Optional[str] = None) -> str:
-    """
-    将 URL 解析为绝对 URL。
-
-    Args:
-        url: 原始 URL（可能是相对路径、协议相对路径或绝对 URL）
-        base_url: 基础 URL
-
-    Returns:
-        str: 绝对 URL
-    """
-    if url.startswith(('http://', 'https://')):
-        return url
-
-    if url.startswith('//'):
-        return 'https:' + url
-
-    if url.startswith('/') and base_url:
-        parsed = urlparse(base_url)
-        return f"{parsed.scheme}://{parsed.netloc}{url}"
-
-    if base_url:
-        return f"{base_url.rstrip('/')}/{url.lstrip('/')}"
-
-    return url
