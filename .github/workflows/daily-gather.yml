@@ -60,6 +60,7 @@ jobs:
           TESTMAIL_APP_API_KEY: ${{ secrets.TESTMAIL_APP_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_API_ENDPOINT: ${{ secrets.OPENROUTER_API_ENDPOINT }}
+          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL }}
         run: |
           python src/main.py
 

@@ -99,8 +99,12 @@ class TrendingFetcher(BaseFetcher):
             "Content-Type": "application/json"
         }
 
-        # 确定使用的模型
-        model = self.source.model or "openai/gpt-3.5-turbo"
+        # 确定使用的模型：source.model > OPENROUTER_MODEL secret > 默认值
+        model = (
+            self.source.model
+            or (self.config.get("model") if self.config else None)
+            or "google/gemma-4-31b-it:free"
+        )
 
         payload = {
             "model": model,

@@ -134,6 +134,7 @@ class EPUBGenerator:
     ):
         """添加章节"""
         chapter_id = 0
+        spine = ['nav']  # 初始化 spine，导航项必须在最前
 
         for source, articles, _source_title in sections:
             for article in articles:
@@ -152,7 +153,11 @@ class EPUBGenerator:
                 self._add_images_to_chapter(book, chapter, article)
 
                 book.add_item(chapter)
+                spine.append(chapter)  # 添加到 spine（阅读顺序）
                 chapter_id += 1
+
+        # 设置书籍的阅读顺序
+        book.spine = spine
 
         self.logger.info(f"Added {chapter_id} chapters to EPUB")
 
@@ -268,6 +273,10 @@ class EPUBGenerator:
 
         # 添加到目录
         book.toc.append(epub.Link("error_log.xhtml", "错误日志", "error_log"))
+
+        # 添加到 spine（阅读顺序）
+        if isinstance(book.spine, list):
+            book.spine.append(chapter)
 
         self.logger.info("Error log chapter added to EPUB")
 

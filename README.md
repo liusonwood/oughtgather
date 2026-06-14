@@ -21,6 +21,8 @@
 
 在仓库的 **Settings → Secrets and variables → Actions** 中添加以下 Secrets：
 
+注意：仓库 Settings → Actions → General 里 "Workflow permissions" 需要改成 "Read and write permissions"
+
 #### 必需配置（邮件发送）
 
 | Secret 名称 | 说明 | 示例 |
@@ -41,6 +43,7 @@
 | `TESTMAIL_APP_API_KEY` | TestMail.app API Key（邮件订阅抓取） |
 | `OPENROUTER_API_KEY` | OpenRouter API Key（AI 热点分析） |
 | `OPENROUTER_API_ENDPOINT` | 自定义 LLM API 端点 |
+| `OPENROUTER_MODEL` | 全局默认模型 ID。优先级低于 config.json 中每个源的 `model` 字段。示例：`anthropic/claude-3.5-sonnet`、`openai/gpt-4o` |
 
 ### 3. 配置数据源
 
