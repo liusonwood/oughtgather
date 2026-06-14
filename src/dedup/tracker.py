@@ -12,7 +12,7 @@ from src.utils.helpers import generate_content_id
 class DedupTracker:
     """去重追踪器"""
 
-    MAX_RECORDS = 5000  # 记录数上限，超过后自动清理旧记录
+    MAX_RECORDS = 50000  # 记录数上限，超过后自动清理旧记录
 
     def __init__(self, data_file: str = "data/fetched_urls.txt"):
         """
