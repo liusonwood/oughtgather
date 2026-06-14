@@ -42,10 +42,10 @@ python -m pytest tests/ --tb=short
 
 **测试覆盖**：配置加载、内容处理（exclude/chop/keep_link/delete）、去重追踪（含自动清理）、数据抓取（RSS/Web/Mail/Trending）、图片处理、工具函数。
 
-详细测试指南见 [TESTING.md](TESTING.md)。
+详细测试指南见 [TESTING.md](docs/TESTING.md)。
 
 ### Configuration Editor
-A visual HTML editor for `config.json` is available — open `config-editor.html` in a browser.
+A visual HTML editor for `config.json` is available — open [config-editor.html](config-editor.html) in a browser.
 - Supports all 4 source types (rss / mail / web / trending) with type-specific fields
 - Import existing config.json, add/remove/reorder sources, manage exclude rules and metadata
 - Export via download or copy to clipboard
@@ -131,7 +131,7 @@ config.json → Fetchers → Processors → Dedup → EPUB Generator → SMTP Se
 - **Logging**: Uses singleton logger (`src/utils/logger.py`). Logs to `logs/` directory.
 - **Data Directory**: `data/fetched_urls.txt` for dedup. Gitignored except in GitHub Actions.
 - **Output**: EPUB files written to `output/` directory.
-- **Test Suite**: 171 tests in `tests/` directory. All tests use mocks to avoid network requests. See [TESTING.md](TESTING.md) for details.
+- **Test Suite**: 171 tests in `tests/` directory. All tests use mocks to avoid network requests. See [TESTING.md](docs/TESTING.md) for details.
 
 ## File Structure
 
@@ -171,3 +171,10 @@ tests/
 ├── test_fetchers.py         # 26 tests - RSS/Web/Mail/Trending fetchers (mocked HTTP)
 └── test_image_processor.py  # 25 tests - image download, resize, compress
 ```
+
+## Documentation Maintenance
+
+**Important**: When moving or renaming or editing files :
+1. Update [README.md](README.md)
+2. Update this [CLAUDE.md](CLAUDE.md) file
+3. Keep documentation organized under the `docs/` directory

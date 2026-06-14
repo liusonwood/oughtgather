@@ -68,7 +68,7 @@
 }
 ```
 
-详细配置说明见 [配置指南](CONFIG.md)。
+详细配置说明见 [配置指南](docs/CONFIG.md)。
 
 ### 4. 运行
 
@@ -77,7 +77,7 @@
 
 ## 配置
 
-详见 [配置指南](CONFIG.md)，涵盖：
+详见 [配置指南](docs/CONFIG.md)，涵盖：
 
 - 标题与封面配置（`title`）
 - 四种数据源类型（`rss` / `web` / `mail` / `trending`）的专属字段
@@ -129,7 +129,7 @@ python -m pytest tests/test_config.py::TestTitleConfig -v
 
 **共 171 个测试。**
 
-详细测试指南见 [TESTING.md](TESTING.md)。
+详细测试指南见 [TESTING.md](docs/TESTING.md)。
 
 ### 项目结构
 
@@ -167,9 +167,9 @@ ought-gather/
 │   ├── test_fetchers.py       # 抓取器测试
 │   └── test_image_processor.py # 图片处理测试
 ├── config.template.json        # 配置模板
-├── CONFIG.md                   # 配置指南（config.json 详细说明）
-├── requirements.txt            # Python 依赖
-├── TESTING.md                  # 测试指南
+├── docs/
+│   ├── CONFIG.md               # 配置指南（config.json 详细说明）
+│   └── TESTING.md              # 测试指南
 └── .github/workflows/          # GitHub Actions
     └── daily-gather.yml
 ```
