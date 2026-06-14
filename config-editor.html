@@ -215,7 +215,7 @@
       <h2>📌 标题设置</h2>
       <div class="form-row">
         <label>标题文字</label>
-        <input type="text" id="title-text" placeholder="例如: {每日新闻 {time}}">
+        <input type="text" id="title-text" placeholder="例如: {每日新闻</br>{time}}">
         <span class="hint">支持 {time} 占位符</span>
       </div>
       <div class="form-row">
@@ -260,7 +260,7 @@
     }
 
     // ---- Title ----
-    document.getElementById('title-text').value = '{每日新闻 {time}}';
+    document.getElementById('title-text').value = '{每日新闻</br>{time}}';
     document.getElementById('title-img').value = '';
 
     // ---- Source Management ----
