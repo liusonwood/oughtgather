@@ -347,7 +347,7 @@ li {
         """
         # 生成文件名
         from src.utils.helpers import sanitize_filename
-        title = self.config.title.get_display_text()
+        title = self.config.title.get_plain_text()
         filename = sanitize_filename(title) + ".epub"
 
         # 确保输出目录存在
