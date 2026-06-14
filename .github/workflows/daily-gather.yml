@@ -9,6 +9,8 @@ on:
 jobs:
   gather:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 允许 push 去重文件
 
     steps:
       - name: Checkout repository
@@ -65,7 +67,8 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add data/fetched_urls.txt || true
+          mkdir -p data
+          git add -f data/fetched_urls.txt
           git diff --staged --quiet || git commit -m "Update dedup records [skip ci]"
           git push || echo "No changes to push"
 
