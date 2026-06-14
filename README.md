@@ -286,6 +286,15 @@
 3. 每日精选邮件（priority: 8）
 4. 深度报道（priority: 5）
 
+## 配置工具
+
+项目提供了一个可视化 HTML 配置编辑器，浏览器打开 `config-editor.html` 即可使用：
+
+- 支持全部 4 种数据源类型（rss / mail / web / trending），自动切换专属字段
+- 导入已有 config.json，添加 / 删除 / 排序内容源，管理排除规则和邮件参数
+- 通过下载或复制到剪贴板导出配置
+- 所有操作均有 toast 提示反馈
+
 ## 本地开发
 
 ### 安装依赖
@@ -337,6 +346,7 @@ python -m pytest tests/test_config.py::TestTitleConfig -v
 
 ```
 ought-gather/
+├── config-editor.html        # 可视化配置编辑器（浏览器打开）
 ├── src/
 │   ├── main.py                 # 主入口
 │   ├── config.py               # 配置管理

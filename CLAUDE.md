@@ -44,6 +44,12 @@ python -m pytest tests/ --tb=short
 
 详细测试指南见 [TESTING.md](TESTING.md)。
 
+### Configuration Editor
+A visual HTML editor for `config.json` is available — open `config-editor.html` in a browser.
+- Supports all 4 source types (rss / mail / web / trending) with type-specific fields
+- Import existing config.json, add/remove/reorder sources, manage exclude rules and metadata
+- Export via download or copy to clipboard
+
 ### GitHub Actions
 - Automated daily run: UTC 00:00 (Beijing 08:00)
 - Manual trigger: via GitHub Actions UI "Daily Gather" workflow
@@ -129,6 +135,7 @@ config.json → Fetchers → Processors → Dedup → EPUB Generator → SMTP Se
 ## File Structure
 
 ```
+config-editor.html        # Visual config.json editor (open in browser)
 src/
 ├── main.py                 # Entry point, orchestrates the pipeline
 ├── config.py               # Configuration loading and validation

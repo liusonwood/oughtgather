@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ought Gather 配置工具</title>
+  <style>
+    :root {
+      --bg: #f5f5f5;
+      --card: #ffffff;
+      --border: #ddd;
+      --primary: #4a90d9;
+      --primary-hover: #357abd;
+      --danger: #d9534f;
+      --danger-hover: #c9302c;
+      --text: #333;
+      --text-muted: #888;
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 20px;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { text-align: center; margin-bottom: 24px; font-size: 1.6em; }
+    h2 { font-size: 1.1em; margin-bottom: 12px; color: var(--primary); }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+    .form-row label {
+      min-width: 90px;
+      font-size: 0.9em;
+      font-weight: 500;
+      color: #555;
+    }
+    .form-row input, .form-row select, .form-row textarea {
+      flex: 1;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+    .form-row textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+    .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(74,144,217,0.15);
+    }
+
+    .source-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 12px;
+      background: #fafafa;
+      position: relative;
+    }
+    .source-card .source-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .source-card .source-header span {
+      font-weight: 600;
+      font-size: 0.95em;
+    }
+    .source-card .source-type-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.75em;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #fff;
+      margin-left: 8px;
+    }
+    .badge-rss { background: #5cb85c; }
+    .badge-mail { background: #f0ad4e; }
+    .badge-web { background: #5bc0de; }
+    .badge-trending { background: #9b59b6; }
+
+    .btn {
+      padding: 6px 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85em;
+      font-weight: 500;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: var(--danger-hover); }
+    .btn-sm { padding: 4px 10px; font-size: 0.8em; }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: #555;
+    }
+    .btn-outline:hover { background: #eee; }
+
+    .exclude-list { margin-top: 6px; }
+    .exclude-item {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .exclude-item select { width: 100px; flex: none; }
+    .exclude-item input { flex: 1; }
+
+    .actions-bar {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin: 20px 0;
+      flex-wrap: wrap;
+    }
+
+    .preview-area {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border-radius: var(--radius);
+      padding: 16px;
+      font-family: "Menlo", "Consolas", monospace;
+      font-size: 0.82em;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 500px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .hint {
+      font-size: 0.78em;
+      color: var(--text-muted);
+      margin-left: 4px;
+    }
+
+    .conditional { display: none; }
+    .conditional.visible { display: block; }
+
+    .collapse-toggle {
+      cursor: pointer;
+      user-select: none;
+      color: var(--primary);
+      font-size: 0.85em;
+      margin-bottom: 8px;
+      display: inline-block;
+    }
+    .collapse-toggle:hover { text-decoration: underline; }
+    .collapsible { display: none; }
+    .collapsible.open { display: block; }
+
+    /* Toast notifications */
+    #toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 0.88em;
+      font-weight: 500;
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      pointer-events: auto;
+      animation: toast-in 0.3s ease, toast-out 0.3s ease forwards;
+      animation-delay: 0s, 2.2s;
+      max-width: 320px;
+    }
+    .toast-success { background: #4caf50; }
+    .toast-error { background: #e74c3c; }
+    .toast-info { background: #4a90d9; }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateX(40px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes toast-out {
+      from { opacity: 1; transform: translateX(0); }
+      to { opacity: 0; transform: translateX(40px); }
+    }
+  </style>
+</head>
+<body>
+  <div id="toast-container"></div>
+  <div class="container">
+    <h1>📰 Ought Gather 配置工具</h1>
+
+    <!-- Title Section -->
+    <div class="card">
+      <h2>📌 标题设置</h2>
+      <div class="form-row">
+        <label>标题文字</label>
+        <input type="text" id="title-text" placeholder="例如: {每日新闻 {time}}">
+        <span class="hint">支持 {time} 占位符</span>
+      </div>
+      <div class="form-row">
+        <label>封面图片</label>
+        <input type="text" id="title-img" placeholder="留空使用 Bing 每日壁纸">
+        <span class="hint">图片 URL 或留空</span>
+      </div>
+    </div>
+
+    <!-- Sources Section -->
+    <div class="card">
+      <h2>📋 内容源</h2>
+      <div id="sources-list"></div>
+      <button class="btn btn-primary" onclick="addSource()">+ 添加内容源</button>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-bar">
+      <button class="btn btn-primary" onclick="generateJSON()">生成 JSON</button>
+      <button class="btn btn-outline" onclick="togglePreview()">预览 / 隐藏</button>
+      <button class="btn btn-outline" onclick="downloadJSON()">下载 config.json</button>
+      <button class="btn btn-outline" onclick="copyJSON()">复制到剪贴板</button>
+      <button class="btn btn-outline" onclick="importJSON()">从 JSON 导入</button>
+    </div>
+
+    <pre class="preview-area" id="preview"></pre>
+  </div>
+
+  <script>
+    // ---- State ----
+    let sources = [];
+    let sourceIdCounter = 0;
+
+    // ---- Toast Notification ----
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 2500);
+    }
+
+    // ---- Title ----
+    document.getElementById('title-text').value = '{每日新闻 {time}}';
+    document.getElementById('title-img').value = '';
+
+    // ---- Source Management ----
+    function createEmptySource() {
+      return {
+        _id: sourceIdCounter++,
+        type: 'rss',
+        src: '',
+        title: '',
+        priority: 10,
+        keep_link: 'Y',
+        full_text: 'N',
+        chop: '',
+        exclude: [],
+        delete: '',
+        metadata_tag: '',
+        metadata_tag_prefix: '',
+        metadata_timestamp_from: '',
+        metadata_timestamp_to: '',
+        metadata_limit: '',
+        metadata_offset: '',
+        goal: ''
+      };
+    }
+
+    function addSource(data) {
+      const s = data || createEmptySource();
+      if (!data) {
+        s._id = sourceIdCounter++;
+      }
+      sources.push(s);
+      renderSources();
+      showToast(`已添加内容源「${s.title || s.type}」`, 'success');
+    }
+
+    function removeSource(id) {
+      const s = getSource(id);
+      const name = s ? (s.title || s.type) : '';
+      sources = sources.filter(s => s._id !== id);
+      renderSources();
+      showToast(`已删除内容源「${name}」`, 'info');
+    }
+
+    function moveSource(id, dir) {
+      const idx = sources.findIndex(s => s._id === id);
+      const newIdx = idx + dir;
+      if (newIdx < 0 || newIdx >= sources.length) return;
+      [sources[idx], sources[newIdx]] = [sources[newIdx], sources[idx]];
+      renderSources();
+      showToast(dir < 0 ? '已上移' : '已下移', 'info');
+    }
+
+    function getSource(id) {
+      return sources.find(s => s._id === id);
+    }
+
+    function updateField(id, field, value) {
+      const s = getSource(id);
+      if (s) s[field] = value;
+    }
+
+    // ---- Exclude rules ----
+    function addExclude(sourceId) {
+      const s = getSource(sourceId);
+      if (s) s.exclude.push({ type: 'start', value: '' });
+      renderSources();
+      showToast('已添加排除规则', 'success');
+    }
+
+    function removeExclude(sourceId, idx) {
+      const s = getSource(sourceId);
+      if (s) s.exclude.splice(idx, 1);
+      renderSources();
+      showToast('已删除排除规则', 'info');
+    }
+
+    function updateExclude(sourceId, idx, field, value) {
+      const s = getSource(sourceId);
+      if (s && s.exclude[idx]) s.exclude[idx][field] = value;
+    }
+
+    // ---- Render ----
+    function renderSources() {
+      const container = document.getElementById('sources-list');
+      container.innerHTML = sources.map((s, i) => {
+        const badgeClass = `badge-${s.type}`;
+        const typeOptions = ['rss', 'mail', 'web', 'trending']
+          .map(t => `<option value="${t}" ${s.type === t ? 'selected' : ''}>${t}</option>`).join('');
+
+        return `
+        <div class="source-card" data-id="${s._id}">
+          <div class="source-header">
+            <span>
+              内容源 #${i + 1}
+              <span class="source-type-badge ${badgeClass}">${s.type}</span>
+            </span>
+            <div>
+              <button class="btn btn-outline btn-sm" onclick="moveSource(${s._id}, -1)" ${i === 0 ? 'disabled' : ''}>↑</button>
+              <button class="btn btn-outline btn-sm" onclick="moveSource(${s._id}, 1)" ${i === sources.length - 1 ? 'disabled' : ''}>↓</button>
+              <button class="btn btn-danger btn-sm" onclick="removeSource(${s._id})">删除</button>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label>类型</label>
+            <select onchange="updateField(${s._id}, 'type', this.value); renderSources();">
+              ${typeOptions}
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label>来源 (src)</label>
+            <input type="text" value="${escapeHtml(s.src)}" oninput="updateField(${s._id}, 'src', this.value)"
+              placeholder="${getSrcPlaceholder(s.type)}">
+          </div>
+
+          <div class="form-row">
+            <label>标题</label>
+            <input type="text" value="${escapeHtml(s.title)}" oninput="updateField(${s._id}, 'title', this.value)"
+              placeholder="显示名称">
+          </div>
+
+          <div class="form-row">
+            <label>优先级</label>
+            <input type="number" value="${s.priority}" oninput="updateField(${s._id}, 'priority', parseInt(this.value)||0)"
+              style="max-width: 100px;">
+            <span class="hint">越大越靠前</span>
+          </div>
+
+          <div class="form-row">
+            <label>保留链接</label>
+            <select onchange="updateField(${s._id}, 'keep_link', this.value)" style="max-width: 100px;">
+              <option value="Y" ${s.keep_link === 'Y' ? 'selected' : ''}>Y</option>
+              <option value="N" ${s.keep_link === 'N' ? 'selected' : ''}>N</option>
+            </select>
+          </div>
+
+          <div class="form-row conditional ${s.type === 'rss' ? 'visible' : ''}" data-show-type="rss">
+            <label>全文提取</label>
+            <select onchange="updateField(${s._id}, 'full_text', this.value)" style="max-width: 100px;">
+              <option value="N" ${s.full_text === 'N' ? 'selected' : ''}>N</option>
+              <option value="Y" ${s.full_text === 'Y' ? 'selected' : ''}>Y</option>
+            </select>
+            <span class="hint">仅 RSS 有效</span>
+          </div>
+
+          <div class="form-row">
+            <label>裁剪 (chop)</label>
+            <input type="text" value="${escapeHtml(s.chop)}" oninput="updateField(${s._id}, 'chop', this.value)"
+              placeholder="例如: /[0:1500]">
+            <span class="hint">格式: /[start:end]</span>
+          </div>
+
+          <div class="form-row">
+            <label>删除关键词</label>
+            <input type="text" value="${escapeHtml(s.delete)}" oninput="updateField(${s._id}, 'delete', this.value)"
+              placeholder="逗号分隔, 例如: 广告,推广">
+          </div>
+
+          <!-- Exclude rules -->
+          <div>
+            <span class="collapse-toggle" onclick="toggleCollapse(this)">▶ 排除规则 (exclude)${s.exclude.length > 0 ? ` [${s.exclude.length}]` : ''}</span>
+            <div class="collapsible">
+              <div class="exclude-list">
+                ${s.exclude.map((ex, idx) => `
+                  <div class="exclude-item">
+                    <select onchange="updateExclude(${s._id}, ${idx}, 'type', this.value)">
+                      <option value="start" ${ex.type === 'start' ? 'selected' : ''}>start</option>
+                      <option value="end" ${ex.type === 'end' ? 'selected' : ''}>end</option>
+                      <option value="exact" ${ex.type === 'exact' ? 'selected' : ''}>exact</option>
+                    </select>
+                    <input type="text" value="${escapeHtml(ex.value)}" oninput="updateExclude(${s._id}, ${idx}, 'value', this.value)"
+                      placeholder="关键词或文本">
+                    <button class="btn btn-danger btn-sm" onclick="removeExclude(${s._id}, ${idx})">×</button>
+                  </div>
+                `).join('')}
+              </div>
+              <button class="btn btn-outline btn-sm" onclick="addExclude(${s._id})">+ 添加排除规则</button>
+            </div>
+          </div>
+
+          <!-- Mail metadata (conditional) -->
+          <div class="conditional ${s.type === 'mail' ? 'visible' : ''}" data-show-type="mail" style="margin-top: 10px;">
+            <span class="collapse-toggle" onclick="toggleCollapse(this)">▶ 邮件参数 (metadata)</span>
+            <div class="collapsible">
+              <div class="form-row">
+                <label>tag</label>
+                <input type="text" value="${escapeHtml(s.metadata_tag)}" oninput="updateField(${s._id}, 'metadata_tag', this.value)">
+              </div>
+              <div class="form-row">
+                <label>tag_prefix</label>
+                <input type="text" value="${escapeHtml(s.metadata_tag_prefix)}" oninput="updateField(${s._id}, 'metadata_tag_prefix', this.value)">
+              </div>
+              <div class="form-row">
+                <label>timestamp_from</label>
+                <input type="number" value="${s.metadata_timestamp_from}" oninput="updateField(${s._id}, 'metadata_timestamp_from', this.value)" placeholder="毫秒时间戳">
+              </div>
+              <div class="form-row">
+                <label>timestamp_to</label>
+                <input type="number" value="${s.metadata_timestamp_to}" oninput="updateField(${s._id}, 'metadata_timestamp_to', this.value)" placeholder="毫秒时间戳">
+              </div>
+              <div class="form-row">
+                <label>limit</label>
+                <input type="number" value="${s.metadata_limit}" oninput="updateField(${s._id}, 'metadata_limit', parseInt(this.value)||'')" style="max-width: 120px;">
+              </div>
+              <div class="form-row">
+                <label>offset</label>
+                <input type="number" value="${s.metadata_offset}" oninput="updateField(${s._id}, 'metadata_offset', parseInt(this.value)||'')" style="max-width: 120px;">
+              </div>
+            </div>
+          </div>
+
+          <!-- Trending goal (conditional) -->
+          <div class="conditional ${s.type === 'trending' ? 'visible' : ''}" data-show-type="trending" style="margin-top: 10px;">
+            <div class="form-row">
+              <label>目标 (goal)</label>
+              <textarea oninput="updateField(${s._id}, 'goal', this.value)"
+                placeholder="LLM 分析目标，例如: 分析最新的 AI 技术突破...">${escapeHtml(s.goal)}</textarea>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function getSrcPlaceholder(type) {
+      switch (type) {
+        case 'rss': return 'RSS/Atom URL, 例如: https://hnrss.org/frontpage';
+        case 'mail': return 'testmail.app namespace';
+        case 'web': return '网页 URL';
+        case 'trending': return '关键词, 例如: 人工智能最新发展趋势';
+        default: return '';
+      }
+    }
+
+    // ---- UI helpers ----
+    function toggleCollapse(el) {
+      const content = el.nextElementSibling;
+      content.classList.toggle('open');
+      el.textContent = content.classList.contains('open')
+        ? el.textContent.replace('▶', '▼')
+        : el.textContent.replace('▼', '▶');
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // ---- JSON Generation ----
+    function buildConfig() {
+      const config = {
+        title: {
+          text: document.getElementById('title-text').value,
+          img: document.getElementById('title-img').value
+        },
+        body: sources.map(s => {
+          const item = {
+            type: s.type,
+            src: s.src,
+            title: s.title,
+            priority: s.priority,
+            keep_link: s.keep_link
+          };
+
+          if (s.type === 'rss') {
+            item.full_text = s.full_text;
+          }
+
+          if (s.chop) item.chop = s.chop;
+
+          const validExclude = s.exclude.filter(e => e.value.trim() !== '');
+          if (validExclude.length > 0) {
+            item.exclude = validExclude.map(e => ({ type: e.type, value: e.value }));
+          }
+
+          if (s.delete && s.delete.trim()) item.delete = s.delete;
+
+          if (s.type === 'mail') {
+            const meta = {};
+            if (s.metadata_tag) meta.tag = s.metadata_tag;
+            if (s.metadata_tag_prefix) meta.tag_prefix = s.metadata_tag_prefix;
+            if (s.metadata_timestamp_from) meta.timestamp_from = parseInt(s.metadata_timestamp_from);
+            if (s.metadata_timestamp_to) meta.timestamp_to = parseInt(s.metadata_timestamp_to);
+            if (s.metadata_limit) meta.limit = parseInt(s.metadata_limit);
+            if (s.metadata_offset !== '' && s.metadata_offset !== undefined) meta.offset = parseInt(s.metadata_offset);
+            if (Object.keys(meta).length > 0) item.metadata = meta;
+          }
+
+          if (s.type === 'trending' && s.goal) {
+            item.goal = s.goal;
+          }
+
+          return item;
+        })
+      };
+      return config;
+    }
+
+    function generateJSON() {
+      const config = buildConfig();
+      const json = JSON.stringify(config, null, 2);
+      const preview = document.getElementById('preview');
+      preview.textContent = json;
+      preview.style.display = 'block';
+      showToast(`JSON 已生成，共 ${sources.length} 个内容源`, 'success');
+    }
+
+    function togglePreview() {
+      const preview = document.getElementById('preview');
+      if (preview.style.display === 'block') {
+        preview.style.display = 'none';
+        showToast('预览已隐藏', 'info');
+      } else {
+        generateJSON();
+      }
+    }
+
+    function downloadJSON() {
+      const config = buildConfig();
+      const json = JSON.stringify(config, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'config.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('config.json 已下载', 'success');
+    }
+
+    function copyJSON() {
+      const config = buildConfig();
+      const json = JSON.stringify(config, null, 2);
+      navigator.clipboard.writeText(json).then(() => {
+        showToast('JSON 已复制到剪贴板', 'success');
+      }).catch(() => {
+        showToast('复制失败，请手动复制', 'error');
+      });
+    }
+
+    function importJSON() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const config = JSON.parse(ev.target.result);
+            loadConfig(config);
+            showToast(`已导入 ${sources.length} 个内容源`, 'success');
+          } catch (err) {
+            showToast('JSON 解析失败: ' + err.message, 'error');
+          }
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    }
+
+    function loadConfig(config) {
+      // Title
+      if (config.title) {
+        document.getElementById('title-text').value = config.title.text || '';
+        document.getElementById('title-img').value = config.title.img || '';
+      }
+
+      // Sources
+      sources = [];
+      if (Array.isArray(config.body)) {
+        config.body.forEach(item => {
+          const s = createEmptySource();
+          s.type = item.type || 'rss';
+          s.src = item.src || '';
+          s.title = item.title || '';
+          s.priority = item.priority || 10;
+          s.keep_link = item.keep_link || 'Y';
+          s.full_text = item.full_text || 'N';
+          s.chop = item.chop || '';
+          s.delete = item.delete || '';
+          s.goal = item.goal || '';
+          s.exclude = Array.isArray(item.exclude)
+            ? item.exclude.map(e => ({ type: e.type || 'start', value: e.value || '' }))
+            : [];
+          if (item.metadata) {
+            s.metadata_tag = item.metadata.tag || '';
+            s.metadata_tag_prefix = item.metadata.tag_prefix || '';
+            s.metadata_timestamp_from = item.metadata.timestamp_from || '';
+            s.metadata_timestamp_to = item.metadata.timestamp_to || '';
+            s.metadata_limit = item.metadata.limit || '';
+            s.metadata_offset = item.metadata.offset || '';
+          }
+          sources.push(s);
+        });
+      }
+      renderSources();
+    }
+
+    // ---- Init with sample data ----
+    addSource({
+      _id: sourceIdCounter++,
+      type: 'rss', src: 'https://hnrss.org/frontpage', title: 'Hacker News 热门',
+      priority: 15, keep_link: 'Y', full_text: 'N', chop: '/[0:1500]',
+      exclude: [{ type: 'start', value: 'Comments' }], delete: 'Show HN',
+      metadata_tag: '', metadata_tag_prefix: '', metadata_timestamp_from: '',
+      metadata_timestamp_to: '', metadata_limit: '', metadata_offset: '', goal: ''
+    });
+    addSource({
+      _id: sourceIdCounter++,
+      type: 'rss', src: 'https://sspai.com/feed', title: '少数派',
+      priority: 10, keep_link: 'Y', full_text: 'N', chop: '',
+      exclude: [{ type: 'exact', value: '广告' }], delete: '',
+      metadata_tag: '', metadata_tag_prefix: '', metadata_timestamp_from: '',
+      metadata_timestamp_to: '', metadata_limit: '', metadata_offset: '', goal: ''
+    });
+    addSource({
+      _id: sourceIdCounter++,
+      type: 'web', src: 'https://meirishici.com/poetry/dailies', title: '古诗文',
+      priority: 5, keep_link: 'N', full_text: 'N', chop: '',
+      exclude: [{ type: 'start', value: '分享到：' }], delete: '',
+      metadata_tag: '', metadata_tag_prefix: '', metadata_timestamp_from: '',
+      metadata_timestamp_to: '', metadata_limit: '', metadata_offset: '', goal: ''
+    });
+  </script>
+</body>
+</html>
