@@ -101,11 +101,15 @@ def sanitize_filename(filename: str) -> str:
     illegal_chars = r'[<>:"/\\|?*]'
     sanitized = re.sub(illegal_chars, '_', filename)
 
+    # 先去除首尾空白，再将内部空格替换为下划线
+    sanitized = sanitized.strip()
+    sanitized = re.sub(r'\s+', '_', sanitized)
+
     # 限制长度
     if len(sanitized) > 200:
         sanitized = sanitized[:200]
 
-    return sanitized.strip()
+    return sanitized
 
 
 def format_date(date_str: str) -> str:

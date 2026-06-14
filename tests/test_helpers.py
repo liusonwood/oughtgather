@@ -213,6 +213,11 @@ class TestSanitizeFilename:
         result = sanitize_filename("  hello.txt  ")
         assert result == "hello.txt"
 
+    def test_replaces_internal_spaces(self):
+        result = sanitize_filename("Daily News 2024-01-01.epub")
+        assert " " not in result
+        assert result == "Daily_News_2024-01-01.epub"
+
     def test_chinese_filename(self):
         result = sanitize_filename("每日新闻_2024-01-01.epub")
         assert result == "每日新闻_2024-01-01.epub"
