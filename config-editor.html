@@ -373,6 +373,17 @@
 
     // ---- Render ----
     function renderSources() {
+      // Save open state of collapsible sections before re-render
+      const openSections = new Set();
+      document.querySelectorAll('#sources-list .collapsible').forEach(el => {
+        if (el.classList.contains('open')) {
+          const sourceCard = el.closest('.source-card');
+          const sourceId = sourceCard ? sourceCard.getAttribute('data-id') : '';
+          const sectionName = el.getAttribute('data-collapsible') || '';
+          if (sourceId && sectionName) openSections.add(`${sourceId}:${sectionName}`);
+        }
+      });
+
       const container = document.getElementById('sources-list');
       container.innerHTML = sources.map((s, i) => {
         const badgeClass = `badge-${s.type}`;
@@ -454,7 +465,7 @@
           <!-- Exclude rules -->
           <div>
             <span class="collapse-toggle" onclick="toggleCollapse(this)">▶ 排除规则 (exclude)${s.exclude.length > 0 ? ` [${s.exclude.length}]` : ''}</span>
-            <div class="collapsible">
+            <div class="collapsible" data-collapsible="exclude">
               <div class="exclude-list">
                 ${s.exclude.map((ex, idx) => `
                   <div class="exclude-item">
@@ -476,7 +487,7 @@
           <!-- Mail metadata (conditional) -->
           <div class="conditional ${s.type === 'mail' ? 'visible' : ''}" data-show-type="mail" style="margin-top: 10px;">
             <span class="collapse-toggle" onclick="toggleCollapse(this)">▶ 邮件参数 (metadata)</span>
-            <div class="collapsible">
+            <div class="collapsible" data-collapsible="metadata">
               <div class="form-row">
                 <label>tag</label>
                 <input type="text" value="${escapeHtml(s.metadata_tag)}" oninput="updateField(${s._id}, 'metadata_tag', this.value)">
@@ -514,6 +525,20 @@
           </div>
         </div>`;
       }).join('');
+
+      // Restore open state of collapsible sections
+      container.querySelectorAll('.collapsible').forEach(el => {
+        const sourceCard = el.closest('.source-card');
+        const sourceId = sourceCard ? sourceCard.getAttribute('data-id') : '';
+        const sectionName = el.getAttribute('data-collapsible') || '';
+        if (sourceId && sectionName && openSections.has(`${sourceId}:${sectionName}`)) {
+          el.classList.add('open');
+          const toggle = el.previousElementSibling;
+          if (toggle && toggle.classList.contains('collapse-toggle')) {
+            toggle.textContent = toggle.textContent.replace('▶', '▼');
+          }
+        }
+      });
     }
 
     function getSrcPlaceholder(type) {
