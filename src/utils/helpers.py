@@ -43,7 +43,7 @@ def generate_content_id(url: str, title: Optional[str] = None) -> str:
 def extract_text_from_html(html: str) -> str:
     """
     从 HTML 中提取纯文本
-    简单的实现，去除 HTML 标签
+    保留段落间的换行和基本的文本格式标签（b, strong, i, em, u）
     """
     if not html:
         return ""
@@ -51,8 +51,21 @@ def extract_text_from_html(html: str) -> str:
     # 移除 script 和 style 标签及其内容
     text = re.sub(r'<(script|style)[^>]*>.*?</\1>', '', html, flags=re.DOTALL | re.IGNORECASE)
 
-    # 移除 HTML 标签
-    text = re.sub(r'<[^>]+>', '', text)
+    # 将块级元素（如 p, div, br, li）替换为换行符，保留段落结构
+    text = re.sub(r'</?(p|div|h[1-6]|li|tr|table|blockquote|pre|ul|ol)[^>]*>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'<br[^>]*>', '\n', text, flags=re.IGNORECASE)
+
+    # 保留文本格式标签：粗体（b, strong）、斜体（i, em）、下划线（u）
+    # 将其他 HTML 标签替换为空字符串
+    def replace_tag(match):
+        tag = match.group(1).lower()
+        # 保留这些标签的标签名（包括闭合标签）
+        if tag in ['b', 'strong', 'i', 'em', 'u']:
+            return match.group(0)  # 保留原始标签
+        return ''  # 移除其他标签
+
+    # 使用正则表达式保留特定标签，移除其他标签
+    text = re.sub(r'<(/?)([a-z][a-z0-9]*)[^>]*>', replace_tag, text, flags=re.IGNORECASE)
 
     # 解码 HTML 实体
     text = text.replace('&nbsp;', ' ')
@@ -62,8 +75,15 @@ def extract_text_from_html(html: str) -> str:
     text = text.replace('&quot;', '"')
     text = text.replace('&#39;', "'")
 
-    # 移除多余的空白
-    text = re.sub(r'\s+', ' ', text)
+    # 合并多个连续的换行符为两个（保留段落间隔）
+    text = re.sub(r'\n\s*\n', '\n\n', text)
+
+    # 移除行首尾的空白字符，但保留段落间的换行
+    text = re.sub(r'[ \t]+(?=\n)', '', text)  # 移除换行前的空格
+    text = re.sub(r'\n[ \t]+', '\n', text)  # 移除换行后的空格
+
+    # 移除行内的多余空白
+    text = re.sub(r' +', ' ', text)
 
     return text.strip()
 
