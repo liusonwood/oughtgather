@@ -12,6 +12,8 @@ from src.utils.helpers import generate_content_id
 class DedupTracker:
     """去重追踪器"""
 
+    MAX_RECORDS = 5000  # 记录数上限，超过后自动清理旧记录
+
     def __init__(self, data_file: str = "data/fetched_urls.txt"):
         """
         初始化去重追踪器
@@ -91,8 +93,37 @@ class DedupTracker:
 
             self.logger.info(f"Saved {len(self.new_ids)} new content IDs")
 
+            # 超过上限时自动清理旧记录
+            self._cleanup_if_needed()
+
         except Exception as e:
             self.logger.error(f"Failed to save dedup file: {e}")
+
+    def _cleanup_if_needed(self):
+        """超过 MAX_RECORDS 条时，只保留最新的记录（文件末尾）"""
+        try:
+            if not os.path.exists(self.data_file):
+                return
+
+            with open(self.data_file, 'r', encoding='utf-8') as f:
+                lines = [line.strip() for line in f if line.strip()]
+
+            if len(lines) <= self.MAX_RECORDS:
+                return
+
+            # 保留最新的记录（文件末尾的 MAX_RECORDS 条）
+            kept = lines[-self.MAX_RECORDS:]
+            with open(self.data_file, 'w', encoding='utf-8') as f:
+                for line in kept:
+                    f.write(f"{line}\n")
+
+            removed = len(lines) - len(kept)
+            # 同步内存中的 set，避免后续判断与文件不一致
+            self.fetched_ids = set(kept)
+            self.logger.info(f"Dedup cleanup: removed {removed} old records, kept {len(kept)}")
+
+        except Exception as e:
+            self.logger.error(f"Failed to cleanup dedup file: {e}")
 
     def get_stats(self) -> dict:
         """

@@ -179,3 +179,111 @@ class TestDedupTrackerStats:
         tracker.clear_new_ids()
         assert len(tracker.new_ids) == 0
         assert len(tracker.fetched_ids) == 1  # fetched_ids 不受影响
+
+
+# =========================================================================
+# 自动清理测试
+# =========================================================================
+
+class TestDedupTrackerCleanup:
+    """DedupTracker 超过上限自动清理测试"""
+
+    def test_no_cleanup_when_under_max(self, tmp_dir, monkeypatch):
+        """未达到上限时不触发清理"""
+        data_file = os.path.join(tmp_dir, "fetched_urls.txt")
+        monkeypatch.setattr(DedupTracker, 'MAX_RECORDS', 5)
+
+        tracker = DedupTracker(data_file)
+        for i in range(3):
+            tracker.mark_as_fetched(f"https://example.com/{i}", f"T{i}")
+        tracker.save()
+
+        with open(data_file) as f:
+            lines = [l.strip() for l in f if l.strip()]
+        assert len(lines) == 3
+
+    def test_no_cleanup_at_exact_max(self, tmp_dir, monkeypatch):
+        """恰好等于上限时不触发清理"""
+        data_file = os.path.join(tmp_dir, "fetched_urls.txt")
+        monkeypatch.setattr(DedupTracker, 'MAX_RECORDS', 3)
+
+        tracker = DedupTracker(data_file)
+        for i in range(3):
+            tracker.mark_as_fetched(f"https://example.com/{i}", f"T{i}")
+        tracker.save()
+
+        with open(data_file) as f:
+            lines = [l.strip() for l in f if l.strip()]
+        assert len(lines) == 3
+
+    def test_cleanup_when_exceeds_max(self, tmp_dir, monkeypatch):
+        """超过上限时自动清理，保留最新的记录"""
+        data_file = os.path.join(tmp_dir, "fetched_urls.txt")
+        monkeypatch.setattr(DedupTracker, 'MAX_RECORDS', 5)
+
+        # 预先写入 5 条旧记录（直接写文件，模拟历史数据）
+        with open(data_file, 'w') as f:
+            for i in range(5):
+                f.write(f"old_{i}\n")
+
+        tracker = DedupTracker(data_file)
+        assert len(tracker.fetched_ids) == 5
+
+        # 新增 3 条，总数 8 > 5，应触发清理
+        for i in range(3):
+            tracker.mark_as_fetched(f"https://example.com/new_{i}", f"N{i}")
+        tracker.save()
+
+        # 文件应只保留 5 条：最旧的 3 条被清理，留下 old_3、old_4 和 3 条新记录
+        with open(data_file) as f:
+            lines = [l.strip() for l in f if l.strip()]
+        assert len(lines) == 5
+        assert "old_0" not in lines
+        assert "old_1" not in lines
+        assert "old_2" not in lines
+        assert "old_3" in lines
+        assert "old_4" in lines
+
+        # 内存中的 set 同步更新
+        assert len(tracker.fetched_ids) == 5
+        assert "old_0" not in tracker.fetched_ids
+        assert "old_3" in tracker.fetched_ids
+
+    def test_cleanup_keeps_newest_in_order(self, tmp_dir, monkeypatch):
+        """清理后文件中记录保持原有顺序（最新记录在末尾）"""
+        data_file = os.path.join(tmp_dir, "fetched_urls.txt")
+        monkeypatch.setattr(DedupTracker, 'MAX_RECORDS', 3)
+
+        # 写入 3 条历史数据
+        with open(data_file, 'w') as f:
+            f.write("aaa\nbbb\nccc\n")
+
+        tracker = DedupTracker(data_file)
+        tracker.mark_as_fetched("https://example.com/x", "X")
+        tracker.mark_as_fetched("https://example.com/y", "Y")
+        tracker.save()
+
+        with open(data_file) as f:
+            lines = [l.strip() for l in f if l.strip()]
+
+        # 追加后为 [aaa, bbb, ccc, new1, new2]，保留末尾 3 条
+        # 所以第一条是 ccc（旧记录中保留下来最晚的一条）
+        assert lines[0] == "ccc"
+        # 新追加的 2 条都在
+        assert len(lines) == 3
+        assert all(line not in ("aaa", "bbb") for line in lines)
+
+    def test_cleanup_after_reload(self, tmp_dir, monkeypatch):
+        """清理后重新加载，记录保持一致"""
+        data_file = os.path.join(tmp_dir, "fetched_urls.txt")
+        monkeypatch.setattr(DedupTracker, 'MAX_RECORDS', 3)
+
+        # 第一次：写入 5 条，触发清理
+        tracker1 = DedupTracker(data_file)
+        for i in range(5):
+            tracker1.mark_as_fetched(f"https://example.com/{i}", f"T{i}")
+        tracker1.save()
+
+        # 第二次：重新加载，应该只有 3 条
+        tracker2 = DedupTracker(data_file)
+        assert len(tracker2.fetched_ids) == 3

@@ -24,7 +24,7 @@ python src/main.py --config path/to/config.json
 
 ### Testing
 ```bash
-# 运行所有测试（158 个测试，约 1 秒）
+# 运行所有测试（171 个测试，约 1 秒）
 python -m pytest tests/
 
 # 详细输出
@@ -40,7 +40,7 @@ python -m pytest tests/test_config.py::TestTitleConfig -v
 python -m pytest tests/ --tb=short
 ```
 
-**测试覆盖**：配置加载、内容处理（exclude/chop/keep_link/delete）、去重追踪、数据抓取（RSS/Web/Mail/Trending）、图片处理、工具函数。
+**测试覆盖**：配置加载、内容处理（exclude/chop/keep_link/delete）、去重追踪（含自动清理）、数据抓取（RSS/Web/Mail/Trending）、图片处理、工具函数。
 
 详细测试指南见 [TESTING.md](TESTING.md)。
 
@@ -72,7 +72,7 @@ config.json → Fetchers → Processors → Dedup → EPUB Generator → SMTP Se
 
 3. **Content Processing** (`src/processors/`): Applies `keep_link`, `chop`, `exclude`, `delete` rules. `ImageProcessor` downloads and compresses images (≤500KB per image, ≤50MB total).
 
-4. **Dedup Tracking** (`src/dedup/tracker.py`): File-based dedup using `data/fetched_urls.txt`. Tracks by URL+title hash. Persisted across runs via git commits in GitHub Actions.
+4. **Dedup Tracking** (`src/dedup/tracker.py`): File-based dedup using `data/fetched_urls.txt`. Tracks by URL+title hash. Auto-cleans old records when exceeding `MAX_RECORDS` (default 5000), keeping the newest entries. Persisted across runs via git commits in GitHub Actions.
 
 5. **EPUB Generation** (`src/epub/`): 
    - `cover.py`: Custom image (from `title.img`) or Bing daily wallpaper. Overlays title and date.
@@ -86,6 +86,7 @@ config.json → Fetchers → Processors → Dedup → EPUB Generator → SMTP Se
 - **Error Tolerance**: Failed sources are skipped and logged. Errors included in EPUB as a final chapter.
 - **No livequery**: Mail fetcher queries existing emails, not waiting for new ones.
 - **URL Encoding**: Namespace in MailFetcher is URL-encoded to handle special characters. Spaces are stripped. `src` supports `"namespace.tag"` format — splits on first dot into namespace + tag.
+- **Dedup Auto-Cleanup**: `DedupTracker.MAX_RECORDS = 5000`. When `save()` causes the file to exceed this limit, old records (top of file) are trimmed, keeping only the newest. In-memory `fetched_ids` set is synced to match.
 - **ContentSource.metadata**: Optional dict for fetcher-specific parameters (e.g., mail query filters).
 - **Secrets Management**: All credentials via GitHub Secrets or environment variables. Never in code.
 
@@ -130,7 +131,7 @@ config.json → Fetchers → Processors → Dedup → EPUB Generator → SMTP Se
 - **Logging**: Uses singleton logger (`src/utils/logger.py`). Logs to `logs/` directory.
 - **Data Directory**: `data/fetched_urls.txt` for dedup. Gitignored except in GitHub Actions.
 - **Output**: EPUB files written to `output/` directory.
-- **Test Suite**: 158 tests in `tests/` directory. All tests use mocks to avoid network requests. See [TESTING.md](TESTING.md) for details.
+- **Test Suite**: 171 tests in `tests/` directory. All tests use mocks to avoid network requests. See [TESTING.md](TESTING.md) for details.
 
 ## File Structure
 
@@ -164,9 +165,9 @@ tests/
 ├── __init__.py
 ├── conftest.py              # Shared fixtures (ContentSource, HTML samples, etc.)
 ├── test_config.py           # 26 tests - config loading and validation
-├── test_helpers.py          # 28 tests - utility functions
-├── test_content_processor.py # 20 tests - exclude/chop/keep_link/delete rules
-├── test_dedup_tracker.py    # 15 tests - dedup tracking and persistence
-├── test_fetchers.py         # 32 tests - RSS/Web/Mail/Trending fetchers (mocked HTTP)
-└── test_image_processor.py  # 37 tests - image download, resize, compress
+├── test_helpers.py          # 40 tests - utility functions
+├── test_content_processor.py # 30 tests - exclude/chop/keep_link/delete rules
+├── test_dedup_tracker.py    # 19 tests - dedup tracking, persistence, and auto-cleanup
+├── test_fetchers.py         # 26 tests - RSS/Web/Mail/Trending fetchers (mocked HTTP)
+└── test_image_processor.py  # 25 tests - image download, resize, compress
 ```

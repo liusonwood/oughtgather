@@ -5,7 +5,7 @@
 ## 功能特性
 
 - **多数据源支持**：邮件订阅、RSS、网页、AI 热点分析
-- **智能去重**：自动记录已抓取内容，避免重复
+- **智能去重**：自动记录已抓取内容，避免重复；超过 5000 条时自动清理旧记录
 - **EPUB 生成**：自动生成带封面、目录的电子书
 - **Kindle 推送**：通过邮件自动发送到 Kindle
 - **定时运行**：GitHub Actions 每天自动执行
@@ -331,13 +331,13 @@ python -m pytest tests/test_config.py::TestTitleConfig -v
 
 当前测试覆盖：
 - **配置加载**（`test_config.py`）— 26 个测试
-- **工具函数**（`test_helpers.py`）— 28 个测试
-- **内容处理**（`test_content_processor.py`）— 20 个测试
-- **去重追踪**（`test_dedup_tracker.py`）— 15 个测试
-- **数据抓取**（`test_fetchers.py`）— 32 个测试（mock HTTP）
-- **图片处理**（`test_image_processor.py`）— 37 个测试
+- **工具函数**（`test_helpers.py`）— 40 个测试
+- **内容处理**（`test_content_processor.py`）— 30 个测试
+- **去重追踪**（`test_dedup_tracker.py`）— 19 个测试
+- **数据抓取**（`test_fetchers.py`）— 26 个测试（mock HTTP）
+- **图片处理**（`test_image_processor.py`）— 25 个测试
 
-**共 158 个测试，全部通过。**
+**共 171 个测试。**
 
 详细测试指南见 [TESTING.md](TESTING.md)。
 
