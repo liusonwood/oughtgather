@@ -59,26 +59,31 @@ class EPUBGenerator:
         # 4. 准备章节数据
         sections = self._prepare_sections(results)
 
-        # 5. 生成目录
-        toc = self.toc_generator.generate(sections)
-        book.toc = toc
+        # 5. 添加目录章节
+        self._add_toc_chapter(book, sections)
 
-        # 6. 添加章节
+        # 6. 生成目录结构
+        toc = self.toc_generator.generate(sections)
+
+        # 6.1 添加目录项到 toc 开头
+        toc_with_nav = [epub.Link("toc.xhtml", "目录", "toc")] + toc
+        book.toc = toc_with_nav
+
+        # 7. 添加正文章节
         self._add_chapters(book, sections)
 
-        # 7. 添加错误日志章节（如果有）
+        # 8. 添加错误日志章节（如果有）
         if error_log:
             self._add_error_log_chapter(book, error_log)
 
-        # 8. 添加样式
+        # 9. 添加样式
         self._add_style(book)
 
-        # 9. 添加导航文件
-        nav = self._create_nav(sections)
-        book.add_item(nav)
+        # 10. 添加导航文件
+        book.add_item(epub.EpubNav())
         book.add_item(epub.EpubNcx())
 
-        # 10. 保存文件
+        # 11. 保存文件
         output_path = self._save_book(book)
 
         self.logger.info(f"EPUB generated: {output_path}")
@@ -128,29 +133,24 @@ class EPUBGenerator:
 
         return sections
 
-    def _create_nav(
+    def _add_toc_chapter(
         self,
+        book: epub.EpubBook,
         sections: List[Tuple[ContentSource, List[Article], Optional[str]]]
-    ) -> epub.EpubNav:
-        """
-        创建导航页面（目录）
-        """
-        nav = epub.EpubNav()
-        nav.title = 'Table of Contents'
-        nav.lang = 'zh-CN'
-
-        # 使用不带日期的标题
+    ):
+        """添加目录章节到 EPUB 中"""
         book_title = self.config.title.get_title_without_date()
 
-        html = f"""<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN" lang="zh-CN">
+        html = f"""<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN">
 <head>
     <title>目录</title>
     <link rel="stylesheet" type="text/css" href="style/default.css"/>
 </head>
 <body>
     <h1>{book_title}</h1>
+    <h2>目录</h2>
+    <ul>
 """
 
         chapter_id = 0
@@ -161,23 +161,28 @@ class EPUBGenerator:
             # web/trending: 扁平结构
             if source.type in ("web", "trending"):
                 link_title = self.toc_generator._get_source_title(source, articles, source_title)
-                html += f'<h2><a href="chapter_{chapter_id}.xhtml">{link_title}</a></h2>\n'
+                html += f'<li><a href="chapter_{chapter_id}.xhtml">{link_title}</a></li>\n'
                 chapter_id += 1
                 continue
 
             # mail/rss: 两级结构
             section_title = self.toc_generator._get_source_title(source, articles, source_title)
-            html += f'<h2>{section_title}</h2>\n<ul>\n'
-            for article in articles:
-                html += f'    <li><a href="chapter_{chapter_id}.xhtml">{article.title}</a></li>\n'
-                chapter_id += 1
-            html += '</ul>\n'
+            html += f'<li><a href="chapter_{chapter_id}.xhtml">{section_title}</a></li>\n'
+            chapter_id += len(articles)
 
-        html += """</body>
+        html += """</ul>
+</body>
 </html>"""
 
-        nav.content = html
-        return nav
+        toc_chapter = epub.EpubHtml(
+            title="目录",
+            file_name="toc.xhtml",
+            lang='zh-CN'
+        )
+        toc_chapter.content = html
+
+        book.add_item(toc_chapter)
+        self.logger.info("TOC chapter added to EPUB")
 
     def _add_chapters(
         self,
@@ -186,9 +191,9 @@ class EPUBGenerator:
     ):
         """添加章节"""
         chapter_id = 0
-        # Kindle 打开 EPUB 时会显示 spine 的第一个非封面页面
-        # 把 cover 放在最前面，然后是目录（nav），最后是正文章节
-        spine = ['cover', epub.EpubNav()]  # 使用 EpubNav 对象确保正确类型
+        # Kindle 打开 EPUB 时会显示 spine 的第一个页面
+        # 阅读顺序：目录 → 正文章节（封面在最后，避免打开时首先看到封面）
+        spine = ['toc']
 
         for source, articles, _source_title in sections:
             for article in articles:
@@ -210,7 +215,10 @@ class EPUBGenerator:
                 spine.append(chapter)  # 添加到 spine（阅读顺序）
                 chapter_id += 1
 
-        # 设置书籍的阅读顺序：封面 → 目录 → 正文章节
+        # 封面放在最后（可选，有些阅读器会自动显示封面）
+        spine.append('cover')
+
+        # 设置书籍的阅读顺序：目录 → 正文章节 → 封面
         book.spine = spine
 
         self.logger.info(f"Added {chapter_id} chapters to EPUB")
