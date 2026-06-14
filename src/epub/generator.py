@@ -166,8 +166,8 @@ class EPUBGenerator:
         Returns:
             str: HTML 内容
         """
-        html = f"""<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html>
+        # 注意：不能包含 <?xml ...?> 声明，否则 ebooklib 无法正确解析
+        html = f"""<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN">
 <head>
     <title>{article.title}</title>
@@ -237,8 +237,8 @@ class EPUBGenerator:
             book: EPUB 书籍对象
             error_log: 错误日志列表
         """
-        html = """<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html>
+        # 注意：不能包含 <?xml ...?> 声明，否则 ebooklib 无法正确解析
+        html = """<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN">
 <head>
     <title>错误日志</title>

@@ -106,15 +106,14 @@ class TestFullPipeline:
             print(f"✓ 内容处理完成")
 
             # 5. 生成 EPUB（需要 FetchResult 列表，不是 Article 列表）
-            epub_path = tmp_path / "test_rss.epub"
             generator = EPUBGenerator(config)
-            generator.generate([fetch_result])  # 传入 FetchResult 列表
+            epub_path = generator.generate([fetch_result])  # 返回实际路径
 
             # 6. 验证 EPUB 文件
-            assert epub_path.exists(), "EPUB 文件应该存在"
-            assert epub_path.stat().st_size > 0, "EPUB 文件不应该为空"
+            assert os.path.exists(epub_path), f"EPUB 文件应该存在: {epub_path}"
+            assert os.path.getsize(epub_path) > 0, "EPUB 文件不应该为空"
             print(f"✓ EPUB 文件生成成功：{epub_path}")
-            print(f"  文件大小：{epub_path.stat().st_size} 字节")
+            print(f"  文件大小：{os.path.getsize(epub_path)} 字节")
 
             # 7. 验证 EPUB 内容（可选：解压检查）
             import zipfile
@@ -123,8 +122,13 @@ class TestFullPipeline:
             with zipfile.ZipFile(epub_path, 'r') as zf:
                 file_list = zf.namelist()
                 assert 'mimetype' in file_list, "EPUB 应包含 mimetype 文件"
-                assert 'toc.ncx' in file_list or 'nav.xhtml' in file_list, "EPUB 应包含目录"
+                # 目录文件可能在根目录或 EPUB/ 子目录
+                has_toc = any('toc.ncx' in f or 'nav.xhtml' in f for f in file_list)
+                assert has_toc, f"EPUB 应包含目录文件，实际文件：{file_list}"
                 print(f"  EPUB 包含 {len(file_list)} 个文件")
+
+            # 清理生成的文件
+            os.remove(epub_path)
 
     def test_multiple_sources_to_epub(self, tmp_path):
         """测试多个数据源 → EPUB 生成"""
@@ -206,15 +210,17 @@ class TestFullPipeline:
             print(f"✓ 从 {len(config.body)} 个源抓取了 {total_articles} 篇文章")
 
             # 4. 生成 EPUB（传入 FetchResult 列表）
-            epub_path = tmp_path / "test_multi_source.epub"
             generator = EPUBGenerator(config)
-            generator.generate(all_results)  # 传入 FetchResult 列表
+            epub_path = generator.generate(all_results)  # 返回实际路径
 
             # 5. 验证
-            assert epub_path.exists()
-            assert epub_path.stat().st_size > 0
+            assert os.path.exists(epub_path)
+            assert os.path.getsize(epub_path) > 0
             print(f"✓ EPUB 生成成功：{epub_path}")
-            print(f"  文件大小：{epub_path.stat().st_size} 字节")
+            print(f"  文件大小：{os.path.getsize(epub_path)} 字节")
+
+            # 清理
+            os.remove(epub_path)
 
 
 class TestDedupIntegration:
@@ -328,22 +334,24 @@ class TestEpubStructure:
         ]
         fetch_result = FetchResult(source=source, articles=articles)
 
-        epub_path = tmp_path / "structure_test.epub"
         generator = EPUBGenerator(config)
-        generator.generate([fetch_result])  # 传入 FetchResult 列表
+        epub_path_str = generator.generate([fetch_result])  # 传入 FetchResult 列表，返回实际路径
 
         import zipfile
-        with zipfile.ZipFile(epub_path, 'r') as zf:
+        with zipfile.ZipFile(epub_path_str, 'r') as zf:
             files = zf.namelist()
 
             # 检查必需文件
             assert 'mimetype' in files, "缺少 mimetype"
             assert 'META-INF/container.xml' in files, "缺少 container.xml"
 
-            # 检查内容文件
-            content_files = [f for f in files if f.startswith('OEBPS/')]
-            assert len(content_files) > 0, "OEBPS 目录应该包含内容文件"
+            # 检查内容文件（可能在 EPUB/ 或 OEBPS/ 目录）
+            content_files = [f for f in files if 'EPUB/' in f or 'OEBPS/' in f]
+            assert len(content_files) > 0, f"应该包含内容文件，实际文件：{files}"
 
             print(f"✓ EPUB 结构正确，包含 {len(files)} 个文件：")
             for f in sorted(files):
                 print(f"    - {f}")
+
+        # 清理
+        os.remove(epub_path_str)
