@@ -322,14 +322,14 @@ class TestWebFetcher:
         mock_response = MagicMock()
         mock_response.text = "<html><body><article><p>正文</p></article></body></html>"
         mock_request.return_value = mock_response
-        mock_extract.return_value = "<p>正文</p>"
+        mock_extract.return_value = "<p>正文</p>" + "x" * 300
 
         fetcher = WebFetcher(web_source)
         result = fetcher.fetch()
 
         assert result.success is True
         assert len(result.articles) == 1
-        assert result.articles[0].content == "<p>正文</p>"
+        assert result.articles[0].content == "<p>正文</p>" + "x" * 300
 
     @patch("src.fetchers.web_fetcher.trafilatura.extract")
     @patch.object(WebFetcher, "_make_request")

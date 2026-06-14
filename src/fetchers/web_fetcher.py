@@ -42,18 +42,15 @@ class WebFetcher(BaseFetcher):
                 result.error = "Failed to extract content from webpage"
                 return result
 
-            # Bug 1 & 2: 提取图片并处理 Trafilatura 剥离问题
+            # 检查 trafilatura 是否剥离了图片
             images = self._extract_images(content)
-            
-            # 如果正文内容太短，或者虽然有图片但 content 里一个 <img> 都没有，说明 trafilatura 过于激进
-            if len(images) == 0 or len(content) < 300:
-                raw_images = self._extract_images(html)
-                if len(raw_images) > len(images) or len(content) < 300:
-                    self.logger.warning(f"trafilatura might have been too aggressive for {self.source.src}, falling back to BeautifulSoup")
-                    fallback_content = self._fallback_extract(html)
-                    if len(fallback_content) > len(content):
-                        content = fallback_content
-                        images = self._extract_images(content)
+            raw_images = self._extract_images(html)
+            if len(raw_images) > len(images):
+                self.logger.warning(f"trafilatura might have been too aggressive for {self.source.src}, falling back to BeautifulSoup")
+                fallback_content = self._fallback_extract(html)
+                if len(fallback_content) > len(content):
+                    content = fallback_content
+                    images = self._extract_images(content)
 
             # 创建文章对象（带当日时间戳，用于去重哈希计算）
             today = datetime.now().strftime("%Y-%m-%d")
