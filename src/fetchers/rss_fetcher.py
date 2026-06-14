@@ -143,13 +143,15 @@ class RSSFetcher(BaseFetcher):
             html = response.text
 
             # 使用 trafilatura 提取正文
+            # favor_precision=True 会保留更多的 HTML 标签，包括 <img>、<figure> 等
             content = trafilatura.extract(
                 html,
                 include_comments=False,
                 include_tables=True,
                 include_images=True,
                 include_links=True,
-                output_format="html"
+                output_format="html",
+                favor_precision=True  # 保留更多原始 HTML 结构
             )
 
             if not content:

@@ -38,7 +38,7 @@ class EPUBGenerator:
         error_log: List[str] = None
     ) -> str:
         """
-        生成 EPUB 文件
+        生成 EPUB 文件（符合 Amazon Send to Kindle 要求）
 
         Args:
             results: 抓取结果列表
@@ -62,7 +62,7 @@ class EPUBGenerator:
         # 5. 添加目录章节
         self._add_toc_chapter(book, sections)
 
-        # 6. 生成目录结构
+        # 6. 生成目录结构（符合 Amazon 要求）
         toc = self.toc_generator.generate(sections)
 
         # 6.1 添加目录项到 toc 开头
@@ -79,9 +79,9 @@ class EPUBGenerator:
         # 9. 添加样式
         self._add_style(book)
 
-        # 10. 添加导航文件
-        book.add_item(epub.EpubNav())
-        book.add_item(epub.EpubNcx())
+        # 10. 添加导航文件（必须在保存之前，放在最后）
+        book.add_item(epub.EpubNcx())  # EPUB 2 兼容
+        book.add_item(epub.EpubNav())  # EPUB 3 标准
 
         # 11. 保存文件
         output_path = self._save_book(book)
@@ -90,11 +90,19 @@ class EPUBGenerator:
         return output_path
 
     def _set_metadata(self, book: epub.EpubBook):
-        """设置书籍元数据"""
+        """设置书籍元数据（符合 Amazon Send to Kindle 要求）"""
         book.set_identifier('ought-gather-epub')
         book.set_title(self.config.title.get_plain_text())
         book.set_language('zh-CN')
         book.add_author('Ought Gather')
+
+        # 添加 publisher 元数据（Amazon 要求）
+        book.add_metadata('DC', 'publisher', 'Ought Gather')
+
+        # 添加 date 元数据（Amazon 要求）
+        from datetime import datetime
+        now = datetime.now().strftime('%Y-%m-%d')
+        book.add_metadata('DC', 'date', now)
 
     def _add_cover(self, book: epub.EpubBook):
         """添加封面"""
@@ -198,7 +206,23 @@ class EPUBGenerator:
         chapter_id = 0
         # Kindle 打开 EPUB 时会显示 spine 的第一个页面
         # 阅读顺序：目录 → 正文章节（封面在最后，避免打开时首先看到封面）
-        spine = ['toc']
+        spine = []
+
+        # 先添加封面到 spine（但实际内容在最后，这样 Kindle 不会在打开时首先显示封面）
+        spine.append('cover')
+
+        # 添加目录章节到 spine
+        # 需要先获取 toc 章节对象
+        toc_chapter = None
+        for item in book.items:
+            if hasattr(item, 'file_name') and item.file_name == 'toc.xhtml':
+                toc_chapter = item
+                break
+
+        if toc_chapter:
+            spine.append(toc_chapter)
+        else:
+            spine.append('nav')  # 如果没有 toc，使用 nav
 
         for source, articles, _source_title in sections:
             for article in articles:
@@ -220,10 +244,7 @@ class EPUBGenerator:
                 spine.append(chapter)  # 添加到 spine（阅读顺序）
                 chapter_id += 1
 
-        # 封面放在最后（可选，有些阅读器会自动显示封面）
-        spine.append('cover')
-
-        # 设置书籍的阅读顺序：目录 → 正文章节 → 封面
+        # 设置书籍的阅读顺序：封面 → 目录 → 正文章节
         book.spine = spine
 
         self.logger.info(f"Added {chapter_id} chapters to EPUB")
