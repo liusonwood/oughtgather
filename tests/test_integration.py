@@ -355,3 +355,180 @@ class TestEpubStructure:
 
         # 清理
         os.remove(epub_path_str)
+
+
+class TestSectionDividers:
+    """章节分隔页测试：不同 source 分组间插入分隔页"""
+
+    def _make_fetch_result(self, source, article_titles):
+        """构造一个包含指定标题文章的 FetchResult"""
+        articles = [
+            Article(title=t, content=f"<p>内容{i}</p>", url=f"https://example.com/{i}")
+            for i, t in enumerate(article_titles)
+        ]
+        return FetchResult(source=source, articles=articles)
+
+    def _generate_epub(self, fetch_results):
+        """用给定的 FetchResult 列表生成 EPUB，返回路径"""
+        config_data = {
+            "title": {"text": "分隔页测试", "img": ""},
+            "body": [
+                {"type": r.source.type, "src": r.source.src,
+                 "title": r.source.title, "priority": r.source.priority}
+                for r in fetch_results
+            ],
+        }
+        config = _parse_config(config_data)
+        generator = EPUBGenerator(config)
+        return generator.generate(fetch_results)
+
+    def _read_epub_xhtml(self, epub_path, filename):
+        """读取 EPUB 中指定 xhtml 文件的内容"""
+        import zipfile
+        with zipfile.ZipFile(epub_path, 'r') as zf:
+            # 查找文件（可能在 EPUB/ 或 OEBPS/ 子目录）
+            target = next(
+                (n for n in zf.namelist() if n.endswith(filename)),
+                None
+            )
+            assert target is not None, f"找不到 {filename}，实际文件：{zf.namelist()}"
+            return zf.read(target).decode('utf-8')
+
+    def _get_spine_order(self, epub_path):
+        """
+        从 content.opf 中提取 spine 阅读顺序
+
+        Returns:
+            List[str]: 按阅读顺序排列的文件名列表（如 'chapter_0.xhtml'、'divider_0.xhtml'）
+        """
+        import zipfile
+        from xml.etree import ElementTree as ET
+        with zipfile.ZipFile(epub_path, 'r') as zf:
+            opf_name = next(n for n in zf.namelist() if n.endswith('.opf'))
+            opf_content = zf.read(opf_name).decode('utf-8')
+
+        ns = {'opf': 'http://www.idpf.org/2007/opf'}
+        root = ET.fromstring(opf_content)
+        # manifest: id → href
+        manifest = {
+            item.get('id'): item.get('href')
+            for item in root.findall('.//opf:manifest/opf:item', ns)
+        }
+        # spine: 按顺序列出 idref，映射为 href（文件名）
+        return [
+            manifest[itemref.get('idref')]
+            for itemref in root.findall('.//opf:spine/opf:itemref', ns)
+            if itemref.get('idref') in manifest
+        ]
+
+    def test_divider_inserted_between_different_sources(self, tmp_path):
+        """两个不同 source 之间应该插入一个分隔页"""
+        source_a = ContentSource(type="rss", src="https://a.com/rss", title="源 A", priority=10)
+        source_b = ContentSource(type="rss", src="https://b.com/rss", title="源 B", priority=5)
+
+        results = [
+            self._make_fetch_result(source_a, ["文章 A1", "文章 A2"]),
+            self._make_fetch_result(source_b, ["文章 B1"]),
+        ]
+        epub_path = self._generate_epub(results)
+        try:
+            import zipfile
+            with zipfile.ZipFile(epub_path, 'r') as zf:
+                files = zf.namelist()
+                divider_files = [f for f in files if 'divider_' in f]
+                assert len(divider_files) == 2, (
+                    f"应有 2 个分隔页（每个 source 一个），实际：{divider_files}"
+                )
+
+            # 验证分隔页内容包含对应的栏目标题
+            divider_0 = self._read_epub_xhtml(epub_path, "divider_0.xhtml")
+            assert "源 A" in divider_0, "第一个分隔页应显示源 A 的标题"
+            divider_1 = self._read_epub_xhtml(epub_path, "divider_1.xhtml")
+            assert "源 B" in divider_1, "第二个分隔页应显示源 B 的标题"
+
+            print(f"✓ 在两个不同 source 之间插入了分隔页")
+        finally:
+            os.remove(epub_path)
+
+    def test_divider_in_spine_but_not_in_toc(self, tmp_path):
+        """分隔页应在 spine 阅读顺序中，但不应出现在目录（TOC）里"""
+        source_a = ContentSource(type="rss", src="https://a.com/rss", title="源 A", priority=10)
+        source_b = ContentSource(type="rss", src="https://b.com/rss", title="源 B", priority=5)
+
+        results = [
+            self._make_fetch_result(source_a, ["文章 A1"]),
+            self._make_fetch_result(source_b, ["文章 B1"]),
+        ]
+        epub_path = self._generate_epub(results)
+        try:
+            spine = self._get_spine_order(epub_path)
+
+            # 验证分隔页顺序：cover → nav → divider_0 → chapter_0 → divider_1 → chapter_1
+            expected_order = [
+                'cover.xhtml', 'nav.xhtml',
+                'divider_0.xhtml', 'chapter_0.xhtml',
+                'divider_1.xhtml', 'chapter_1.xhtml',
+            ]
+            assert spine == expected_order, (
+                f"spine 顺序错误，期望：{expected_order}，实际：{spine}"
+            )
+
+            print(f"✓ 分隔页在 spine 中位置正确：{' → '.join(spine)}")
+        finally:
+            os.remove(epub_path)
+
+    def test_no_divider_for_single_source(self, tmp_path):
+        """只有一个 source 时，仍会在文章前插入一个分隔页（作为章节起始页）"""
+        source = ContentSource(type="rss", src="https://a.com/rss", title="唯一源", priority=10)
+        results = [self._make_fetch_result(source, ["文章 1", "文章 2", "文章 3"])]
+        epub_path = self._generate_epub(results)
+        try:
+            import zipfile
+            with zipfile.ZipFile(epub_path, 'r') as zf:
+                files = zf.namelist()
+                divider_files = [f for f in files if 'divider_' in f]
+                # 单个 source 仍会有一个分隔页（在文章之前）
+                assert len(divider_files) == 1, (
+                    f"单个 source 应有 1 个分隔页，实际：{divider_files}"
+                )
+
+            spine = self._get_spine_order(epub_path)
+            chapter_files = [f for f in spine if f.startswith('chapter_')]
+            assert len(chapter_files) == 3, f"应有 3 个文章章节，实际：{chapter_files}"
+
+            # spine 顺序：cover → nav → divider_0 → chapter_0 → chapter_1 → chapter_2
+            expected = [
+                'cover.xhtml', 'nav.xhtml', 'divider_0.xhtml',
+                'chapter_0.xhtml', 'chapter_1.xhtml', 'chapter_2.xhtml',
+            ]
+            assert spine == expected, f"spine 顺序错误：{spine}"
+            print(f"✓ 单个 source：1 个分隔页 + 3 个文章章节，顺序正确")
+        finally:
+            os.remove(epub_path)
+
+    def test_divider_html_escaping(self, tmp_path):
+        """分隔页标题中的 HTML 特殊字符应被转义"""
+        source = ContentSource(type="rss", src="https://a.com/rss",
+                               title="<script>alert('xss')</script>", priority=10)
+        results = [self._make_fetch_result(source, ["文章 1"])]
+        epub_path = self._generate_epub(results)
+        try:
+            divider_html = self._read_epub_xhtml(epub_path, "divider_0.xhtml")
+            # 不应出现未转义的 <script> 标签
+            assert "<script>" not in divider_html, "HTML 特殊字符应被转义"
+            assert "&lt;script&gt;" in divider_html, "应包含转义后的文本"
+            print(f"✓ 分隔页 HTML 正确转义了特殊字符")
+        finally:
+            os.remove(epub_path)
+
+    def test_divider_link_back_to_toc(self, tmp_path):
+        """分隔页应包含返回目录的链接"""
+        source = ContentSource(type="rss", src="https://a.com/rss", title="测试源", priority=10)
+        results = [self._make_fetch_result(source, ["文章 1"])]
+        epub_path = self._generate_epub(results)
+        try:
+            divider_html = self._read_epub_xhtml(epub_path, "divider_0.xhtml")
+            assert "nav.xhtml" in divider_html, "分隔页应包含返回目录的链接"
+            print(f"✓ 分隔页包含返回目录的链接")
+        finally:
+            os.remove(epub_path)

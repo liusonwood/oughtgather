@@ -15,6 +15,8 @@ from src.epub.toc import TOCGenerator
 from src.processors.image_processor import ImageProcessor
 from src.utils.logger import get_logger
 
+import html as html_module
+
 
 class EPUBGenerator:
     """EPUB 生成器"""
@@ -134,13 +136,33 @@ class EPUBGenerator:
         book: epub.EpubBook,
         sections: List[Tuple[ContentSource, List[Article], Optional[str]]]
     ):
-        """添加章节"""
+        """
+        添加章节
+
+        在每个不同数据源（大目录）的第一篇文章前插入一个章节分隔页，
+        让阅读时能清楚地感知进入了新的栏目/分组。
+        """
         chapter_id = 0
+        divider_id = 0
         # 把 cover 放在最前面，确保封面在第一页显示；
         # 否则 cover.xhtml 不在 spine 中，阅读器会把它追加到末尾。
         spine = ['cover', 'nav']
 
-        for source, articles, _source_title in sections:
+        for source, articles, source_title in sections:
+            # 在该分组的第一篇文章前插入章节分隔页，显示所属栏目标题
+            section_title = self.toc_generator._get_source_title(
+                source, articles, source_title
+            )
+            divider = epub.EpubHtml(
+                title=section_title,
+                file_name=f"divider_{divider_id}.xhtml",
+                lang='zh-CN'
+            )
+            divider.content = self._generate_section_divider_content(section_title)
+            book.add_item(divider)
+            spine.append(divider)
+            divider_id += 1
+
             for article in articles:
                 # 生成章节内容
                 chapter_content = self._generate_chapter_content(article)
@@ -163,7 +185,9 @@ class EPUBGenerator:
         # 设置书籍的阅读顺序
         book.spine = spine
 
-        self.logger.info(f"Added {chapter_id} chapters to EPUB")
+        self.logger.info(
+            f"Added {chapter_id} chapters and {divider_id} section dividers to EPUB"
+        )
 
     def _generate_chapter_content(self, article: Article) -> str:
         """
@@ -175,36 +199,69 @@ class EPUBGenerator:
         Returns:
             str: HTML 内容
         """
+        import html
+        
+        # 对标题和作者进行 HTML 转义，防止 & 等字符导致 XML 解析失败
+        safe_title = html.escape(article.title)
+        safe_author = html.escape(article.author) if article.author else ""
+        
         # 注意：不能包含 <?xml ...?> 声明，否则 ebooklib 无法正确解析
-        html = f"""<!DOCTYPE html>
+        # 使用 XHTML 命名空间
+        content_html = f"""<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN">
 <head>
-    <title>{article.title}</title>
+    <title>{safe_title}</title>
     <link rel="stylesheet" type="text/css" href="style/default.css"/>
 </head>
 <body>
-    <h1>{article.title}</h1>
+    <h1>{safe_title}</h1>
     <p><a href='nav.xhtml'>返回目录</a></p>
 """
 
         # 添加元信息
-        if article.author:
-            html += f"<p class='author'>作者: {article.author}</p>"
+        if safe_author:
+            content_html += f"<p class='author'>作者: {safe_author}</p>"
         if article.published_date:
-            html += f"<p class='date'>日期: {article.published_date}</p>"
+            content_html += f"<p class='date'>日期: {article.published_date}</p>"
 
-        # 添加正文
-        html += f"<div class='content'>{article.content}</div>"
+        # 添加正文（正文已经由 ContentProcessor 处理过，应该是安全的 HTML 片段）
+        content_html += f"<div class='content'>{article.content}</div>"
 
         # 添加原文链接
         if article.url and not article.url.startswith('mailto:'):
-            html += f"<p class='link'>原文链接: <a href='{article.url}'>{article.url}</a></p>"
+            safe_url = html.escape(article.url)
+            content_html += f"<p class='link'>原文链接: <a href='{safe_url}'>{safe_url}</a></p>"
 
-        html += """
+        content_html += """
 </body>
 </html>"""
 
-        return html
+        return content_html
+
+    def _generate_section_divider_content(self, section_title: str) -> str:
+        """
+        生成章节分隔页 HTML 内容
+
+        在两个不同"大目录"之间插入，视觉上提示读者进入了新的栏目/分组。
+
+        Args:
+            section_title: 章节/栏目标题
+
+        Returns:
+            str: HTML 内容
+        """
+        safe_title = html_module.escape(section_title)
+        return f"""<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN">
+<head>
+    <title>{safe_title}</title>
+    <link rel="stylesheet" type="text/css" href="style/default.css"/>
+</head>
+<body>
+    <h1>{safe_title}</h1>
+    <p><a href='nav.xhtml'>返回目录</a></p>
+</body>
+</html>"""
 
     def _add_images_to_chapter(
         self,
@@ -316,8 +373,10 @@ class EPUBGenerator:
             book: EPUB 书籍对象
             error_log: 错误日志列表
         """
+        import html
+        
         # 注意：不能包含 <?xml ...?> 声明，否则 ebooklib 无法正确解析
-        html = """<!DOCTYPE html>
+        content_html = """<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN">
 <head>
     <title>错误日志</title>
@@ -330,9 +389,10 @@ class EPUBGenerator:
 """
 
         for error in error_log:
-            html += f"        <li>{error}</li>\n"
+            safe_error = html.escape(error)
+            content_html += f"        <li>{safe_error}</li>\n"
 
-        html += """    </ul>
+        content_html += """    </ul>
 </body>
 </html>"""
 
@@ -341,7 +401,7 @@ class EPUBGenerator:
             file_name="error_log.xhtml",
             lang='zh-CN'
         )
-        chapter.content = html
+        chapter.content = content_html
 
         book.add_item(chapter)
 
