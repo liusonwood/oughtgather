@@ -36,6 +36,14 @@ class TitleConfig:
 
         return result
 
+    def get_plain_text(self) -> str:
+        """获取纯文本标题，去除所有 HTML 标签（如 </br>、<a> 等）"""
+        import re
+        text = self.get_display_text()
+        # 移除所有 HTML 标签
+        text = re.sub(r'<[^>]+>', '', text)
+        return text.strip()
+
 
 @dataclass
 class ContentSource:

@@ -59,6 +59,30 @@ class TestTitleConfig:
         config_with_img = TitleConfig(text="Test", img="https://example.com/img.jpg")
         assert config_with_img.img == "https://example.com/img.jpg"
 
+    def test_display_text_with_br_tag(self):
+        """测试含 </br> 的标题，get_display_text 保留标签"""
+        config = TitleConfig(text="{Daily News</br>{time}}")
+        result = config.get_display_text()
+        today = datetime.now().strftime("%Y-%m-%d")
+        assert result == f"Daily News</br> {today}"
+
+    def test_plain_text_strips_br_tag(self):
+        """测试 get_plain_text 去除 </br> 标签"""
+        config = TitleConfig(text="{Daily News</br>{time}}")
+        result = config.get_plain_text()
+        today = datetime.now().strftime("%Y-%m-%d")
+        assert result == f"Daily News {today}"
+        assert "</br>" not in result
+        assert "<br>" not in result
+
+    def test_plain_text_strips_all_html_tags(self):
+        """测试 get_plain_text 去除所有 HTML 标签"""
+        config = TitleConfig(text="<b>Bold</b> <a href='#'>Link</a> News")
+        result = config.get_plain_text()
+        assert result == "Bold Link News"
+        assert "<" not in result
+        assert ">" not in result
+
 
 # =========================================================================
 # ContentSource 测试

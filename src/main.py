@@ -161,7 +161,7 @@ def main():
         logger.info("Sending EPUB to Kindle...")
         try:
             sender = SMTPSender()
-            subject = config.title.get_display_text()
+            subject = config.title.get_plain_text()
             sender.send_epub(epub_path, subject)
         except Exception as e:
             logger.error(f"Failed to send email: {e}")

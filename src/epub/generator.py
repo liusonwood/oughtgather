@@ -86,7 +86,7 @@ class EPUBGenerator:
     def _set_metadata(self, book: epub.EpubBook):
         """设置书籍元数据"""
         book.set_identifier('ought-gather-epub')
-        book.set_title(self.config.title.get_display_text())
+        book.set_title(self.config.title.get_plain_text())
         book.set_language('zh-CN')
         book.add_author('Ought Gather')
 
@@ -345,7 +345,7 @@ li {
         """
         # 生成文件名
         from src.utils.helpers import sanitize_filename
-        title = self.config.title.get_display_text()
+        title = self.config.title.get_plain_text()
         filename = sanitize_filename(title) + ".epub"
 
         # 确保输出目录存在
