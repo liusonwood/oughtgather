@@ -36,12 +36,17 @@ jobs:
           CONFIG_JSON: ${{ secrets.CONFIG_JSON }}
         run: |
           echo "$CONFIG_JSON" > config.json
+          # Validate JSON early — gives a clear error instead of a Python traceback
+          python -c "import json, sys; json.load(open('config.json'))" \
+            || { echo "::error::CONFIG_JSON secret contains invalid JSON. Validate it at https://jsonlint.com"; exit 1; }
 
       - name: Create config.json from template
         if: env.CONFIG_JSON == ''
         run: |
           if [ -f config.template.json ]; then
             cp config.template.json config.json
+            python -c "import json; json.load(open('config.template.json'))" \
+              || { echo "::error::config.template.json contains invalid JSON"; exit 1; }
           else
             echo "Error: No config.json or config.template.json found"
             exit 1
