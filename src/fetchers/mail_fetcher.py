@@ -126,6 +126,9 @@ class MailFetcher(BaseFetcher):
         # 应用内容处理规则
         html_content = self._apply_content_rules(html_content)
 
+        # 清洗 HTML，确保能被 ebooklib 正确解析为 XHTML
+        html_content = self._sanitize_html(html_content)
+
         return Article(
             title=subject,
             content=html_content,
@@ -179,6 +182,44 @@ class MailFetcher(BaseFetcher):
         # 这些规则将在 content_processor 中统一处理
 
         return html
+
+    def _sanitize_html(self, html: str) -> str:
+        """
+        清洗 HTML，确保能被 ebooklib 正确解析为 XHTML
+
+        使用 BeautifulSoup 解析并重新序列化，修复以下问题：
+        - 未闭合的标签
+        - 未转义的 & 字符
+        - 非法的 XML 属性名
+
+        Args:
+            html: HTML 内容
+
+        Returns:
+            str: 清洗后的 HTML
+        """
+        if not html:
+            return html
+
+        try:
+            soup = BeautifulSoup(html, 'html.parser')
+
+            # 移除所有不合法的属性名（包含大写字母或特殊字符）
+            for tag in soup.find_all(True):
+                attrs_to_remove = []
+                for attr in tag.attrs:
+                    # XHTML 属性名必须是小写的，且不能包含特殊字符
+                    if attr != attr.lower() or not attr.replace('-', '').replace('_', '').isalnum():
+                        attrs_to_remove.append(attr)
+                for attr in attrs_to_remove:
+                    del tag[attr]
+
+            # 重新序列化为 HTML（使用 html.parser 确保输出有效 HTML）
+            return str(soup)
+
+        except Exception as e:
+            self.logger.warning(f"Failed to sanitize HTML: {e}")
+            return html
 
     def _build_query_params(self, tag_from_src: Optional[str] = None) -> str:
         """
