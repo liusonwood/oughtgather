@@ -183,7 +183,6 @@ class EPUBGenerator:
     <link rel="stylesheet" type="text/css" href="style/default.css"/>
 </head>
 <body>
-    <p class='back-to-toc'><a href='nav.xhtml'>返回目录</a></p>
     <h1>{article.title}</h1>
 """
 
@@ -296,10 +295,6 @@ body {
     font-family: serif;
     line-height: 1.6;
     margin: 1em;
-}
-.back-to-toc {
-    font-size: 0.85em;
-    margin-bottom: 0.5em;
 }
 h1 {
     font-size: 1.5em;
