@@ -298,14 +298,28 @@ body {
     margin: 1em;
 }
 h1 {
-    font-size: 1.5em;
+    font-size: 1.8em;
+    font-weight: bold;
+    margin-bottom: 0.8em;
+    color: #000000;
+    padding-bottom: 0.3em;
+    border-bottom: 2px solid #666666;
+}
+h2 {
+    font-size: 1.4em;
     font-weight: bold;
     margin-bottom: 0.5em;
-    color: #333;
+    color: #333333;
+}
+h3 {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-bottom: 0.5em;
+    color: #555555;
 }
 .author, .date {
     font-size: 0.9em;
-    color: #666;
+    color: #666666;
     margin: 0.2em 0;
 }
 .content {
@@ -319,7 +333,7 @@ h1 {
 .link {
     margin-top: 2em;
     font-size: 0.8em;
-    color: #999;
+    color: #999999;
 }
 a {
     color: #0066cc;
