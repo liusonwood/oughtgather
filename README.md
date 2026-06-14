@@ -173,14 +173,14 @@
 
 | 专属字段 | 类型 | 必填 | 说明 |
 |---------|------|------|------|
-| `src` | string | ✓ | testmail.app 的 **namespace**（不是邮箱地址）。testmail 的收件地址格式为 `{namespace}.{tag}@inbox.testmail.app`，代码会自动 URL 编码后传给 API |
+| `src` | string | ✓ | testmail.app 的 **namespace**，支持两种格式：<br>`"mynamespace"` — 只指定 namespace，获取该 namespace 下所有邮件<br>`"mynamespace.tag"` — 同时指定 namespace 和 tag，只获取该 tag 的邮件（等同于在 metadata 中设置 `"tag": "tag"`）<br>空格会被自动移除。testmail 的收件地址格式为 `{namespace}.{tag}@inbox.testmail.app` |
 | `metadata` | object | | 邮件查询的可选过滤参数（见下表） |
 
 `metadata` 字段详解：
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `tag` | string | 无 | 按标签精确过滤（对应 `{namespace}.{tag}@inbox.testmail.app` 中的 tag） |
+| `tag` | string | 无 | 按标签精确过滤。如果 `src` 中已包含 tag（如 `"mynamespace.tag"`），metadata 中的 tag 会覆盖它 |
 | `tag_prefix` | string | 无 | 按标签前缀过滤，例如 `"news"` 匹配 tag 为 `"news"`/`"newsletter"`/`"news-daily"` 的邮件 |
 | `timestamp_from` | int | 无 | 起始时间戳（**毫秒**级 Unix 时间戳），只返回此时间之后收到的邮件 |
 | `timestamp_to` | int | 无 | 结束时间戳（**毫秒**级），只返回此时间之前收到的邮件 |
@@ -191,10 +191,9 @@
 {
   "type": "mail",
   "title": "订阅邮件",
-  "src": "mynamespace",
+  "src": "mynamespace.daily",
   "priority": 8,
   "metadata": {
-    "tag": "daily",
     "timestamp_from": 1718300000000,
     "limit": 10
   }
@@ -258,12 +257,11 @@
     },
     {
       "type": "mail",
-      "src": "mynamespace",
+      "src": "mynamespace.daily",
       "title": "每日精选邮件",
       "priority": 8,
       "keep_link": "Y",
       "metadata": {
-        "tag": "daily",
         "timestamp_from": 1718300000000,
         "limit": 10
       }
@@ -290,6 +288,7 @@
 
 项目提供了一个可视化 HTML 配置编辑器，浏览器打开 `config-editor.html` 即可使用：
 
+- 启动时为空白状态，无默认配置，用户从零开始构建
 - 支持全部 4 种数据源类型（rss / mail / web / trending），自动切换专属字段
 - 导入已有 config.json，添加 / 删除 / 排序内容源，管理排除规则和邮件参数
 - 通过下载或复制到剪贴板导出配置

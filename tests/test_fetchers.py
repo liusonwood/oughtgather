@@ -355,7 +355,7 @@ class TestMailFetcher:
     @patch.dict("os.environ", {"TESTMAIL_APP_API_KEY": "test_key_123"})
     @patch.object(MailFetcher, "_make_request")
     def test_namespace_url_encoded(self, mock_request):
-        """测试 namespace 包含特殊字符时被 URL 编码"""
+        """测试 namespace.tag 格式被正确拆分"""
         source = ContentSource(
             type="mail", src="my.namespace",
             title="Test",
@@ -367,10 +367,11 @@ class TestMailFetcher:
         fetcher = MailFetcher(source)
         result = fetcher.fetch()
 
-        # 验证请求 URL 中 namespace 被编码
+        # 验证 namespace 和 tag 被正确拆分
         call_args = mock_request.call_args
         api_url = call_args[0][0]
-        assert quote("my.namespace", safe="") in api_url
+        assert "namespace=my" in api_url
+        assert "tag=namespace" in api_url
 
     @patch.dict("os.environ", {"TESTMAIL_APP_API_KEY": "test_key_123"})
     @patch.object(MailFetcher, "_make_request")

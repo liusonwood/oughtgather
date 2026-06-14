@@ -48,16 +48,23 @@ class MailFetcher(BaseFetcher):
         try:
             # 调用 testmail.app API
             # API 文档: https://testmail.app/docs/#using-cypress-json-api
-            # namespace 使用 source.src 属性，需要 URL 编码
-            namespace_encoded = quote(self.source.src.replace(' ', ''), safe='')
+            # src 格式: "namespace" 或 "namespace.tag"
+            # 如果有 "."，第一部分是 namespace，第二部分是 tag
+            src_clean = self.source.src.replace(' ', '')
+            if '.' in src_clean:
+                namespace, tag = src_clean.split('.', 1)
+            else:
+                namespace, tag = src_clean, None
+
+            namespace_encoded = quote(namespace, safe='')
             api_url = (
                 f"https://api.testmail.app/api/json"
                 f"?apikey={self.config['api_key']}"
                 f"&namespace={namespace_encoded}"
             )
 
-            # 添加可选的查询参数
-            api_url += self._build_query_params()
+            # 添加可选的查询参数（tag 可以从 src 或 metadata 中获取）
+            api_url += self._build_query_params(tag)
 
             response = self._make_request(api_url)
             data = response.json()
@@ -173,7 +180,7 @@ class MailFetcher(BaseFetcher):
 
         return html
 
-    def _build_query_params(self) -> str:
+    def _build_query_params(self, tag_from_src: Optional[str] = None) -> str:
         """
         构建可选的查询参数
 
@@ -185,6 +192,9 @@ class MailFetcher(BaseFetcher):
         - limit: 返回邮件数量限制（默认 10，最大 100）
         - offset: 偏移量（默认 0，最大 9899）
 
+        Args:
+            tag_from_src: 从 src 字段解析出的 tag（如 "namespace.tag" 中的 "tag"）
+
         Returns:
             str: 查询参数字符串
         """
@@ -195,12 +205,16 @@ class MailFetcher(BaseFetcher):
 
         if not metadata:
             # 默认只返回最新的 10 封邮件
+            if tag_from_src:
+                params.append(f"tag={quote(tag_from_src, safe='')}")
             params.append("limit=10")
             return "&" + "&".join(params) if params else ""
 
-        # 标签过滤
+        # 标签过滤（metadata 中的 tag 优先于 src 中的 tag）
         if "tag" in metadata:
             params.append(f"tag={quote(str(metadata['tag']), safe='')}")
+        elif tag_from_src:
+            params.append(f"tag={quote(tag_from_src, safe='')}")
 
         if "tag_prefix" in metadata:
             params.append(f"tag_prefix={quote(str(metadata['tag_prefix']), safe='')}")

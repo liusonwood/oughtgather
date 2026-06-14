@@ -65,7 +65,7 @@ config.json → Fetchers → Processors → Dedup → EPUB Generator → SMTP Se
 1. **Config Loading** (`src/config.py`): Loads from `CONFIG_JSON` env var or `config.json` file. Validates structure and provides typed access via `TitleConfig`, `ContentSource`, and `Config` dataclasses.
 
 2. **Fetchers** (`src/fetchers/`): Strategy pattern with `BaseFetcher` abstract class. Four implementations:
-   - `MailFetcher`: Uses testmail.app API. `src` field = namespace parameter. Supports metadata for query params (tag, limit, timestamp range).
+   - `MailFetcher`: Uses testmail.app API. `src` field supports `"namespace"` or `"namespace.tag"` format — if a dot is present, it splits into namespace + tag. Spaces are stripped. Supports metadata for query params (tag overrides src tag, limit, timestamp range).
    - `RSSFetcher`: Uses feedparser. Supports `full_text=Y/N` to extract full article via trafilatura.
    - `WebFetcher`: Single page extraction via trafilatura with fallback to BeautifulSoup.
    - `TrendingFetcher`: LLM-based content generation via OpenRouter API.
@@ -85,7 +85,7 @@ config.json → Fetchers → Processors → Dedup → EPUB Generator → SMTP Se
 
 - **Error Tolerance**: Failed sources are skipped and logged. Errors included in EPUB as a final chapter.
 - **No livequery**: Mail fetcher queries existing emails, not waiting for new ones.
-- **URL Encoding**: Namespace in MailFetcher is URL-encoded to handle special characters.
+- **URL Encoding**: Namespace in MailFetcher is URL-encoded to handle special characters. Spaces are stripped. `src` supports `"namespace.tag"` format — splits on first dot into namespace + tag.
 - **ContentSource.metadata**: Optional dict for fetcher-specific parameters (e.g., mail query filters).
 - **Secrets Management**: All credentials via GitHub Secrets or environment variables. Never in code.
 
@@ -109,7 +109,7 @@ config.json → Fetchers → Processors → Dedup → EPUB Generator → SMTP Se
   "body": [
     {
       "type": "rss|mail|web|trending",
-      "src": "URL or namespace or keyword",
+      "src": "URL or namespace[.tag] or keyword",  // mail: "namespace" or "namespace.tag"
       "priority": 10,  // Higher = earlier in EPUB
       "keep_link": "Y|N",
       "full_text": "Y|N",  // RSS only
