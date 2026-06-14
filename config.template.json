@@ -3,6 +3,7 @@
     "text": "{每日新闻 {time}}",
     "img": ""
   },
+  "limit": 15,
   "body": [
     {
       "type": "rss",

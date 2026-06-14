@@ -20,6 +20,8 @@ class ImageProcessor:
     MAX_WIDTH = 640  # 最大宽度（EPUB 阅读器屏幕通常 600px 宽）
     MAX_HEIGHT = 960  # 最大高度
     JPEG_QUALITY = 75  # JPEG 质量
+    MIN_WIDTH = 120  # 最小宽度（过滤头像、图标、表情等装饰性小图）
+    MIN_HEIGHT = 120  # 最小高度
 
     def __init__(self):
         """初始化图片处理器"""
@@ -50,13 +52,13 @@ class ImageProcessor:
                 return None
 
             # 处理图片
-            filename, image_data = self._process_image(response, url)
+            result = self._process_image(response, url)
+            if not result:
+                return None
 
-            if filename and image_data:
-                self.processed_images.append((filename, image_data))
-                return (filename, image_data)
-
-            return None
+            filename, image_data = result
+            self.processed_images.append((filename, image_data))
+            return result
 
         except Exception as e:
             self.logger.error(f"Failed to process image {url}: {e}")
@@ -123,6 +125,12 @@ class ImageProcessor:
         try:
             # 打开图片
             img = Image.open(io.BytesIO(image_data))
+
+            # 跳过过小的图片（头像、图标、表情等装饰性小图）
+            width, height = img.size
+            if width < self.MIN_WIDTH or height < self.MIN_HEIGHT:
+                self.logger.debug(f"Skipping small image ({width}x{height}): {original_url}")
+                return None
 
             # 转换为 RGB（如果是 RGBA 或其他模式）
             if img.mode != 'RGB':

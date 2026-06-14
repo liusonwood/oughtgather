@@ -70,7 +70,7 @@ config.json → Fetchers → Processors → Dedup → EPUB Generator → SMTP Se
    - `WebFetcher`: Single page extraction via trafilatura with fallback to BeautifulSoup.
    - `TrendingFetcher`: LLM-based content generation via OpenRouter API.
 
-3. **Content Processing** (`src/processors/`): Applies `keep_link`, `chop`, `exclude`, `delete` rules. `ImageProcessor` downloads and compresses images (≤250KB per image, max 640×960, JPEG quality 75).
+3. **Content Processing** (`src/processors/`): Applies `keep_link`, `chop`, `exclude`, `delete` rules. `ImageProcessor` downloads and compresses images (≤250KB per image, max 640×960, JPEG quality 75). Skips images smaller than 120×120 (icons, avatars, emoji, other decorative graphics).
 
 4. **Dedup Tracking** (`src/dedup/tracker.py`): File-based dedup using `data/fetched_urls.txt`. Tracks by URL+title hash. Auto-cleans old records when exceeding `MAX_RECORDS` (default 5000), keeping the newest entries. Persisted across runs via git commits in GitHub Actions.
 
@@ -169,7 +169,7 @@ tests/
 ├── test_content_processor.py # 30 tests - exclude/chop/keep_link/delete rules
 ├── test_dedup_tracker.py    # 19 tests - dedup tracking, persistence, and auto-cleanup
 ├── test_fetchers.py         # 26 tests - RSS/Web/Mail/Trending fetchers (mocked HTTP)
-└── test_image_processor.py  # 25 tests - image download, resize, compress
+└── test_image_processor.py  # 32 tests - image download, resize, compress, small-image filtering
 ```
 
 ## Documentation Maintenance

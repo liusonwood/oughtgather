@@ -24,12 +24,13 @@ from src.mailer.smtp_sender import SMTPSender
 from src.utils.logger import get_logger
 
 
-def get_fetcher(source: ContentSource) -> BaseFetcher:
+def get_fetcher(source: ContentSource, global_limit: int = 15) -> BaseFetcher:
     """
     根据数据源类型获取对应的抓取器
 
     Args:
         source: 内容源配置
+        global_limit: 全局抓取限制
 
     Returns:
         BaseFetcher: 抓取器实例
@@ -45,7 +46,7 @@ def get_fetcher(source: ContentSource) -> BaseFetcher:
     if not fetcher_class:
         raise ValueError(f"Unknown source type: {source.type}")
 
-    return fetcher_class(source)
+    return fetcher_class(source, global_limit=global_limit)
 
 
 def process_results(results: List[FetchResult], tracker: DedupTracker) -> List[FetchResult]:
@@ -138,7 +139,7 @@ def main():
 
         for source in config.body:
             try:
-                fetcher = get_fetcher(source)
+                fetcher = get_fetcher(source, global_limit=config.limit)
                 result = fetcher.fetch_with_retry()
                 results.append(result)
 

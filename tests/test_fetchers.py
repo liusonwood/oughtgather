@@ -223,11 +223,11 @@ class TestRSSFetcher:
         assert result.articles[0].content == "<p>Desc</p>"
 
     @patch("src.fetchers.rss_fetcher.feedparser.parse")
-    def test_rss_max_50_entries_limit(self, mock_parse):
-        """测试 RSS 默认最多 50 条限制"""
+    def test_rss_global_limit(self, mock_parse):
+        """测试 RSS 全局抓取上限限制（默认 15 条）"""
         source = ContentSource(type="rss", src="https://example.com/rss")
 
-        # 生成 80 个条目（超过默认的 50 条限制）
+        # 生成 80 个条目（超过默认的 15 条限制）
         entries = []
         for i in range(80):
             entries.append(_make_feedparser_dict({
@@ -242,14 +242,14 @@ class TestRSSFetcher:
         mock_feed.entries = entries
         mock_parse.return_value = mock_feed
 
-        fetcher = RSSFetcher(source)
+        fetcher = RSSFetcher(source, global_limit=15)
         result = fetcher.fetch()
 
-        # 验证只返回 50 条
-        assert len(result.articles) == 50
-        # 验证返回的是前 50 条
+        # 验证只返回 15 条
+        assert len(result.articles) == 15
+        # 验证返回的是前 15 条
         assert result.articles[0].title == "Entry 0"
-        assert result.articles[49].title == "Entry 49"
+        assert result.articles[14].title == "Entry 14"
 
     @patch("src.fetchers.rss_fetcher.feedparser.parse")
     def test_rss_metadata_limit_override(self, mock_parse):
@@ -286,9 +286,9 @@ class TestRSSFetcher:
         """测试当条目数少于限制时返回全部"""
         source = ContentSource(type="rss", src="https://example.com/rss")
 
-        # 生成 30 个条目（少于 50 条限制）
+        # 生成 10 个条目（少于 15 条限制）
         entries = []
-        for i in range(30):
+        for i in range(10):
             entries.append(_make_feedparser_dict({
                 "title": f"Entry {i}",
                 "content": [_make_feedparser_dict({"value": f"<p>Content {i}</p>"})],
@@ -301,11 +301,11 @@ class TestRSSFetcher:
         mock_feed.entries = entries
         mock_parse.return_value = mock_feed
 
-        fetcher = RSSFetcher(source)
+        fetcher = RSSFetcher(source, global_limit=15)
         result = fetcher.fetch()
 
-        # 验证返回全部 30 条
-        assert len(result.articles) == 30
+        # 验证返回全部 10 条
+        assert len(result.articles) == 10
 
 
 # =========================================================================

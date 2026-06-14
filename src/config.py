@@ -80,6 +80,7 @@ class Config:
     """全局配置"""
     title: TitleConfig
     body: List[ContentSource]
+    limit: int = 15  # 全局每源抓取上限
 
     def get_sorted_sources(self) -> List[ContentSource]:
         """获取按优先级排序的内容源（降序，稳定排序）"""
@@ -155,7 +156,11 @@ def _parse_config(data: Dict[str, Any]) -> Config:
         except Exception as e:
             raise ValueError(f"Error parsing body[{idx}]: {e}")
 
-    return Config(title=title_config, body=sources)
+    return Config(
+        title=title_config,
+        body=sources,
+        limit=data.get("limit", 15)
+    )
 
 
 def get_secret(secret_name: str, required: bool = True) -> Optional[str]:

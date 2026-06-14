@@ -59,15 +59,17 @@ class FetchResult:
 class BaseFetcher(ABC):
     """基础抓取器抽象类"""
 
-    def __init__(self, source: ContentSource, max_retries: int = 3):
+    def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):
         """
         初始化抓取器
 
         Args:
             source: 内容源配置
+            global_limit: 全局抓取数量限制
             max_retries: 最大重试次数
         """
         self.source = source
+        self.global_limit = global_limit
         self.max_retries = max_retries
         self.logger = get_logger()
 

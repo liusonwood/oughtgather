@@ -111,6 +111,66 @@ class TestResizeImage:
 
 
 # =========================================================================
+# 过小图片过滤测试
+# =========================================================================
+
+class TestSmallImageFilter:
+    """装饰性小图（头像、图标、表情等）应被过滤，不参与 EPUB 生成"""
+
+    def setup_method(self):
+        self.processor = ImageProcessor()
+
+    @patch.object(ImageProcessor, "_download_image")
+    def test_tiny_icon_skipped(self, mock_download):
+        """极小图标（如 32x32 表情）被跳过"""
+        mock_download.return_value = _make_image_bytes(32, 32)
+        result = self.processor.download_and_process("https://example.com/icon.png")
+        assert result is None
+
+    @patch.object(ImageProcessor, "_download_image")
+    def test_avatar_skipped(self, mock_download):
+        """头像类小图（如 64x64）被跳过"""
+        mock_download.return_value = _make_image_bytes(64, 64)
+        result = self.processor.download_and_process("https://example.com/avatar.jpg")
+        assert result is None
+
+    @patch.object(ImageProcessor, "_download_image")
+    def test_narrow_separator_skipped(self, mock_download):
+        """窄长条分隔图（宽度过小）被跳过"""
+        mock_download.return_value = _make_image_bytes(50, 400)
+        result = self.processor.download_and_process("https://example.com/separator.png")
+        assert result is None
+
+    @patch.object(ImageProcessor, "_download_image")
+    def test_short_banner_skipped(self, mock_download):
+        """矮横幅（高度过小）被跳过"""
+        mock_download.return_value = _make_image_bytes(400, 50)
+        result = self.processor.download_and_process("https://example.com/banner.png")
+        assert result is None
+
+    @patch.object(ImageProcessor, "_download_image")
+    def test_exact_min_size_kept(self, mock_download):
+        """恰好等于最小尺寸的图片保留（边界不丢弃）"""
+        mock_download.return_value = _make_image_bytes(120, 120)
+        result = self.processor.download_and_process("https://example.com/min.jpg")
+        assert result is not None
+
+    @patch.object(ImageProcessor, "_download_image")
+    def test_normal_image_kept(self, mock_download):
+        """正常正文配图（大于最小尺寸）保留"""
+        mock_download.return_value = _make_image_bytes(300, 200)
+        result = self.processor.download_and_process("https://example.com/content.jpg")
+        assert result is not None
+
+    @patch.object(ImageProcessor, "_download_image")
+    def test_skipped_image_not_tracked(self, mock_download):
+        """被跳过的小图不进入 processed_images 列表"""
+        mock_download.return_value = _make_image_bytes(48, 48)
+        self.processor.download_and_process("https://example.com/tiny.png")
+        assert len(self.processor.processed_images) == 0
+
+
+# =========================================================================
 # 图片压缩测试
 # =========================================================================
 
@@ -207,7 +267,7 @@ class TestDownloadAndProcess:
     @patch.object(ImageProcessor, "_download_image")
     def test_rgba_converted_to_rgb(self, mock_download):
         """RGBA 图片转换为 RGB"""
-        mock_download.return_value = _make_image_bytes(100, 100, mode="RGBA", fmt="PNG")
+        mock_download.return_value = _make_image_bytes(200, 200, mode="RGBA", fmt="PNG")
 
         processor = ImageProcessor()
         result = processor.download_and_process("https://example.com/img.png")
@@ -230,7 +290,7 @@ class TestDownloadAndProcess:
     @patch.object(ImageProcessor, "_download_image")
     def test_processed_images_tracked(self, mock_download):
         """处理过的图片记录到 processed_images 列表"""
-        mock_download.return_value = _make_image_bytes(100, 100)
+        mock_download.return_value = _make_image_bytes(200, 200)
 
         processor = ImageProcessor()
         processor.download_and_process("https://example.com/a.jpg")
@@ -241,7 +301,7 @@ class TestDownloadAndProcess:
     @patch.object(ImageProcessor, "_download_image")
     def test_get_total_size(self, mock_download):
         """get_total_size 返回所有图片的总字节数"""
-        mock_download.return_value = _make_image_bytes(100, 100)
+        mock_download.return_value = _make_image_bytes(200, 200)
 
         processor = ImageProcessor()
         processor.download_and_process("https://example.com/a.jpg")
@@ -254,7 +314,7 @@ class TestDownloadAndProcess:
     @patch.object(ImageProcessor, "_download_image")
     def test_get_total_size_mb(self, mock_download):
         """get_total_size_mb 返回 MB 单位"""
-        mock_download.return_value = _make_image_bytes(100, 100)
+        mock_download.return_value = _make_image_bytes(200, 200)
 
         processor = ImageProcessor()
         processor.download_and_process("https://example.com/a.jpg")

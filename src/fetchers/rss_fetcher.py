@@ -42,9 +42,9 @@ class RSSFetcher(BaseFetcher):
 
             self.logger.info(f"Found {len(feed.entries)} entries in RSS feed")
 
-            # 限制条目数量（默认最多 50 条，可通过 metadata.limit 覆盖）
+            # 限制条目数量（默认使用全局限制，可通过 metadata.limit 覆盖）
             metadata = self.source.metadata or {}
-            limit = min(int(metadata.get("limit", self.MAX_ENTRIES)), len(feed.entries))
+            limit = min(int(metadata.get("limit", self.global_limit)), len(feed.entries))
             entries = feed.entries[:limit]
 
             if limit < len(feed.entries):

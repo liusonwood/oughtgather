@@ -246,10 +246,10 @@ class MailFetcher(BaseFetcher):
         metadata = self.source.metadata if hasattr(self.source, 'metadata') else {}
 
         if not metadata:
-            # 默认只返回最新的 10 封邮件
+            # 默认只返回最新的邮件（使用全局限制）
             if tag_from_src:
                 params.append(f"tag={quote(tag_from_src, safe='')}")
-            params.append("limit=10")
+            params.append(f"limit={self.global_limit}")
             return "&" + "&".join(params) if params else ""
 
         # 标签过滤（metadata 中的 tag 优先于 src 中的 tag）
@@ -269,7 +269,7 @@ class MailFetcher(BaseFetcher):
             params.append(f"timestamp_to={metadata['timestamp_to']}")
 
         # 数量和偏移
-        limit = min(metadata.get("limit", 10), 100)  # 最大 100
+        limit = min(metadata.get("limit", self.global_limit), 100)  # 最大 100
         params.append(f"limit={limit}")
 
         if "offset" in metadata:
