@@ -45,6 +45,7 @@ class FetchResult:
     success: bool = True
     error: Optional[str] = None
     error_count: int = 0
+    source_title: Optional[str] = None  # 数据源的显示名称（如 RSS feed 标题）
 
     def add_error(self, error_msg: str):
         """添加错误信息"""

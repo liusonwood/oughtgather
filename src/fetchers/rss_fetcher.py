@@ -35,6 +35,9 @@ class RSSFetcher(BaseFetcher):
                 result.error = f"Failed to parse RSS feed: {feed.bozo_exception}"
                 return result
 
+            # 提取 feed 标题作为章节显示名称
+            result.source_title = feed.feed.get("title", "")
+
             self.logger.info(f"Found {len(feed.entries)} entries in RSS feed")
 
             # 遍历所有条目

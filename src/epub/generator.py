@@ -4,7 +4,7 @@ EPUB 生成器模块
 """
 
 import os
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 from ebooklib import epub
 from bs4 import BeautifulSoup
 
@@ -102,7 +102,7 @@ class EPUBGenerator:
     def _prepare_sections(
         self,
         results: List[FetchResult]
-    ) -> List[Tuple[ContentSource, List[Article]]]:
+    ) -> List[Tuple[ContentSource, List[Article], Optional[str]]]:
         """
         准备章节数据（按优先级排序）
 
@@ -110,7 +110,8 @@ class EPUBGenerator:
             results: 抓取结果列表
 
         Returns:
-            List[Tuple[ContentSource, List[Article]]]: 章节数据
+            List[Tuple[ContentSource, List[Article], Optional[str]]]: 章节数据
+            第三个元素为数据源的显示名称（如 RSS feed 标题）
         """
         # 按优先级排序（降序）
         sorted_results = sorted(
@@ -122,19 +123,19 @@ class EPUBGenerator:
         sections = []
         for result in sorted_results:
             if result.success and result.articles:
-                sections.append((result.source, result.articles))
+                sections.append((result.source, result.articles, result.source_title))
 
         return sections
 
     def _add_chapters(
         self,
         book: epub.EpubBook,
-        sections: List[Tuple[ContentSource, List[Article]]]
+        sections: List[Tuple[ContentSource, List[Article], Optional[str]]]
     ):
         """添加章节"""
         chapter_id = 0
 
-        for source, articles in sections:
+        for source, articles, _source_title in sections:
             for article in articles:
                 # 生成章节内容
                 chapter_content = self._generate_chapter_content(article)
