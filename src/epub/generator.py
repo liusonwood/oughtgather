@@ -183,6 +183,7 @@ class EPUBGenerator:
     <link rel="stylesheet" type="text/css" href="style/default.css"/>
 </head>
 <body>
+    <p><a href='nav.xhtml'>返回目录</a></p>
     <h1>{article.title}</h1>
 """
 
