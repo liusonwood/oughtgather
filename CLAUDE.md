@@ -92,7 +92,7 @@ config.json → Fetchers → Processors → Dedup → EPUB Generator → SMTP Se
       "keep_link": "Y|N",
       "full_text": "Y|N",  // RSS only
       "chop": "/[start:end]",
-      "exclude": "start:keyword|end:keyword",
+      "exclude": [{"type": "start|end|exact", "value": "keyword"}],
       "delete": "keyword1,keyword2",
       "metadata": {}  // Fetcher-specific params
     }

@@ -10,7 +10,11 @@
       "src": "https://example.com/rss",
       "priority": 10,
       "keep_link": "Y",
-      "full_text": "Y"
+      "full_text": "Y",
+      "exclude": [
+        { "type": "end", "value": "— 完 —" },
+        { "type": "exact", "value": "<span class=\"ad\">广告内容</span>" }
+      ]
     },
     {
       "type": "web",
@@ -22,8 +26,13 @@
     {
       "type": "mail",
       "title": "订阅邮件",
-      "src": "your-email@example.com",
-      "priority": 8
+      "src": "mynamespace",
+      "priority": 8,
+      "metadata": {
+        "tag": "daily",
+        "limit": 10,
+        "timestamp_from": 1718300000000
+      }
     },
     {
       "type": "trending",

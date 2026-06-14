@@ -101,10 +101,11 @@
 | `keep_link` | string | | 是否保留链接：`Y` / `N`（默认 Y） |
 | `full_text` | string | | RSS 是否抓取全文：`Y` / `N`（默认 N） |
 | `chop` | string | | 内容裁剪：`/[start:end]` |
-| `exclude` | string | | 排除内容：`start:关键词` 或 `end:关键词` |
+| `exclude` | array | | 内容过滤规则列表，支持三种模式（见下方说明） |
 | `delete` | string | | 删除包含关键词的文章（逗号分隔） |
 | `goal` | string | | trending 类型的分析目标 |
 | `model` | string | | trending 使用的 LLM 模型 |
+| `metadata` | object | | 数据源的额外参数（目前仅 mail 类型使用，用于 API 查询过滤） |
 
 ### 配置示例
 
@@ -138,10 +139,36 @@
 {
   "type": "mail",
   "title": "订阅邮件",
-  "src": "your-email@example.com",
+  "src": "mynamespace",
   "priority": 8
 }
 ```
+
+> `src` 的值是 testmail.app 的 **namespace**（不是邮箱地址）。testmail 的收件地址格式为 `{namespace}.{tag}@inbox.testmail.app`，
+> `src` 中的 `.` 只是 namespace 的命名分隔符，代码会自动 URL 编码后传给 API。
+
+带 metadata 查询参数的完整用法：
+
+```json
+{
+  "type": "mail",
+  "src": "mynamespace",
+  "metadata": {
+    "tag": "daily",
+    "limit": 10,
+    "timestamp_from": 1718300000000
+  }
+}
+```
+
+| metadata 字段 | 类型 | 默认值 | 说明 |
+|--------------|------|--------|------|
+| `tag` | string | 无 | 按标签精确过滤（对应 `{namespace}.{tag}@inbox.testmail.app` 中的 tag） |
+| `tag_prefix` | string | 无 | 按标签前缀过滤 |
+| `timestamp_from` | int | 无 | 起始时间戳（**毫秒**），只返回此时间之后收到的邮件 |
+| `timestamp_to` | int | 无 | 结束时间戳（**毫秒**），只返回此时间之前收到的邮件 |
+| `limit` | int | `10` | 返回邮件数量上限（最大 `100`） |
+| `offset` | int | `0` | 偏移量，用于翻页 |
 
 #### AI 热点分析（需要 OpenRouter API）
 
@@ -155,6 +182,30 @@
   "model": "openai/gpt-4"
 }
 ```
+
+#### 内容过滤规则 (exclude)
+
+`exclude` 是一个数组，每条规则包含 `type` 和 `value` 两个字段，支持三种模式：
+
+| type | 说明 |
+|------|------|
+| `start` | 删除从文档开头到 `value`（含）之间的内容 |
+| `end` | 删除从 `value`（含）到文档结尾的内容 |
+| `exact` | 在 HTML 源码中精确匹配 `value` 并删除（可包含 HTML 标签） |
+
+示例：
+
+```json
+{
+  "exclude": [
+    { "type": "start", "value": "前言部分" },
+    { "type": "end",   "value": "— 完 —" },
+    { "type": "exact", "value": "<a href=\"https://spam.com\">推广链接</a>" }
+  ]
+}
+```
+
+**注意**：`exclude` 在 HTML 上操作，会保留原始标签结构。关键词可以包含冒号等特殊字符。
 
 ## 本地开发
 

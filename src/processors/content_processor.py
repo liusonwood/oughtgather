@@ -35,13 +35,13 @@ class ContentProcessor:
         Returns:
             Article: 处理后的文章
         """
-        # 1. 应用 chop 规则
-        if self.source.chop:
-            article.content = self._apply_chop(article.content)
-
-        # 2. 应用 exclude 规则
+        # 1. 应用 exclude 规则（先于 chop，避免 chop 将 HTML 压扁为纯文本）
         if self.source.exclude:
             article.content = self._apply_exclude(article.content)
+
+        # 2. 应用 chop 规则
+        if self.source.chop:
+            article.content = self._apply_chop(article.content)
 
         # 3. 应用 keep_link 规则
         if self.source.keep_link == "N":
@@ -95,8 +95,12 @@ class ContentProcessor:
 
     def _apply_exclude(self, html: str) -> str:
         """
-        应用 exclude 规则
-        删除指定开头或结尾的内容块
+        应用 exclude 规则，在 HTML 源码上操作，保留标签结构
+
+        支持三种模式：
+          start  — 删除从开头到关键词（含）之间的全部内容
+          end    — 删除从关键词（含）到结尾的全部内容
+          exact  — 在 HTML 源码中精确匹配并删除（可包含 HTML 标签/链接）
 
         Args:
             html: HTML 内容
@@ -107,35 +111,159 @@ class ContentProcessor:
         if not self.source.exclude:
             return html
 
-        try:
-            # 解析 exclude 配置
-            # 格式：start:关键词 或 end:关键词
-            exclude_parts = self.source.exclude.split(':')
+        rules = self.source.exclude
+        if not isinstance(rules, list):
+            self.logger.error(f"exclude must be a list of rules, got {type(rules).__name__}")
+            return html
 
-            if len(exclude_parts) == 2:
-                position = exclude_parts[0].strip()
-                keyword = exclude_parts[1].strip()
+        for rule in rules:
+            if not isinstance(rule, dict):
+                self.logger.warning(f"Skipping non-dict exclude rule: {rule}")
+                continue
 
-                soup = BeautifulSoup(html, 'lxml')
-                text = soup.get_text()
+            rule_type = rule.get("type", "").strip()
+            value = rule.get("value", "")
 
-                if position == "start":
-                    # 删除开头的指定内容
-                    idx = text.find(keyword)
-                    if idx != -1:
-                        text = text[idx + len(keyword):]
-                elif position == "end":
-                    # 删除结尾的指定内容
-                    idx = text.rfind(keyword)
-                    if idx != -1:
-                        text = text[:idx]
+            if not value:
+                self.logger.warning(f"Skipping exclude rule with empty value: {rule}")
+                continue
 
-                return f"<p>{text}</p>"
+            try:
+                if rule_type == "start":
+                    html = self._delete_from_start(html, value)
+                elif rule_type == "end":
+                    html = self._delete_from_end(html, value)
+                elif rule_type == "exact":
+                    html = self._delete_exact(html, value)
+                else:
+                    self.logger.warning(f"Unknown exclude rule type: '{rule_type}'")
+            except Exception as e:
+                self.logger.error(f"Failed to apply exclude rule {rule}: {e}")
 
-        except Exception as e:
-            self.logger.error(f"Failed to apply exclude rule: {e}")
+        # 清理空标签
+        html = self._cleanup_empty_tags(html)
 
         return html
+
+    # ------------------------------------------------------------------
+    # exclude 辅助方法
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _iter_text_nodes(html: str):
+        """
+        解析 HTML 并返回 (soup, 文本节点列表)
+
+        文本节点按文档顺序排列，每个元素是 BeautifulSoup 的 NavigableString，
+        对其 .string 赋值会直接反映到 DOM 树上。
+        """
+        from bs4 import NavigableString
+        soup = BeautifulSoup(html, 'lxml')
+        body = soup.body if soup.body else soup
+        text_nodes = [n for n in body.find_all(string=True) if isinstance(n, NavigableString)]
+        return soup, text_nodes
+
+    def _delete_from_start(self, html: str, keyword: str) -> str:
+        """删除从文档开头到 keyword（含 keyword 本身）之间的全部内容"""
+        soup, text_nodes = self._iter_text_nodes(html)
+
+        if not text_nodes:
+            return html
+
+        # 在文本节点中顺序查找 keyword
+        for node in text_nodes:
+            text = str(node)
+            idx = text.find(keyword)
+
+            if idx != -1:
+                # keyword 完整落在当前节点内
+                kept = text[:idx]
+                if kept.strip():
+                    node.replace_with(kept)
+                else:
+                    node.extract()
+                return str(soup.body if soup.body else soup)
+
+        # keyword 未在任何单节点中找到——检查是否跨节点
+        full = soup.get_text()
+        if keyword in full:
+            self.logger.warning(
+                "exclude 'start' keyword spans multiple text nodes; "
+                "HTML structure will be simplified"
+            )
+            idx = full.find(keyword)
+            remaining = full[idx + len(keyword):]
+            return f"<p>{remaining}</p>"
+
+        self.logger.debug(f"exclude 'start' keyword not found: '{keyword}'")
+        return html
+
+    def _delete_from_end(self, html: str, keyword: str) -> str:
+        """删除从 keyword（含 keyword 本身）到文档结尾的全部内容"""
+        soup, text_nodes = self._iter_text_nodes(html)
+
+        if not text_nodes:
+            return html
+
+        # 逆序遍历，找到 keyword 的最后一次出现（rfind 语义）
+        target_idx = -1
+        for i in range(len(text_nodes) - 1, -1, -1):
+            node = text_nodes[i]
+            text = str(node)
+            idx = text.rfind(keyword)
+
+            if idx != -1:
+                target_idx = i
+                kept = text[:idx]
+                if kept.strip():
+                    node.replace_with(kept)
+                else:
+                    node.extract()
+                break
+
+        if target_idx != -1:
+            # 移除该节点之后的所有文本节点（通过预收集的列表引用，不依赖已脱离的 node）
+            for node in text_nodes[target_idx + 1:]:
+                if node.parent:
+                    node.extract()
+            return str(soup.body if soup.body else soup)
+
+        # 跨节点检查
+        full = soup.get_text()
+        if keyword in full:
+            self.logger.warning(
+                "exclude 'end' keyword spans multiple text nodes; "
+                "HTML structure will be simplified"
+            )
+            idx = full.rfind(keyword)
+            remaining = full[:idx]
+            return f"<p>{remaining}</p>"
+
+        self.logger.debug(f"exclude 'end' keyword not found: '{keyword}'")
+        return html
+
+    @staticmethod
+    def _delete_exact(html: str, keyword: str) -> str:
+        """在 HTML 源码中精确匹配 keyword 并删除所有出现（keyword 可含 HTML 标签）"""
+        if keyword not in html:
+            return html
+        return html.replace(keyword, "")
+
+    @staticmethod
+    def _cleanup_empty_tags(html: str) -> str:
+        """移除没有文本内容的空标签（如 <p></p>、<footer></footer>）"""
+        soup = BeautifulSoup(html, 'lxml')
+        body = soup.body if soup.body else soup
+
+        # 逆序遍历，避免删除父标签后子标签引用失效
+        for tag in reversed(body.find_all(True)):
+            if tag.name in ('html', 'body', 'head'):
+                continue
+            # 没有任何子节点（文本节点也算）→ 空标签
+            if not tag.get_text(strip=True) and not tag.find_all(True):
+                tag.extract()
+
+        return str(soup.body if soup.body else soup)
 
     def _remove_links(self, html: str) -> str:
         """

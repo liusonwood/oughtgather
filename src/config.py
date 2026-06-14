@@ -47,7 +47,7 @@ class ContentSource:
     keep_link: str = "Y"
     full_text: str = "N"
     chop: Optional[str] = None
-    exclude: Optional[str] = None
+    exclude: Optional[List[Dict[str, str]]] = None
     delete: Optional[str] = None
     goal: Optional[str] = None
     model: Optional[str] = None
