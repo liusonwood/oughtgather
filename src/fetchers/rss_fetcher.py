@@ -11,7 +11,7 @@ import trafilatura
 from src.config import ContentSource
 from src.fetchers.base import BaseFetcher, FetchResult, Article
 from src.utils.logger import get_logger
-from src.utils.helpers import format_date
+from src.utils.helpers import format_date, extract_image_urls
 
 
 class RSSFetcher(BaseFetcher):
@@ -87,18 +87,16 @@ class RSSFetcher(BaseFetcher):
 
         # 提取内容
         if self.source.full_text == "Y":
-            # 抓取完整正文
-            content = self._fetch_full_text(link)
+            # 抓取完整正文（同时从原始 HTML 中提取图片，因为 trafilatura 会移除 <img> 标签）
+            content, images = self._fetch_full_text(link)
         else:
             # 使用 RSS 摘要
             content = self._get_summary(entry)
+            images = self._extract_images(content)
 
         if not content:
             self.logger.warning(f"No content for entry: {title}")
             return None
-
-        # 提取图片
-        images = self._extract_images(content)
 
         return Article(
             title=title,
@@ -134,27 +132,33 @@ class RSSFetcher(BaseFetcher):
 
         return ""
 
-    def _fetch_full_text(self, url: str) -> str:
+    def _fetch_full_text(self, url: str) -> tuple:
         """
-        抓取完整正文
+        抓取完整正文，同时从原始 HTML 中提取图片。
+
+        trafilatura 会移除 <img> 标签，因此必须在调用 trafilatura 之前
+        从原始 HTML 中提取图片 URL。
 
         Args:
             url: 文章 URL
 
         Returns:
-            str: 正文 HTML
+            tuple: (正文 HTML, 图片 URL 列表)
         """
         if not url:
-            return ""
+            return "", []
 
         try:
             # 下载网页
             response = self._make_request(url)
-            html = response.text
+            raw_html = response.text
+
+            # 从原始 HTML 中提取图片（必须在 trafilatura 之前）
+            images = extract_image_urls(raw_html, url)
 
             # 使用 trafilatura 提取正文
             content = trafilatura.extract(
-                html,
+                raw_html,
                 include_comments=False,
                 include_tables=True,
                 include_images=True,
@@ -165,13 +169,13 @@ class RSSFetcher(BaseFetcher):
             if not content:
                 self.logger.warning(f"trafilatura failed to extract content from {url}")
                 # 回退到使用 BeautifulSoup 提取
-                content = self._fallback_extract(html)
+                content = self._fallback_extract(raw_html)
 
-            return content
+            return content, images
 
         except Exception as e:
             self.logger.error(f"Failed to fetch full text from {url}: {e}")
-            return ""
+            return "", []
 
     def _fallback_extract(self, html: str) -> str:
         """
@@ -205,7 +209,9 @@ class RSSFetcher(BaseFetcher):
 
     def _extract_images(self, html: str) -> List[str]:
         """
-        从 HTML 中提取图片 URL
+        从 HTML 中提取图片 URL。
+
+        使用共享的 extract_image_urls 辅助函数，支持懒加载和相对 URL 解析。
 
         Args:
             html: HTML 内容
@@ -213,15 +219,4 @@ class RSSFetcher(BaseFetcher):
         Returns:
             List[str]: 图片 URL 列表
         """
-        if not html:
-            return []
-
-        soup = BeautifulSoup(html, 'lxml')
-        images = []
-
-        for img in soup.find_all('img'):
-            src = img.get('src')
-            if src:
-                images.append(src)
-
-        return images
+        return extract_image_urls(html)

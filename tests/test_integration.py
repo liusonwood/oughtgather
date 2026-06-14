@@ -355,3 +355,106 @@ class TestEpubStructure:
 
         # 清理
         os.remove(epub_path_str)
+
+
+class TestEpubImageEmbedding:
+    """EPUB 图片嵌入测试：验证 URL 编码不匹配的问题已修复"""
+
+    def test_image_with_ampersand_url_embedded(self, tmp_path):
+        """
+        图片 URL 包含 & 时，仍能正确嵌入 EPUB。
+        ContentProcessor._clean_html 会把 & 编码为 &amp;，
+        但 _add_images_to_chapter 使用 BeautifulSoup 按 decoded src 匹配。
+        """
+        config_data = {
+            "title": {"text": "图片测试", "img": ""},
+            "body": [
+                {
+                    "type": "rss",
+                    "src": "https://example.com/rss",
+                    "priority": 10,
+                }
+            ]
+        }
+        config = _parse_config(config_data)
+        source = config.body[0]
+
+        # 图片 URL 包含 & 参数（常见于 CDN）
+        img_url = "https://cdn.example.com/photo.jpg?w=800&h=600"
+        articles = [
+            Article(
+                title="带图片的文章",
+                content='<p>正文</p><img src="https://cdn.example.com/photo.jpg?w=800&amp;h=600">',
+                url="https://example.com/article",
+                images=[img_url],
+            ),
+        ]
+        fetch_result = FetchResult(source=source, articles=articles)
+
+        generator = EPUBGenerator(config)
+
+        # Mock 图片下载，返回假的 JPEG 数据
+        from PIL import Image
+        import io
+
+        fake_img = Image.new("RGB", (100, 100), color="red")
+        buf = io.BytesIO()
+        fake_img.save(buf, format="JPEG")
+        fake_jpeg = buf.getvalue()
+
+        with patch.object(
+            generator.image_processor, "download_and_process",
+            return_value=("image_abc123.jpg", fake_jpeg)
+        ):
+            epub_path_str = generator.generate([fetch_result])
+
+        try:
+            import zipfile
+            with zipfile.ZipFile(epub_path_str, 'r') as zf:
+                files = zf.namelist()
+
+                # 图片文件应该存在于 EPUB 中
+                image_files = [f for f in files if f.endswith('.jpg')]
+                assert len(image_files) > 0, f"应包含图片文件，实际文件：{files}"
+
+                # 读取章节内容，验证 img src 已替换为本地路径
+                chapter_files = [f for f in files if f.endswith('.xhtml') and 'chapter' in f]
+                assert len(chapter_files) > 0, "应包含章节文件"
+
+                for ch_file in chapter_files:
+                    content = zf.read(ch_file).decode('utf-8')
+                    # img src 应该指向本地图片文件，而不是远程 URL
+                    if 'img' in content:
+                        assert 'images/image_abc123.jpg' in content, \
+                            f"章节 {ch_file} 中 img src 应替换为本地路径，实际内容：{content}"
+                        assert 'cdn.example.com' not in content, \
+                            f"章节 {ch_file} 中不应包含远程图片 URL"
+        finally:
+            os.remove(epub_path_str)
+
+    def test_no_images_no_error(self, tmp_path):
+        """文章没有图片时不应报错"""
+        config_data = {
+            "title": {"text": "无图片测试", "img": ""},
+            "body": [
+                {"type": "rss", "src": "https://example.com/rss", "priority": 10}
+            ]
+        }
+        config = _parse_config(config_data)
+        source = config.body[0]
+
+        articles = [
+            Article(
+                title="无图片文章",
+                content="<p>纯文本内容</p>",
+                url="https://example.com/article",
+                images=[],
+            ),
+        ]
+        fetch_result = FetchResult(source=source, articles=articles)
+
+        generator = EPUBGenerator(config)
+        epub_path_str = generator.generate([fetch_result])
+
+        assert os.path.exists(epub_path_str)
+        os.remove(epub_path_str)

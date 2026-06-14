@@ -12,6 +12,7 @@ from src.utils.helpers import (
     is_valid_url,
     sanitize_filename,
     format_date,
+    extract_image_urls,
 )
 
 
@@ -308,3 +309,110 @@ class TestFormatDate:
         """仅日期格式"""
         result = format_date("2026-06-14")
         assert result == "2026-06-14 00:00"
+
+
+# =========================================================================
+# extract_image_urls 测试
+# =========================================================================
+
+class TestExtractImageUrls:
+    """图片 URL 提取测试"""
+
+    def test_basic_img_tags(self):
+        """提取基本的 <img> 标签"""
+        html = """
+        <div>
+            <img src="https://example.com/a.jpg">
+            <img src="https://example.com/b.jpg">
+        </div>
+        """
+        result = extract_image_urls(html)
+        assert result == ["https://example.com/a.jpg", "https://example.com/b.jpg"]
+
+    def test_empty_html(self):
+        """空 HTML 返回空列表"""
+        assert extract_image_urls("") == []
+        assert extract_image_urls(None) == []
+
+    def test_no_images(self):
+        """无图片的 HTML"""
+        html = "<p>Hello <a href='https://example.com'>world</a></p>"
+        assert extract_image_urls(html) == []
+
+    def test_deduplication(self):
+        """相同 URL 只返回一次"""
+        html = """
+        <img src="https://example.com/a.jpg">
+        <img src="https://example.com/a.jpg">
+        """
+        result = extract_image_urls(html)
+        assert result == ["https://example.com/a.jpg"]
+
+    def test_lazy_load_data_src(self):
+        """支持 data-src 懒加载属性"""
+        html = """
+        <img data-src="https://example.com/lazy.jpg" src="data:image/gif;base64,R0lGOD">
+        """
+        result = extract_image_urls(html)
+        assert result == ["https://example.com/lazy.jpg"]
+
+    def test_lazy_load_data_original(self):
+        """支持 data-original 懒加载属性"""
+        html = '<img data-original="https://example.com/orig.jpg" src="placeholder.gif">'
+        result = extract_image_urls(html)
+        assert result == ["https://example.com/orig.jpg"]
+
+    def test_lazy_load_data_lazy_src(self):
+        """支持 data-lazy-src 懒加载属性"""
+        html = '<img data-lazy-src="https://example.com/lazy2.jpg">'
+        result = extract_image_urls(html)
+        assert result == ["https://example.com/lazy2.jpg"]
+
+    def test_skips_data_uri(self):
+        """跳过 data URI 占位符"""
+        html = '<img src="data:image/png;base64,iVBORw0KGgo=">'
+        assert extract_image_urls(html) == []
+
+    def test_skips_data_uri_in_lazy_attr(self):
+        """跳过懒加载属性中的 data URI"""
+        html = '<img data-src="data:image/gif;base64,R0lGOD" src="real.jpg">'
+        result = extract_image_urls(html)
+        assert result == ["real.jpg"]
+
+    def test_resolves_relative_url_with_base(self):
+        """使用 base_url 解析相对 URL"""
+        html = '<img src="/images/photo.jpg">'
+        result = extract_image_urls(html, base_url="https://example.com/article/1")
+        assert result == ["https://example.com/images/photo.jpg"]
+
+    def test_resolves_protocol_relative_url(self):
+        """解析协议相对 URL"""
+        html = '<img src="//cdn.example.com/img.jpg">'
+        result = extract_image_urls(html)
+        assert result == ["https://cdn.example.com/img.jpg"]
+
+    def test_absolute_url_ignores_base(self):
+        """绝对 URL 不使用 base_url"""
+        html = '<img src="https://other.com/img.jpg">'
+        result = extract_image_urls(html, base_url="https://example.com")
+        assert result == ["https://other.com/img.jpg"]
+
+    def test_preserves_document_order(self):
+        """保持文档中的出现顺序"""
+        html = """
+        <img src="https://example.com/1.jpg">
+        <img src="https://example.com/2.jpg">
+        <img src="https://example.com/3.jpg">
+        """
+        result = extract_image_urls(html)
+        assert result == [
+            "https://example.com/1.jpg",
+            "https://example.com/2.jpg",
+            "https://example.com/3.jpg",
+        ]
+
+    def test_img_without_src(self):
+        """没有 src 属性的 img 标签被跳过"""
+        html = '<img alt="broken image"><img src="https://example.com/good.jpg">'
+        result = extract_image_urls(html)
+        assert result == ["https://example.com/good.jpg"]

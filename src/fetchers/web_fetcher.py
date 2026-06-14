@@ -10,6 +10,7 @@ import trafilatura
 from src.config import ContentSource
 from src.fetchers.base import BaseFetcher, FetchResult, Article
 from src.utils.logger import get_logger
+from src.utils.helpers import extract_image_urls
 
 
 class WebFetcher(BaseFetcher):
@@ -27,21 +28,21 @@ class WebFetcher(BaseFetcher):
         try:
             # 下载网页
             response = self._make_request(self.source.src)
-            html = response.text
+            raw_html = response.text
 
             # 提取标题
-            title = self._extract_title(html)
+            title = self._extract_title(raw_html)
+
+            # 从原始 HTML 中提取图片（必须在 trafilatura 之前，因为 trafilatura 会移除 <img> 标签）
+            images = self._extract_images(raw_html)
 
             # 提取正文
-            content = self._extract_content(html)
+            content = self._extract_content(raw_html)
 
             if not content:
                 result.success = False
                 result.error = "Failed to extract content from webpage"
                 return result
-
-            # 提取图片
-            images = self._extract_images(content)
 
             # 创建文章对象
             article = Article(
@@ -160,7 +161,9 @@ class WebFetcher(BaseFetcher):
 
     def _extract_images(self, html: str) -> List[str]:
         """
-        从 HTML 中提取图片 URL
+        从 HTML 中提取图片 URL。
+
+        使用共享的 extract_image_urls 辅助函数，支持懒加载和相对 URL 解析。
 
         Args:
             html: HTML 内容
@@ -168,24 +171,4 @@ class WebFetcher(BaseFetcher):
         Returns:
             List[str]: 图片 URL 列表
         """
-        if not html:
-            return []
-
-        soup = BeautifulSoup(html, 'lxml')
-        images = []
-
-        for img in soup.find_all('img'):
-            src = img.get('src')
-            if src:
-                # 处理相对 URL
-                if src.startswith('//'):
-                    src = 'https:' + src
-                elif src.startswith('/'):
-                    # 需要从原始 URL 构建完整路径
-                    from urllib.parse import urlparse
-                    parsed = urlparse(self.source.src)
-                    src = f"{parsed.scheme}://{parsed.netloc}{src}"
-
-                images.append(src)
-
-        return images
+        return extract_image_urls(html, self.source.src)

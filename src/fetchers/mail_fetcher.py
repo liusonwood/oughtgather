@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from src.config import ContentSource, get_testmail_config
 from src.fetchers.base import BaseFetcher, FetchResult, Article
 from src.utils.logger import get_logger
-from src.utils.helpers import format_date
+from src.utils.helpers import format_date, extract_image_urls
 
 
 class MailFetcher(BaseFetcher):
@@ -145,7 +145,10 @@ class MailFetcher(BaseFetcher):
 
     def _extract_images(self, html: str) -> List[str]:
         """
-        从 HTML 中提取图片 URL
+        从 HTML 中提取图片 URL。
+
+        使用共享的 extract_image_urls 辅助函数，支持懒加载。
+        邮件 HTML 没有可用的 base URL，因此不解析相对路径。
 
         Args:
             html: HTML 内容
@@ -153,18 +156,7 @@ class MailFetcher(BaseFetcher):
         Returns:
             List[str]: 图片 URL 列表
         """
-        if not html:
-            return []
-
-        soup = BeautifulSoup(html, 'lxml')
-        images = []
-
-        for img in soup.find_all('img'):
-            src = img.get('src')
-            if src:
-                images.append(src)
-
-        return images
+        return extract_image_urls(html)
 
     def _apply_content_rules(self, html: str) -> str:
         """

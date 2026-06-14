@@ -567,3 +567,143 @@ class TestTrendingFetcher:
         assert "<li>项目一</li>" in html
         assert "<li>项目二</li>" in html
         assert "</ul>" in html
+
+
+# =========================================================================
+# 图片提取测试（验证从原始 HTML 而非 trafilatura 输出中提取）
+# =========================================================================
+
+class TestWebFetcherImageExtraction:
+    """WebFetcher 图片提取：从原始 HTML 提取，不受 trafilatura 影响"""
+
+    @patch("src.fetchers.web_fetcher.trafilatura.extract")
+    @patch.object(WebFetcher, "_make_request")
+    def test_images_extracted_from_raw_html(self, mock_request, mock_extract, web_source):
+        """
+        即使 trafilatura 返回的内容中没有图片，
+        article.images 仍应包含原始 HTML 中的图片 URL。
+        """
+        raw_html = """
+        <html><body>
+            <article>
+                <p>正文内容</p>
+                <img src="https://example.com/photo.jpg">
+            </article>
+        </body></html>
+        """
+        mock_response = MagicMock()
+        mock_response.text = raw_html
+        mock_request.return_value = mock_response
+        # trafilatura 返回的内容中不含 <img>
+        mock_extract.return_value = "<p>正文内容</p>"
+
+        fetcher = WebFetcher(web_source)
+        result = fetcher.fetch()
+
+        assert result.success is True
+        assert len(result.articles) == 1
+        assert result.articles[0].images == ["https://example.com/photo.jpg"]
+
+    @patch("src.fetchers.web_fetcher.trafilatura.extract")
+    @patch.object(WebFetcher, "_make_request")
+    def test_lazy_loaded_images_extracted(self, mock_request, mock_extract, web_source):
+        """懒加载图片（data-src）也能被提取"""
+        raw_html = """
+        <html><body>
+            <img data-src="https://example.com/lazy.jpg" src="data:image/gif;base64,R0lGOD">
+            <p>正文</p>
+        </body></html>
+        """
+        mock_response = MagicMock()
+        mock_response.text = raw_html
+        mock_request.return_value = mock_response
+        mock_extract.return_value = "<p>正文</p>"
+
+        fetcher = WebFetcher(web_source)
+        result = fetcher.fetch()
+
+        assert result.articles[0].images == ["https://example.com/lazy.jpg"]
+
+    @patch("src.fetchers.web_fetcher.trafilatura.extract")
+    @patch.object(WebFetcher, "_make_request")
+    def test_relative_images_resolved(self, mock_request, mock_extract):
+        """相对路径图片使用 source.src 作为 base_url 解析"""
+        source = ContentSource(type="web", src="https://example.com/article/1")
+        raw_html = '<html><body><img src="/images/photo.jpg"></body></html>'
+        mock_response = MagicMock()
+        mock_response.text = raw_html
+        mock_request.return_value = mock_response
+        mock_extract.return_value = ""
+
+        fetcher = WebFetcher(source)
+        result = fetcher.fetch()
+
+        assert result.articles[0].images == ["https://example.com/images/photo.jpg"]
+
+
+class TestRSSFetcherImageExtraction:
+    """RSSFetcher 图片提取：full_text=Y 时从原始 HTML 提取"""
+
+    @patch("src.fetchers.rss_fetcher.trafilatura.extract")
+    @patch.object(RSSFetcher, "_make_request")
+    def test_full_text_images_from_raw_html(self, mock_request, mock_extract, rss_full_text_source):
+        """
+        full_text=Y 时，图片从下载的原始 HTML 中提取，
+        而非 trafilatura 处理后的内容。
+        """
+        raw_html = """
+        <html><body>
+            <article>
+                <p>完整正文</p>
+                <img src="https://cdn.example.com/article-photo.jpg">
+            </article>
+        </body></html>
+        """
+        mock_response = MagicMock()
+        mock_response.text = raw_html
+        mock_request.return_value = mock_response
+        # trafilatura 返回的内容中不含 <img>
+        mock_extract.return_value = "<p>完整正文</p>"
+
+        # Mock feedparser（使用 MagicMock，支持属性访问）
+        mock_feed = MagicMock()
+        mock_feed.bozo = False
+        mock_feed.feed = {"title": "Test Feed"}
+        mock_feed.entries = [
+            _make_feedparser_dict({
+                "title": "Test Article",
+                "link": "https://example.com/article",
+                "published": "Mon, 14 Jun 2026 10:00:00 GMT",
+                "tags": [],
+            }),
+        ]
+
+        with patch("src.fetchers.rss_fetcher.feedparser.parse", return_value=mock_feed):
+            fetcher = RSSFetcher(rss_full_text_source)
+            result = fetcher.fetch()
+
+        assert result.success is True
+        assert len(result.articles) == 1
+        assert result.articles[0].images == ["https://cdn.example.com/article-photo.jpg"]
+
+    @patch("src.fetchers.rss_fetcher.feedparser.parse")
+    def test_summary_images_extracted(self, mock_parse, rss_source):
+        """full_text=N 时，图片从 RSS 摘要中提取"""
+        mock_feed = MagicMock()
+        mock_feed.bozo = False
+        mock_feed.feed = {"title": "Test Feed"}
+        mock_feed.entries = [
+            _make_feedparser_dict({
+                "title": "Test",
+                "link": "https://example.com/article",
+                "summary": '<p>摘要</p><img src="https://example.com/thumb.jpg">',
+                "tags": [],
+            }),
+        ]
+        mock_parse.return_value = mock_feed
+
+        fetcher = RSSFetcher(rss_source)
+        result = fetcher.fetch()
+
+        assert result.success is True
+        assert result.articles[0].images == ["https://example.com/thumb.jpg"]
