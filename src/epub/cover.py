@@ -200,7 +200,7 @@ class CoverGenerator:
         start_y = (self.HEIGHT - total_height) // 2
 
         # 绘制每行文字（带黑色边框）
-        stroke_width = max(2, common_font_size // 30)  # 描边宽度，至少2像素
+        stroke_width = max(4, common_font_size // 15)  # 描边宽度，至少4像素
 
         for i, line in enumerate(lines):
             # 计算X位置（水平居中）
