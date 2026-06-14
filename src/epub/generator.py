@@ -134,7 +134,9 @@ class EPUBGenerator:
     ):
         """添加章节"""
         chapter_id = 0
-        spine = ['nav']  # 初始化 spine，导航项必须在最前
+        # 把 cover 放在最前面，确保封面在第一页显示；
+        # 否则 cover.xhtml 不在 spine 中，阅读器会把它追加到末尾。
+        spine = ['cover', 'nav']
 
         for source, articles, _source_title in sections:
             for article in articles:

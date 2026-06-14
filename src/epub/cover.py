@@ -16,9 +16,9 @@ from src.utils.logger import get_logger
 class CoverGenerator:
     """封面生成器"""
 
-    # 封面尺寸（Kindle 推荐）
-    WIDTH = 1600
-    HEIGHT = 2560
+    # 封面尺寸（3:4，匹配 Kindle 屏幕比例）
+    WIDTH = 1440
+    HEIGHT = 1920
 
     def __init__(self, title_config: TitleConfig):
         """
