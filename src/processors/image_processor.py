@@ -16,10 +16,10 @@ from src.utils.logger import get_logger
 class ImageProcessor:
     """图片处理器"""
 
-    MAX_SIZE_KB = 500  # 单张图片最大大小（KB）
-    MAX_WIDTH = 800  # 最大宽度
-    MAX_HEIGHT = 1200  # 最大高度
-    JPEG_QUALITY = 85  # JPEG 质量
+    MAX_SIZE_KB = 250  # 单张图片最大大小（KB）
+    MAX_WIDTH = 640  # 最大宽度（EPUB 阅读器屏幕通常 600px 宽）
+    MAX_HEIGHT = 960  # 最大高度
+    JPEG_QUALITY = 75  # JPEG 质量
 
     def __init__(self):
         """初始化图片处理器"""

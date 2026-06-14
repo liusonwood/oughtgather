@@ -81,33 +81,33 @@ class TestResizeImage:
 
     def test_width_exceeds_limit(self):
         """宽度超限等比缩放"""
-        img = Image.new("RGB", (1600, 800))
+        img = Image.new("RGB", (1280, 800))
         result = self.processor._resize_image(img)
-        assert result.size[0] == 800  # MAX_WIDTH
-        # 高度按比例：800 * (800/1600) = 400
+        assert result.size[0] == 640  # MAX_WIDTH
+        # 高度按比例：800 * (640/1280) = 400
         assert result.size[1] == 400
 
     def test_height_exceeds_limit(self):
         """高度超限等比缩放"""
-        img = Image.new("RGB", (400, 2400))
+        img = Image.new("RGB", (400, 1920))
         result = self.processor._resize_image(img)
-        assert result.size[1] == 1200  # MAX_HEIGHT
-        # 宽度按比例：400 * (1200/2400) = 200
+        assert result.size[1] == 960  # MAX_HEIGHT
+        # 宽度按比例：400 * (960/1920) = 200
         assert result.size[0] == 200
 
     def test_both_exceed_limit(self):
         """宽高都超限按较大比例缩放"""
-        img = Image.new("RGB", (1600, 2400))
+        img = Image.new("RGB", (1280, 1920))
         result = self.processor._resize_image(img)
-        # 宽度比例：800/1600 = 0.5
-        # 高度比例：1200/2400 = 0.5
-        assert result.size == (800, 1200)
+        # 宽度比例：640/1280 = 0.5
+        # 高度比例：960/1920 = 0.5
+        assert result.size == (640, 960)
 
     def test_exact_limit_unchanged(self):
         """恰好等于限制尺寸不调整"""
-        img = Image.new("RGB", (800, 1200))
+        img = Image.new("RGB", (640, 960))
         result = self.processor._resize_image(img)
-        assert result.size == (800, 1200)
+        assert result.size == (640, 960)
 
 
 # =========================================================================
@@ -124,7 +124,7 @@ class TestCompressImage:
         """小图片压缩后小于 MAX_SIZE_KB"""
         img = Image.new("RGB", (100, 100), (255, 0, 0))
         data = self.processor._compress_image(img)
-        assert len(data) / 1024 <= 500
+        assert len(data) / 1024 <= 250
 
     def test_returns_jpeg(self):
         """压缩后是 JPEG 格式"""
@@ -137,10 +137,10 @@ class TestCompressImage:
         """大图片压缩后满足大小限制"""
         # 创建一个复杂的图片（噪声），更难压缩
         import random
-        img = Image.new("RGB", (800, 1200))
+        img = Image.new("RGB", (640, 960))
         pixels = img.load()
-        for x in range(800):
-            for y in range(1200):
+        for x in range(640):
+            for y in range(960):
                 pixels[x, y] = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
         data = self.processor._compress_image(img)
         # 即使质量降到最低也不满足，会进一步缩小尺寸
