@@ -183,6 +183,7 @@ class EPUBGenerator:
     <link rel="stylesheet" type="text/css" href="style/default.css"/>
 </head>
 <body>
+    <p class='back-to-toc'><a href='nav.xhtml'>返回目录</a></p>
     <h1>{article.title}</h1>
 """
 
@@ -296,6 +297,10 @@ body {
     line-height: 1.6;
     margin: 1em;
 }
+.back-to-toc {
+    font-size: 0.85em;
+    margin-bottom: 0.5em;
+}
 h1 {
     font-size: 1.5em;
     font-weight: bold;
@@ -347,7 +352,7 @@ li {
         """
         # 生成文件名
         from src.utils.helpers import sanitize_filename
-        title = self.config.title.get_plain_text()
+        title = self.config.title.get_display_text()
         filename = sanitize_filename(title) + ".epub"
 
         # 确保输出目录存在
