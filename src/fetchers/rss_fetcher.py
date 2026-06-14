@@ -89,26 +89,29 @@ class RSSFetcher(BaseFetcher):
         if self.source.full_text == "Y":
             # 抓取完整正文
             content = self._fetch_full_text(link)
-            # Bug 1: 如果是抓取全文，尝试从原始内容提取图片，因为 trafilatura 可能会剥离它们
-            images = self._extract_images(content) # 这里 content 是 trafilatura 处理后的
             
-            # 如果 trafilatura 剥离了图片，我们需要重新抓取或者使用 fallback
-            if not any("<img" in content for _ in [1]) and link:
-                 # 重新下载网页以获取原始 HTML 进行图片提取和 fallback 处理
+            # Bug 1 & 2: 提取图片并处理 Trafilatura 过于激进的问题
+            images = self._extract_images(content, base_url=link)
+            
+            # 如果 trafilatura 剥离了图片或者返回的内容太短，我们需要使用 fallback
+            if len(images) == 0 or len(content) < 300:
                  try:
                     resp = self._make_request(link)
                     raw_html = resp.text
-                    raw_images = self._extract_images(raw_html)
-                    if raw_images:
-                        self.logger.warning(f"trafilatura stripped images for {title}, falling back to BeautifulSoup extraction")
-                        content = self._fallback_extract(raw_html)
-                        images = raw_images
+                    raw_images = self._extract_images(raw_html, base_url=link)
+                    
+                    if len(raw_images) > len(images) or len(content) < 300:
+                        self.logger.warning(f"trafilatura might have been too aggressive for {title}, falling back to BeautifulSoup")
+                        fallback_content = self._fallback_extract(raw_html)
+                        if len(fallback_content) > len(content):
+                            content = fallback_content
+                            images = self._extract_images(content, base_url=link)
                  except Exception as e:
-                    self.logger.error(f"Failed to recover images for {title}: {e}")
+                    self.logger.error(f"Failed to recover content for {title}: {e}")
         else:
             # 使用 RSS 摘要
             content = self._get_summary(entry)
-            images = self._extract_images(content)
+            images = self._extract_images(content, base_url=link)
 
         if not content:
             self.logger.warning(f"No content for entry: {title}")
@@ -216,37 +219,3 @@ class RSSFetcher(BaseFetcher):
             return str(main_content)
 
         return str(soup.body) if soup.body else ""
-
-    def _extract_images(self, html: str) -> List[str]:
-        """
-        从 HTML 中提取图片 URL
-
-        Args:
-            html: HTML 内容
-
-        Returns:
-            List[str]: 图片 URL 列表
-        """
-        if not html:
-            return []
-
-        soup = BeautifulSoup(html, 'lxml')
-        images = []
-
-        for img in soup.find_all('img'):
-            # 优先检查懒加载属性 (Bug 3)
-            src = None
-            for attr in ['data-src', 'data-original', 'data-actualsrc', 'src']:
-                val = img.get(attr)
-                # 排除明显的占位图
-                if val and not val.endswith(('.gif', '.svg')) and not val.startswith('data:image'):
-                    src = val
-                    break
-            
-            if not src:
-                src = img.get('src')
-
-            if src:
-                images.append(src)
-
-        return images

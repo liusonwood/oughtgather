@@ -233,13 +233,27 @@ class EPUBGenerator:
         url_to_filename = {}
 
         for img in img_tags:
-            # 优先检查懒加载属性 (Bug 3)
+            # 优先检查懒加载属性 (Bug 3) 和 srcset
             src = None
-            for attr in ['data-src', 'data-original', 'data-actualsrc', 'src']:
-                val = img.get(attr)
-                if val and not val.endswith(('.gif', '.svg')): # 简单排除占位图
-                    src = val
-                    break
+            
+            # 检查 srcset (Bug 4)
+            srcset = img.get('data-srcset') or img.get('srcset')
+            if srcset:
+                candidates = []
+                for part in srcset.split(','):
+                    parts = part.strip().split()
+                    if parts:
+                        candidates.append(parts[0])
+                if candidates:
+                    src = candidates[-1]
+            
+            # 检查懒加载属性
+            if not src:
+                for attr in ['data-src', 'data-original', 'data-actualsrc', 'data-lazy-src', 'file', 'zoom-target', 'original']:
+                    val = img.get(attr)
+                    if val and not any(ext in val.lower() for ext in ['.gif', '.svg']):
+                        src = val
+                        break
             
             if not src:
                 src = img.get('src')
@@ -250,8 +264,8 @@ class EPUBGenerator:
             # 如果已经处理过这个 URL
             if src in url_to_filename:
                 img['src'] = f"images/{url_to_filename[src]}"
-                # 移除懒加载属性，防止阅读器混淆
-                for attr in ['data-src', 'data-original', 'data-actualsrc']:
+                # 移除干扰属性
+                for attr in ['data-src', 'data-original', 'data-actualsrc', 'data-lazy-src', 'srcset', 'data-srcset']:
                     if img.has_attr(attr):
                         del img[attr]
                 continue
@@ -283,8 +297,8 @@ class EPUBGenerator:
 
                 # 在章节内容中更新图片 URL
                 img['src'] = f"images/{filename}"
-                # 移除懒加载属性 (Bug 3)
-                for attr in ['data-src', 'data-original', 'data-actualsrc']:
+                # 移除干扰属性 (Bug 3)
+                for attr in ['data-src', 'data-original', 'data-actualsrc', 'data-lazy-src', 'srcset', 'data-srcset']:
                     if img.has_attr(attr):
                         del img[attr]
             else:

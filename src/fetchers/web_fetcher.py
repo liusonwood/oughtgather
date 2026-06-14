@@ -40,17 +40,18 @@ class WebFetcher(BaseFetcher):
                 result.error = "Failed to extract content from webpage"
                 return result
 
-            # Bug 1: 优先从原始 HTML 提取图片，因为 trafilatura 可能会剥离它们
-            images = self._extract_images(html)
+            # Bug 1 & 2: 提取图片并处理 Trafilatura 剥离问题
+            images = self._extract_images(content)
             
-            # 如果正文中没有 <img> 标签，但我们提取到了图片，
-            # 说明 trafilatura 可能剥离了图片。
-            # 在这种情况下，我们可能需要回退到更保守的提取方式，或者手动将图片重新插入（较难）。
-            # 目前的策略是：如果 images 列表不为空但在 content 中找不到 <img>，
-            # 且用户没有明确禁用图片，我们尝试使用 fallback 提取。
-            if images and "<img" not in content:
-                self.logger.warning("trafilatura stripped images, falling back to BeautifulSoup extraction")
-                content = self._fallback_extract(html)
+            # 如果正文内容太短，或者虽然有图片但 content 里一个 <img> 都没有，说明 trafilatura 过于激进
+            if len(images) == 0 or len(content) < 300:
+                raw_images = self._extract_images(html)
+                if len(raw_images) > len(images) or len(content) < 300:
+                    self.logger.warning(f"trafilatura might have been too aggressive for {self.source.src}, falling back to BeautifulSoup")
+                    fallback_content = self._fallback_extract(html)
+                    if len(fallback_content) > len(content):
+                        content = fallback_content
+                        images = self._extract_images(content)
 
             # 创建文章对象
             article = Article(
@@ -166,37 +167,3 @@ class WebFetcher(BaseFetcher):
             return str(main_content)
 
         return ""
-
-    def _extract_images(self, html: str) -> List[str]:
-        """
-        从 HTML 中提取图片 URL
-
-        Args:
-            html: HTML 内容
-
-        Returns:
-            List[str]: 图片 URL 列表
-        """
-        if not html:
-            return []
-
-        soup = BeautifulSoup(html, 'lxml')
-        images = []
-
-        for img in soup.find_all('img'):
-            # 优先检查懒加载属性 (Bug 3)
-            src = None
-            for attr in ['data-src', 'data-original', 'data-actualsrc', 'src']:
-                val = img.get(attr)
-                # 排除明显的占位图
-                if val and not val.endswith(('.gif', '.svg')) and not val.startswith('data:image'):
-                    src = val
-                    break
-            
-            if not src:
-                src = img.get('src')
-
-            if src:
-                images.append(src)
-
-        return images

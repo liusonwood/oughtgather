@@ -151,7 +151,7 @@ class BaseFetcher(ABC):
             httpx.Response: 响应对象
         """
         default_headers = {
-            "User-Agent": "Mozilla/5.0 (compatible; OughtGather/1.0)"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
 
         if headers:
@@ -162,6 +162,92 @@ class BaseFetcher(ABC):
             response.raise_for_status()
             response.read()  # 确保在客户端关闭前读取响应体
             return response
+
+    def _resolve_url(self, url: str, base_url: Optional[str] = None) -> str:
+        """
+        解析 URL（处理相对路径）
+
+        Args:
+            url: 图片 URL
+            base_url: 基础 URL
+
+        Returns:
+            str: 完整的 URL
+        """
+        from urllib.parse import urljoin
+        if not base_url:
+            if url.startswith('//'):
+                return 'https:' + url
+            return url
+        return urljoin(base_url, url)
+
+    def _extract_images(self, html: str, base_url: Optional[str] = None) -> List[str]:
+        """
+        从 HTML 中提取图片 URL
+
+        Args:
+            html: HTML 内容
+            base_url: 基础 URL（用于解析相对路径）
+
+        Returns:
+            List[str]: 图片 URL 列表
+        """
+        if not html:
+            return []
+
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html, 'lxml')
+        images = []
+        
+        # 排除关键词
+        exclude_keywords = ['avatar', 'logo', 'icon', 'button', 'loading', 'spacer', 'ad_']
+
+        for img in soup.find_all('img'):
+            # 1. 尝试多个候选属性
+            src = None
+            
+            # 检查 srcset
+            srcset = img.get('data-srcset') or img.get('srcset')
+            if srcset:
+                # 解析 srcset: "url1 300w, url2 600w"
+                candidates = []
+                for part in srcset.split(','):
+                    parts = part.strip().split()
+                    if parts:
+                        candidates.append(parts[0])
+                if candidates:
+                    src = candidates[-1] # 假设最后一个是最大的
+            
+            # 检查懒加载属性
+            if not src:
+                for attr in ['data-src', 'data-original', 'data-actualsrc', 'data-lazy-src', 'file', 'zoom-target', 'original']:
+                    val = img.get(attr)
+                    if val and not any(ext in val.lower() for ext in ['.gif', '.svg']):
+                        src = val
+                        break
+            
+            # 最后用 src
+            if not src:
+                src = img.get('src')
+                
+            if not src:
+                continue
+                
+            # 2. 基础过滤
+            if src.startswith('data:image'):
+                continue
+            
+            # 排除明显的占位图/图标
+            if any(kw in src.lower() for kw in exclude_keywords):
+                # 除非它是唯一的图片或非常大，否则跳过
+                pass 
+                
+            # 3. 解析为绝对路径
+            full_url = self._resolve_url(src, base_url or self.source.src)
+            if full_url not in images:
+                images.append(full_url)
+
+        return images
 
     def _should_delete(self, title: str) -> bool:
         """
