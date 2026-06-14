@@ -75,8 +75,14 @@
   ]
 }
 ```
+项目提供了一个可视化 HTML 配置编辑器，浏览器打开 `config-editor.html` 即可使用：
 
-详细配置说明见 [配置指南](docs/CONFIG.md)。
+详细配置说明见 [配置指南](docs/CONFIG.md)：
+
+- 标题与封面配置（`title`）
+- 四种数据源类型（`rss` / `web` / `mail` / `trending`）的专属字段
+- 内容过滤（`exclude` / `chop` / `delete`）
+- 完整示例与可视化配置编辑器（`config-editor.html`）
 
 ### 4. 运行
 
@@ -105,15 +111,6 @@
   | 10:00   | 02:00   | `0 2 * * *` |
   | 12:00   | 04:00   | `0 4 * * *` |
   | 20:00   | 12:00   | `0 12 * * *` |
-
-## 配置
-
-详见 [配置指南](docs/CONFIG.md)，涵盖：
-
-- 标题与封面配置（`title`）
-- 四种数据源类型（`rss` / `web` / `mail` / `trending`）的专属字段
-- 内容过滤（`exclude` / `chop` / `delete`）
-- 完整示例与可视化配置编辑器（`config-editor.html`）
 
 ## 本地开发
 
@@ -151,14 +148,12 @@ python -m pytest tests/test_config.py::TestTitleConfig -v
 ```
 
 当前测试覆盖：
-- **配置加载**（`test_config.py`）— 26 个测试
-- **工具函数**（`test_helpers.py`）— 40 个测试
-- **内容处理**（`test_content_processor.py`）— 30 个测试
-- **去重追踪**（`test_dedup_tracker.py`）— 19 个测试
-- **数据抓取**（`test_fetchers.py`）— 26 个测试（mock HTTP）
-- **图片处理**（`test_image_processor.py`）— 25 个测试
-
-**共 171 个测试。**
+- **配置加载**（`test_config.py`）
+- **工具函数**（`test_helpers.py`）
+- **内容处理**（`test_content_processor.py`）
+- **去重追踪**（`test_dedup_tracker.py`）
+- **数据抓取**（`test_fetchers.py`）
+- **图片处理**（`test_image_processor.py`）
 
 详细测试指南见 [TESTING.md](docs/TESTING.md)。
 
@@ -166,7 +161,7 @@ python -m pytest tests/test_config.py::TestTitleConfig -v
 
 ```
 ought-gather/
-├── config-editor.html        # 可视化配置编辑器（浏览器打开）
+├── config-editor.html          # 可视化配置编辑器（浏览器打开）
 ├── src/
 │   ├── main.py                 # 主入口
 │   ├── config.py               # 配置管理
@@ -190,17 +185,19 @@ ought-gather/
 │       ├── logger.py
 │       └── helpers.py
 ├── tests/                      # 测试套件
-│   ├── conftest.py            # 共享 fixtures
-│   ├── test_config.py         # 配置测试
-│   ├── test_helpers.py        # 工具函数测试
+│   ├── conftest.py             # 共享 fixtures
+│   ├── test_config.py          # 配置测试
+│   ├── test_helpers.py         # 工具函数测试
 │   ├── test_content_processor.py # 内容处理测试
-│   ├── test_dedup_tracker.py  # 去重测试
-│   ├── test_fetchers.py       # 抓取器测试
+│   ├── test_dedup_tracker.py   # 去重测试
+│   ├── test_fetchers.py        # 抓取器测试
 │   └── test_image_processor.py # 图片处理测试
 ├── config.template.json        # 配置模板
 ├── docs/
 │   ├── CONFIG.md               # 配置指南（config.json 详细说明）
-│   └── TESTING.md              # 测试指南
+│   ├── TESTING.md              # 测试指南
+│   ├── design.md               # Ought Gather 项目设计文档
+│   └── testmail-api.md         # TestMail.app API 文档
 └── .github/workflows/          # GitHub Actions
     └── daily-gather.yml
 ```
