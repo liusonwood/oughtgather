@@ -24,9 +24,25 @@ python src/main.py --config path/to/config.json
 
 ### Testing
 ```bash
-# No test suite currently configured
-# Manual testing: create config.json and run src/main.py
+# 运行所有测试（158 个测试，约 1 秒）
+python -m pytest tests/
+
+# 详细输出
+python -m pytest tests/ -v
+
+# 只运行某个文件
+python -m pytest tests/test_config.py -v
+
+# 只运行某个测试类
+python -m pytest tests/test_config.py::TestTitleConfig -v
+
+# 只显示失败测试的详细信息
+python -m pytest tests/ --tb=short
 ```
+
+**测试覆盖**：配置加载、内容处理（exclude/chop/keep_link/delete）、去重追踪、数据抓取（RSS/Web/Mail/Trending）、图片处理、工具函数。
+
+详细测试指南见 [TESTING.md](TESTING.md)。
 
 ### GitHub Actions
 - Automated daily run: UTC 00:00 (Beijing 08:00)
@@ -104,10 +120,11 @@ config.json → Fetchers → Processors → Dedup → EPUB Generator → SMTP Se
 
 - **Python 3.11+** required
 - **Dependencies**: feedparser, trafilatura, ebooklib, Pillow, httpx, beautifulsoup4, lxml
+- **Test dependencies**: pytest, pytest-mock
 - **Logging**: Uses singleton logger (`src/utils/logger.py`). Logs to `logs/` directory.
 - **Data Directory**: `data/fetched_urls.txt` for dedup. Gitignored except in GitHub Actions.
 - **Output**: EPUB files written to `output/` directory.
-- **No test suite**: Manual testing only. Consider adding pytest.
+- **Test Suite**: 158 tests in `tests/` directory. All tests use mocks to avoid network requests. See [TESTING.md](TESTING.md) for details.
 
 ## File Structure
 
@@ -135,4 +152,14 @@ src/
 └── utils/
     ├── logger.py          # Singleton logging
     └── helpers.py         # URL normalization, text extraction
+
+tests/
+├── __init__.py
+├── conftest.py              # Shared fixtures (ContentSource, HTML samples, etc.)
+├── test_config.py           # 26 tests - config loading and validation
+├── test_helpers.py          # 28 tests - utility functions
+├── test_content_processor.py # 20 tests - exclude/chop/keep_link/delete rules
+├── test_dedup_tracker.py    # 15 tests - dedup tracking and persistence
+├── test_fetchers.py         # 32 tests - RSS/Web/Mail/Trending fetchers (mocked HTTP)
+└── test_image_processor.py  # 37 tests - image download, resize, compress
 ```

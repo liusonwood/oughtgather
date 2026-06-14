@@ -291,11 +291,44 @@
 pip install -r requirements.txt
 ```
 
+需要测试依赖：
+```bash
+pip install pytest pytest-mock
+```
+
 ### 运行
 
 ```bash
 python src/main.py
 ```
+
+### 测试
+
+```bash
+# 运行所有测试
+python -m pytest tests/
+
+# 显示详细信息
+python -m pytest tests/ -v
+
+# 只运行某个测试文件
+python -m pytest tests/test_config.py -v
+
+# 只运行某个测试类
+python -m pytest tests/test_config.py::TestTitleConfig -v
+```
+
+当前测试覆盖：
+- **配置加载**（`test_config.py`）— 26 个测试
+- **工具函数**（`test_helpers.py`）— 28 个测试
+- **内容处理**（`test_content_processor.py`）— 20 个测试
+- **去重追踪**（`test_dedup_tracker.py`）— 15 个测试
+- **数据抓取**（`test_fetchers.py`）— 32 个测试（mock HTTP）
+- **图片处理**（`test_image_processor.py`）— 37 个测试
+
+**共 158 个测试，全部通过。**
+
+详细测试指南见 [TESTING.md](TESTING.md)。
 
 ### 项目结构
 
@@ -323,8 +356,17 @@ ought-gather/
 │   └── utils/                  # 工具模块
 │       ├── logger.py
 │       └── helpers.py
+├── tests/                      # 测试套件
+│   ├── conftest.py            # 共享 fixtures
+│   ├── test_config.py         # 配置测试
+│   ├── test_helpers.py        # 工具函数测试
+│   ├── test_content_processor.py # 内容处理测试
+│   ├── test_dedup_tracker.py  # 去重测试
+│   ├── test_fetchers.py       # 抓取器测试
+│   └── test_image_processor.py # 图片处理测试
 ├── config.template.json        # 配置模板
 ├── requirements.txt            # Python 依赖
+├── TESTING.md                  # 测试指南
 └── .github/workflows/          # GitHub Actions
     └── daily-gather.yml
 ```
