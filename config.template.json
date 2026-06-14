@@ -1,46 +1,56 @@
 {
   "title": {
-    "text": "{Daily News {time}}",
+    "text": "{每日新闻 {time}}",
     "img": ""
   },
   "body": [
     {
       "type": "rss",
-      "title": "科技新闻",
-      "src": "https://example.com/rss",
+      "src": "https://hnrss.org/frontpage",
+      "title": "Hacker News 首页",
       "priority": 10,
       "keep_link": "Y",
       "full_text": "Y",
+      "chop": "",
       "exclude": [
+        { "type": "start", "value": "阅读更多" },
         { "type": "end", "value": "— 完 —" },
-        { "type": "exact", "value": "<span class=\"ad\">广告内容</span>" }
-      ]
+        { "type": "exact", "value": "<a href=\"https://spam.com\">推广链接</a>" }
+      ],
+      "delete": "广告,推广,赞助"
     },
     {
       "type": "web",
-      "title": "热门文章",
-      "src": "https://example.com/article",
+      "src": "https://example.com/article/123",
+      "title": "深度报道",
       "priority": 5,
-      "keep_link": "N"
+      "keep_link": "N",
+      "exclude": [
+        { "type": "start", "value": "分享到：" }
+      ]
     },
     {
       "type": "mail",
-      "title": "订阅邮件",
       "src": "mynamespace",
+      "title": "每日精选邮件",
       "priority": 8,
+      "keep_link": "Y",
       "metadata": {
         "tag": "daily",
+        "tag_prefix": "news",
+        "timestamp_from": 1718300000000,
+        "timestamp_to": 1718400000000,
         "limit": 10,
-        "timestamp_from": 1718300000000
+        "offset": 0
       }
     },
     {
       "type": "trending",
-      "title": "AI 热点",
       "src": "人工智能最新发展趋势",
+      "title": "AI 行业热点",
       "priority": 15,
-      "goal": "分析最新的 AI 技术突破和应用案例",
-      "model": ""
+      "goal": "分析最新的 AI 技术突破和应用案例，重点关注大模型、Agent、多模态方向",
+      "model": "openai/gpt-4o"
     }
   ]
 }

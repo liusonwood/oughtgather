@@ -180,10 +180,10 @@ class MailFetcher(BaseFetcher):
         支持通过 source.metadata 配置以下参数：
         - tag: 按标签过滤
         - tag_prefix: 按标签前缀过滤
-        - timestamp_from: 起始时间戳（秒）
-        - timestamp_to: 结束时间戳（秒）
-        - limit: 返回邮件数量限制（默认 10）
-        - offset: 偏移量（默认 0）
+        - timestamp_from: 起始时间戳（毫秒）
+        - timestamp_to: 结束时间戳（毫秒）
+        - limit: 返回邮件数量限制（默认 10，最大 100）
+        - offset: 偏移量（默认 0，最大 9899）
 
         Returns:
             str: 查询参数字符串
@@ -194,8 +194,8 @@ class MailFetcher(BaseFetcher):
         metadata = self.source.metadata if hasattr(self.source, 'metadata') else {}
 
         if not metadata:
-            # 默认只返回最新的 50 封邮件
-            params.append("limit=50")
+            # 默认只返回最新的 10 封邮件
+            params.append("limit=10")
             return "&" + "&".join(params) if params else ""
 
         # 标签过滤
@@ -213,7 +213,7 @@ class MailFetcher(BaseFetcher):
             params.append(f"timestamp_to={metadata['timestamp_to']}")
 
         # 数量和偏移
-        limit = metadata.get("limit", 50)
+        limit = min(metadata.get("limit", 10), 100)  # 最大 100
         params.append(f"limit={limit}")
 
         if "offset" in metadata:

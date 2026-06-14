@@ -38,6 +38,7 @@ data/
 
 # 配置文件（包含敏感信息）
 config.json
+.testmail_key
 
 # 日志
 *.log
