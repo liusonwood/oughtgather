@@ -86,7 +86,7 @@ class EPUBGenerator:
     def _set_metadata(self, book: epub.EpubBook):
         """设置书籍元数据"""
         book.set_identifier('ought-gather-epub')
-        book.set_title(self.config.title.get_display_text())
+        book.set_title(self.config.title.get_plain_text())
         book.set_language('zh-CN')
         book.add_author('Ought Gather')
 
@@ -134,9 +134,9 @@ class EPUBGenerator:
     ):
         """添加章节"""
         chapter_id = 0
-        # 把 cover 放在最前面，确保封面在第一页显示；
-        # 否则 cover.xhtml 不在 spine 中，阅读器会把它追加到末尾。
-        spine = ['cover', 'nav']
+        # Kindle 打开 EPUB 时会显示 spine 的第一个非封面页面
+        # 把 cover 放在最前面，然后是目录（nav），最后是正文章节
+        spine = ['cover', epub.EpubNav()]  # 使用 EpubNav 对象确保正确类型
 
         for source, articles, _source_title in sections:
             for article in articles:
@@ -158,7 +158,7 @@ class EPUBGenerator:
                 spine.append(chapter)  # 添加到 spine（阅读顺序）
                 chapter_id += 1
 
-        # 设置书籍的阅读顺序
+        # 设置书籍的阅读顺序：封面 → 目录 → 正文章节
         book.spine = spine
 
         self.logger.info(f"Added {chapter_id} chapters to EPUB")
@@ -345,7 +345,7 @@ li {
         """
         # 生成文件名
         from src.utils.helpers import sanitize_filename
-        title = self.config.title.get_display_text()
+        title = self.config.title.get_plain_text()
         filename = sanitize_filename(title) + ".epub"
 
         # 确保输出目录存在

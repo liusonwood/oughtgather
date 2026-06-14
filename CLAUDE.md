@@ -165,12 +165,29 @@ tests/
 ├── __init__.py
 ├── conftest.py              # Shared fixtures (ContentSource, HTML samples, etc.)
 ├── test_config.py           # 26 tests - config loading and validation
+├── test_title_config.py     # 10 tests - title formatting (get_plain_text, get_display_text)
 ├── test_helpers.py          # 40 tests - utility functions
 ├── test_content_processor.py # 30 tests - exclude/chop/keep_link/delete rules
 ├── test_dedup_tracker.py    # 19 tests - dedup tracking, persistence, and auto-cleanup
 ├── test_fetchers.py         # 26 tests - RSS/Web/Mail/Trending fetchers (mocked HTTP)
 └── test_image_processor.py  # 25 tests - image download, resize, compress
 ```
+
+## Title Formatting
+
+The `title.text` field supports:
+- `{time}` placeholder: replaced with current date (YYYY-MM-DD)
+- `</br>` or `<br>` tags: line break for multi-line cover titles
+
+When generating:
+- **Cover image** (`cover.py`): Uses `get_display_text()` — keeps `</br>` as actual line breaks
+- **EPUB metadata and filename** (`generator.py`): Uses `get_plain_text()` — replaces `</br>` with space
+
+Examples:
+- Config: `"{Daily News</br>{time}}"`
+  - Cover: Shows "Daily News" on one line, date on the next
+  - Filename: `Daily News 2026-06-14.epub`
+  - EPUB metadata: `Daily News 2026-06-14`
 
 ## Documentation Maintenance
 

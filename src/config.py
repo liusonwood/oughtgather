@@ -36,6 +36,16 @@ class TitleConfig:
 
         return result
 
+    def get_plain_text(self) -> str:
+        """获取纯文本（移除</br>标签），用于文件名和元数据"""
+        text = self.get_display_text()
+        # 移除</br>标签，替换为空格
+        text = text.replace('</br>', ' ').replace('<br>', ' ')
+        # 压缩多个连续空格为单个空格
+        import re
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
+
 
 @dataclass
 class ContentSource:

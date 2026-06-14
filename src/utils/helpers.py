@@ -82,8 +82,8 @@ def extract_text_from_html(html: str) -> str:
     text = re.sub(r'[ \t]+(?=\n)', '', text)  # 移除换行前的空格
     text = re.sub(r'\n[ \t]+', '\n', text)  # 移除换行后的空格
 
-    # 移除行内的多余空白
-    text = re.sub(r' +', ' ', text)
+    # 移除行内的多余空白，包括换行
+    text = re.sub(r'\s+', ' ', text)
 
     return text.strip()
 
