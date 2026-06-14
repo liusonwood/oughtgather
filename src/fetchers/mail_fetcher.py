@@ -49,7 +49,7 @@ class MailFetcher(BaseFetcher):
             # 调用 testmail.app API
             # API 文档: https://testmail.app/docs/#using-cypress-json-api
             # namespace 使用 source.src 属性，需要 URL 编码
-            namespace_encoded = quote(self.source.src, safe='')
+            namespace_encoded = quote(self.source.src.replace(' ', ''), safe='')
             api_url = (
                 f"https://api.testmail.app/api/json"
                 f"?apikey={self.config['api_key']}"
