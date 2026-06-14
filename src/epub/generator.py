@@ -38,7 +38,7 @@ class EPUBGenerator:
         error_log: List[str] = None
     ) -> str:
         """
-        生成 EPUB 文件（符合 Amazon Send to Kindle 要求）
+        生成 EPUB 文件
 
         Args:
             results: 抓取结果列表
@@ -59,50 +59,36 @@ class EPUBGenerator:
         # 4. 准备章节数据
         sections = self._prepare_sections(results)
 
-        # 5. 添加目录章节
-        self._add_toc_chapter(book, sections)
-
-        # 6. 生成目录结构（符合 Amazon 要求）
+        # 5. 生成目录
         toc = self.toc_generator.generate(sections)
+        book.toc = toc
 
-        # 6.1 添加目录项到 toc 开头
-        toc_with_nav = [epub.Link("toc.xhtml", "目录", "toc")] + toc
-        book.toc = toc_with_nav
-
-        # 7. 添加正文章节
+        # 6. 添加章节
         self._add_chapters(book, sections)
 
-        # 8. 添加错误日志章节（如果有）
+        # 7. 添加错误日志章节（如果有）
         if error_log:
             self._add_error_log_chapter(book, error_log)
 
-        # 9. 添加样式
+        # 8. 添加样式
         self._add_style(book)
 
-        # 10. 添加导航文件（必须在保存之前，放在最后）
-        book.add_item(epub.EpubNcx())  # EPUB 2 兼容
-        book.add_item(epub.EpubNav())  # EPUB 3 标准
+        # 9. 添加导航文件
+        book.add_item(epub.EpubNcx())
+        book.add_item(epub.EpubNav())
 
-        # 11. 保存文件
+        # 10. 保存文件
         output_path = self._save_book(book)
 
         self.logger.info(f"EPUB generated: {output_path}")
         return output_path
 
     def _set_metadata(self, book: epub.EpubBook):
-        """设置书籍元数据（符合 Amazon Send to Kindle 要求）"""
+        """设置书籍元数据"""
         book.set_identifier('ought-gather-epub')
-        book.set_title(self.config.title.get_plain_text())
+        book.set_title(self.config.title.get_display_text())
         book.set_language('zh-CN')
         book.add_author('Ought Gather')
-
-        # 添加 publisher 元数据（Amazon 要求）
-        book.add_metadata('DC', 'publisher', 'Ought Gather')
-
-        # 添加 date 元数据（Amazon 要求）
-        from datetime import datetime
-        now = datetime.now().strftime('%Y-%m-%d')
-        book.add_metadata('DC', 'date', now)
 
     def _add_cover(self, book: epub.EpubBook):
         """添加封面"""
@@ -127,9 +113,6 @@ class EPUBGenerator:
             List[Tuple[ContentSource, List[Article], Optional[str]]]: 章节数据
             第三个元素为数据源的显示名称（如 RSS feed 标题）
         """
-        # 每个数据源最多保留 50 篇文章
-        MAX_ARTICLES_PER_SOURCE = 50
-
         # 按优先级排序（降序）
         sorted_results = sorted(
             results,
@@ -140,62 +123,9 @@ class EPUBGenerator:
         sections = []
         for result in sorted_results:
             if result.success and result.articles:
-                # 限制每个数据源的文章数量
-                limited_articles = result.articles[:MAX_ARTICLES_PER_SOURCE]
-                sections.append((result.source, limited_articles, result.source_title))
+                sections.append((result.source, result.articles, result.source_title))
 
         return sections
-
-    def _add_toc_chapter(
-        self,
-        book: epub.EpubBook,
-        sections: List[Tuple[ContentSource, List[Article], Optional[str]]]
-    ):
-        """添加目录章节到 EPUB 中"""
-        book_title = self.config.title.get_title_without_date()
-
-        html = f"""<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN">
-<head>
-    <title>目录</title>
-    <link rel="stylesheet" type="text/css" href="style/default.css"/>
-</head>
-<body>
-    <h1>{book_title}</h1>
-    <h2>目录</h2>
-    <ul>
-"""
-
-        chapter_id = 0
-        for source, articles, source_title in sections:
-            if not articles:
-                continue
-
-            # web/trending: 扁平结构
-            if source.type in ("web", "trending"):
-                link_title = self.toc_generator._get_source_title(source, articles, source_title)
-                html += f'<li><a href="chapter_{chapter_id}.xhtml">{link_title}</a></li>\n'
-                chapter_id += 1
-                continue
-
-            # mail/rss: 两级结构
-            section_title = self.toc_generator._get_source_title(source, articles, source_title)
-            html += f'<li><a href="chapter_{chapter_id}.xhtml">{section_title}</a></li>\n'
-            chapter_id += len(articles)
-
-        html += """</ul>
-</body>
-</html>"""
-
-        toc_chapter = epub.EpubHtml(
-            title="目录",
-            file_name="toc.xhtml",
-            lang='zh-CN'
-        )
-        toc_chapter.content = html
-
-        book.add_item(toc_chapter)
-        self.logger.info("TOC chapter added to EPUB")
 
     def _add_chapters(
         self,
@@ -204,25 +134,9 @@ class EPUBGenerator:
     ):
         """添加章节"""
         chapter_id = 0
-        # Kindle 打开 EPUB 时会显示 spine 的第一个页面
-        # 阅读顺序：目录 → 正文章节（封面在最后，避免打开时首先看到封面）
-        spine = []
-
-        # 先添加封面到 spine（但实际内容在最后，这样 Kindle 不会在打开时首先显示封面）
-        spine.append('cover')
-
-        # 添加目录章节到 spine
-        # 需要先获取 toc 章节对象
-        toc_chapter = None
-        for item in book.items:
-            if hasattr(item, 'file_name') and item.file_name == 'toc.xhtml':
-                toc_chapter = item
-                break
-
-        if toc_chapter:
-            spine.append(toc_chapter)
-        else:
-            spine.append('nav')  # 如果没有 toc，使用 nav
+        # 把 cover 放在最前面，确保封面在第一页显示；
+        # 否则 cover.xhtml 不在 spine 中，阅读器会把它追加到末尾。
+        spine = ['cover', 'nav']
 
         for source, articles, _source_title in sections:
             for article in articles:
@@ -244,7 +158,7 @@ class EPUBGenerator:
                 spine.append(chapter)  # 添加到 spine（阅读顺序）
                 chapter_id += 1
 
-        # 设置书籍的阅读顺序：封面 → 目录 → 正文章节
+        # 设置书籍的阅读顺序
         book.spine = spine
 
         self.logger.info(f"Added {chapter_id} chapters to EPUB")
