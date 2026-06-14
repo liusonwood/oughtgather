@@ -4,6 +4,7 @@
 """
 
 import json
+import markdown
 from datetime import datetime
 from typing import Optional, Dict, Any
 
@@ -111,7 +112,15 @@ class TrendingFetcher(BaseFetcher):
             "messages": [
                 {
                     "role": "system",
-                    "content": "你是一个专业的信息分析师，擅长总结和分析热点信息。请用 HTML 格式输出分析结果，包含清晰的标题和段落。"
+                    "content": (
+                        "你是一位资深行业分析师，专注于捕捉前沿信息、识别关键趋势并提炼可行动的洞察。"
+                        "你的分析风格：深度优于广度，数据支撑观点，避免套话与泛泛而谈，语言简练有力。\n\n"
+                        "输出规范：\n"
+                        "- 严格使用 Markdown 格式，层级清晰（H2/H3/列表/加粗）\n"
+                        "- 每个要点须包含具体事实或数据，禁止空洞描述\n"
+                        "- 若涉及不确定信息，明确标注「待验证」\n"
+                        "- 不要输出 ```markdown``` 代码块包裹符"
+                    )
                 },
                 {
                     "role": "user",
@@ -153,59 +162,61 @@ class TrendingFetcher(BaseFetcher):
         Returns:
             str: prompt 文本
         """
-        return f"""
-请根据以下要求，分析并总结相关热点信息：
+        today = datetime.now().strftime("%Y年%m月%d日")
+        return f"""## 分析任务
 
-主题/关键词: {self.source.src}
-分析目标: {self.source.goal}
+**当前日期**: {today}
+**分析主题**: {self.source.src}
+**核心目标**: {self.source.goal}
 
-请提供：
-1. 最新的热点动态（3-5 个要点）
-2. 关键趋势分析
-3. 值得关注的亮点
+## 输出要求
 
-请用清晰的结构和简洁的语言输出，确保内容有价值且易于阅读。
+请围绕上述主题，提供一份结构化的深度分析报告，涵盖以下维度：
+
+### 1. 近期热点动态（3-5 条）
+- 列举近期最值得关注的具体事件或进展
+- 每条须有时间线索或具体来源（如有）
+
+### 2. 关键趋势与信号
+- 识别 2-3 个正在形成的中长期趋势
+- 说明每个趋势的驱动因素
+
+### 3. 核心洞察与行动建议
+- 提炼 1-2 个最值得关注的核心洞察
+- 给出对目标用户有实际价值的建议或启示
+
+## 质量标准
+- 内容基于事实，避免猜测；不确定信息标注「待验证」
+- 语言精炼，每条要点不超过 60 字
+- 避免陈词滥调，突出差异化视角
 """
 
     def _format_as_html(self, text: str) -> str:
         """
-        将文本格式化为 HTML
+        将 Markdown 文本转换为 HTML
 
         Args:
-            text: 原始文本
+            text: Markdown 文本
 
         Returns:
             str: HTML 格式文本
         """
-        # 清理 LLM 可能返回的代码块标记（如 ```html...``` 或 '''html...'''）
+        # 清理 LLM 可能返回的代码块标记（如 ```markdown...``` 或 '''markdown...'''）
         text = self._remove_code_block_markers(text)
 
-        # 简单处理：将换行转换为段落
-        paragraphs = text.split('\n\n')
-        html_parts = []
+        # 使用 markdown 库转换为 HTML
+        html = markdown.markdown(
+            text,
+            extensions=[
+                'extra',  # 支持表格、代码块等扩展
+                'codehilite',  # 代码高亮（虽然这里不用，但保持完整）
+                'tables',  # 表格支持
+                'fenced_code',  # 围栏代码块
+            ],
+            output_format='html5'
+        )
 
-        for para in paragraphs:
-            para = para.strip()
-            if para:
-                # 处理标题（以 # 开头）
-                if para.startswith('#'):
-                    level = len(para.split(' ')[0])
-                    title_text = para.lstrip('#').strip()
-                    html_parts.append(f"<h{level}>{title_text}</h{level}>")
-                # 处理列表（以 - 或 * 开头）
-                elif para.startswith('-') or para.startswith('*'):
-                    items = para.split('\n')
-                    html_parts.append("<ul>")
-                    for item in items:
-                        item = item.strip('-* ').strip()
-                        if item:
-                            html_parts.append(f"<li>{item}</li>")
-                    html_parts.append("</ul>")
-                else:
-                    # 普通段落
-                    html_parts.append(f"<p>{para}</p>")
-
-        return '\n'.join(html_parts)
+        return html
 
     @staticmethod
     def _remove_code_block_markers(text: str) -> str:
