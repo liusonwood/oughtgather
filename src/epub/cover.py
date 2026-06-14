@@ -4,7 +4,8 @@
 """
 
 import io
-from typing import Optional, Tuple
+import platform
+from typing import List, Optional, Tuple
 from PIL import Image, ImageDraw, ImageFont
 import httpx
 
@@ -164,15 +165,9 @@ class CoverGenerator:
         # 获取标题文本
         title_text = self.title_config.get_display_text()
 
-        # 尝试加载字体（使用默认字体）
-        try:
-            # 尝试使用系统字体
-            title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 120)
-            subtitle_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 60)
-        except:
-            # 使用默认字体
-            title_font = ImageFont.load_default()
-            subtitle_font = ImageFont.load_default()
+        # 加载支持中文的字体
+        title_font = self._load_font(120, bold=True)
+        subtitle_font = self._load_font(60, bold=False)
 
         # 计算文字位置（居中）
         title_bbox = draw.textbbox((0, 0), title_text, font=title_font)
@@ -190,6 +185,83 @@ class CoverGenerator:
         draw.text((x, y), title_text, font=title_font, fill=(255, 255, 255))
 
         return background
+
+    def _get_cjk_font_candidates(self) -> List[str]:
+        """
+        获取支持中文的字体候选路径列表（按优先级排序）。
+        按平台（macOS / Linux）提供不同候选。
+        """
+        system = platform.system()
+
+        # 通用 Linux 候选（GitHub Actions / Ubuntu）
+        linux_candidates = [
+            # Noto Sans CJK（需安装 fonts-noto-cjk-extra 或 fonts-noto-cjk）
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+            # WenQuanYi
+            "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+            "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+            # Droid
+            "/usr/share/fonts/truetype/droid/DroidSansFallback.ttf",
+        ]
+
+        # macOS 候选
+        macos_candidates = [
+            "/System/Library/Fonts/PingFang.ttc",
+            "/System/Library/Fonts/STHeiti Medium.ttc",
+            "/System/Library/Fonts/STHeiti Light.ttc",
+            "/Library/Fonts/Arial Unicode.ttf",
+            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        ]
+
+        # Windows 候选（本地开发）
+        windows_candidates = [
+            "C:/Windows/Fonts/msyh.ttc",   # 微软雅黑
+            "C:/Windows/Fonts/msyhbd.ttc",  # 微软雅黑 Bold
+            "C:/Windows/Fonts/simhei.ttf",  # 黑体
+        ]
+
+        if system == "Darwin":
+            return macos_candidates + linux_candidates
+        elif system == "Windows":
+            return windows_candidates + linux_candidates
+        else:
+            return linux_candidates
+
+    def _load_font(self, size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
+        """
+        加载支持中文的字体。依次尝试候选路径，首个可用即返回；
+        全部失败则回退到 DejaVu（拉丁）→ Pillow 默认字体。
+        """
+        candidates = self._get_cjk_font_candidates()
+
+        # bold 变体：在 Noto CJK 里 Bold/Regular 是不同文件，优先 Bold
+        if not bold:
+            candidates = [
+                p.replace("-Bold.ttc", "-Regular.ttc").replace("-Bold.ttf", "-Regular.ttf")
+                for p in candidates
+            ]
+
+        # 追加 DejaVu 作为非中文兜底（保持与原行为兼容）
+        candidates += [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold
+            else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        ]
+
+        for path in candidates:
+            try:
+                return ImageFont.truetype(path, size)
+            except (OSError, IOError):
+                continue
+
+        # 最终回退
+        self.logger.warning(
+            "No CJK-capable font found; Chinese characters may render as boxes. "
+            "Install fonts-noto-cjk-extra on Ubuntu or ensure a CJK font is available."
+        )
+        return ImageFont.load_default()
 
     def _image_to_bytes(self, img: Image.Image) -> bytes:
         """
