@@ -104,8 +104,8 @@ config.json → Fetchers → Processors → Dedup → EPUB Generator → SMTP Se
 ```json
 {
   "title": {
-    "text": "{Daily News {time}}",  // Supports {time} placeholder
-    "img": ""  // Custom cover URL or empty for Bing wallpaper
+    "text": "{Daily News {time}}",  // 支持 {time} 占位符和 </br> 换行符（如 "{Daily News</br>{time}}"）。每行文字自动适配大小，并添加黑色边框增强可读性
+    "img": ""  // 自定义封面 URL，留空则使用 Bing 每日壁纸
   },
   "body": [
     {

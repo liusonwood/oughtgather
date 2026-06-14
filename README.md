@@ -52,8 +52,8 @@
 ```json
 {
   "title": {
-    "text": "{Daily News {time}}",
-    "img": ""
+    "text": "{Daily News {time}}",  // 支持 {time} 占位符和 </br> 换行符（如 "{Daily News</br>{time}}"）
+    "img": ""  // 自定义封面 URL，留空则使用 Bing 每日壁纸
   },
   "body": [
     {

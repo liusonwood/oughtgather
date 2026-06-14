@@ -162,29 +162,89 @@ class CoverGenerator:
         # 创建可编辑的对象
         draw = ImageDraw.Draw(background)
 
-        # 获取标题文本
+        # 获取标题文本并处理换行
         title_text = self.title_config.get_display_text()
+        lines = title_text.replace('</br>', '\n').split('\n')
 
-        # 加载支持中文的字体
-        title_font = self._load_font(120, bold=True)
-        subtitle_font = self._load_font(60, bold=False)
+        # 为每行文字计算合适的字体大小（自动适应）
+        max_line_width = max(self.WIDTH * 0.8, 1000)  # 最大行宽（封面宽度的80%）
+        max_total_height = self.HEIGHT * 0.4  # 最大总高度（封面高度的40%）
 
-        # 计算文字位置（居中）
-        title_bbox = draw.textbbox((0, 0), title_text, font=title_font)
-        title_width = title_bbox[2] - title_bbox[0]
-        title_height = title_bbox[3] - title_bbox[1]
+        # 估算每行的字体大小
+        font_sizes = []
+        for line in lines:
+            font_size = self._calculate_font_size(draw, line, max_line_width)
+            font_sizes.append(font_size)
 
-        x = (self.WIDTH - title_width) // 2
-        y = (self.HEIGHT - title_height) // 2
+        # 确保所有行使用相同的字体大小（取最小值）
+        common_font_size = min(font_sizes) if font_sizes else 120
 
-        # 绘制文字阴影
-        shadow_offset = 4
-        draw.text((x + shadow_offset, y + shadow_offset), title_text, font=title_font, fill=(0, 0, 0))
+        # 加载字体（使用共同的字体大小）
+        font = self._load_font(common_font_size, bold=True)
 
-        # 绘制文字
-        draw.text((x, y), title_text, font=title_font, fill=(255, 255, 255))
+        # 计算每行的文字边界框
+        line_heights = []
+        line_widths = []
+        for line in lines:
+            bbox = draw.textbbox((0, 0), line, font=font)
+            line_width = bbox[2] - bbox[0]
+            line_height = bbox[3] - bbox[1]
+            line_widths.append(line_width)
+            line_heights.append(line_height)
+
+        # 计算总高度（包含行间距）
+        line_spacing = common_font_size * 0.3  # 行间距为字体大小的30%
+        total_height = sum(line_heights) + (len(lines) - 1) * line_spacing
+
+        # 计算起始Y位置（垂直居中）
+        start_y = (self.HEIGHT - total_height) // 2
+
+        # 绘制每行文字（带黑色边框）
+        stroke_width = max(2, common_font_size // 30)  # 描边宽度，至少2像素
+
+        for i, line in enumerate(lines):
+            # 计算X位置（水平居中）
+            x = (self.WIDTH - line_widths[i]) // 2
+
+            # 计算Y位置
+            y = start_y + sum(line_heights[:i]) + i * line_spacing
+
+            # 绘制带描边的文字（黑色边框 + 白色文字）
+            # PIL的text方法支持stroke参数来实现描边效果
+            draw.text(
+                (x, y),
+                line,
+                font=font,
+                fill=(255, 255, 255),  # 白色文字
+                stroke_width=stroke_width,
+                stroke_fill=(0, 0, 0)  # 黑色边框
+            )
 
         return background
+
+    def _calculate_font_size(self, draw: ImageDraw.ImageDraw, text: str, max_width: float) -> int:
+        """
+        计算适合给定宽度的字体大小
+
+        Args:
+            draw: ImageDraw 对象
+            text: 要绘制的文本
+            max_width: 最大允许宽度
+
+        Returns:
+            int: 合适的字体大小
+        """
+        # 从大到小尝试字体大小
+        for font_size in range(150, 40, -5):
+            font = self._load_font(font_size, bold=True)
+            bbox = draw.textbbox((0, 0), text, font=font)
+            width = bbox[2] - bbox[0]
+
+            if width <= max_width:
+                return font_size
+
+        # 如果文本太长，返回最小字体大小
+        return 40
 
     def _get_cjk_font_candidates(self) -> List[str]:
         """

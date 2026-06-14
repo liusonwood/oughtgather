@@ -106,3 +106,68 @@ def sanitize_filename(filename: str) -> str:
         sanitized = sanitized[:200]
 
     return sanitized.strip()
+
+
+def format_date(date_str: str) -> str:
+    """
+    统一日期格式化
+
+    支持的输入格式：
+    - RFC 822 (如: "Mon, 14 Jun 2026 10:30:00 GMT")
+    - ISO 8601 (如: "2026-06-14T10:30:00")
+    - Unix 时间戳（秒或毫秒，如: "1718343000" 或 "1718343000000"）
+    - 任意字符串（原样返回）
+
+    输出格式：YYYY-MM-DD HH:MM
+
+    Args:
+        date_str: 日期字符串
+
+    Returns:
+        str: 格式化后的日期
+    """
+    if not date_str:
+        return ""
+
+    # 尝试解析为 datetime 对象
+    from datetime import datetime
+
+    # 首先检查是否是纯数字（时间戳）
+    if isinstance(date_str, str) and date_str.isdigit():
+        try:
+            timestamp = int(date_str)
+            # 判断是秒还是毫秒（毫秒 > 1e12）
+            if timestamp > 1_000_000_000_000:
+                timestamp = timestamp / 1000  # 毫秒转秒
+            dt = datetime.fromtimestamp(timestamp)
+            return dt.strftime("%Y-%m-%d %H:%M")
+        except (ValueError, OSError, OverflowError):
+            pass  # 继续尝试其他格式
+
+    # 尝试常见的日期格式
+    formats = [
+        "%a, %d %b %Y %H:%M:%S %Z",  # RFC 822: "Mon, 14 Jun 2026 10:30:00 GMT"
+        "%a, %d %b %Y %H:%M:%S %z",  # RFC 822 with timezone offset
+        "%Y-%m-%dT%H:%M:%S",  # ISO 8601: "2026-06-14T10:30:00"
+        "%Y-%m-%dT%H:%M:%S.%f",  # ISO 8601 with microseconds
+        "%Y-%m-%dT%H:%M:%S%z",  # ISO 8601 with timezone
+        "%Y-%m-%d %H:%M:%S",  # Standard format
+        "%Y/%m/%d %H:%M:%S",  # Alternative separator
+        "%Y-%m-%d",  # Date only
+    ]
+
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(date_str, fmt)
+            return dt.strftime("%Y-%m-%d %H:%M")
+        except (ValueError, TypeError):
+            continue
+
+    # 如果都解析失败，尝试使用 dateutil（如果有安装）
+    try:
+        from dateutil import parser
+        dt = parser.parse(date_str)
+        return dt.strftime("%Y-%m-%d %H:%M")
+    except (ImportError, ValueError, TypeError, OverflowError):
+        # 最后手段：返回原始字符串
+        return date_str

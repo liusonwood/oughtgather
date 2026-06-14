@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from src.config import ContentSource, get_testmail_config
 from src.fetchers.base import BaseFetcher, FetchResult, Article
 from src.utils.logger import get_logger
+from src.utils.helpers import format_date
 
 
 class MailFetcher(BaseFetcher):
@@ -110,7 +111,7 @@ class MailFetcher(BaseFetcher):
         # 提取邮件信息
         subject = email.get("subject", "No Subject")
         from_addr = email.get("from", "")
-        timestamp = email.get("timestamp", "")
+        timestamp = format_date(email.get("timestamp", ""))
 
         # 提取 HTML 内容
         html_content = email.get("html", "")

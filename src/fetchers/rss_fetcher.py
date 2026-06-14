@@ -11,6 +11,7 @@ import trafilatura
 from src.config import ContentSource
 from src.fetchers.base import BaseFetcher, FetchResult, Article
 from src.utils.logger import get_logger
+from src.utils.helpers import format_date
 
 
 class RSSFetcher(BaseFetcher):
@@ -72,7 +73,7 @@ class RSSFetcher(BaseFetcher):
         title = entry.get("title", "No Title")
         link = entry.get("link", "")
         author = entry.get("author", "")
-        published = entry.get("published", "")
+        published = format_date(entry.get("published", ""))
 
         # 提取内容
         if self.source.full_text == "Y":

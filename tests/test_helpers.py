@@ -11,6 +11,7 @@ from src.utils.helpers import (
     truncate_text,
     is_valid_url,
     sanitize_filename,
+    format_date,
 )
 
 
@@ -219,3 +220,86 @@ class TestSanitizeFilename:
     def test_empty_string(self):
         result = sanitize_filename("")
         assert result == ""
+
+
+# =========================================================================
+# format_date 测试
+# =========================================================================
+
+class TestFormatDate:
+    """日期格式化测试"""
+
+    def test_rfc_822_format_with_gmt(self):
+        """RFC 822 格式（带 GMT）"""
+        result = format_date("Mon, 14 Jun 2026 10:30:00 GMT")
+        assert result == "2026-06-14 10:30"
+
+    def test_rfc_822_format_with_timezone_offset(self):
+        """RFC 822 格式（带时区偏移）"""
+        result = format_date("Mon, 14 Jun 2026 10:30:00 +0800")
+        assert result == "2026-06-14 10:30"
+
+    def test_iso_8601_basic(self):
+        """ISO 8601 基本格式"""
+        result = format_date("2026-06-14T10:30:00")
+        assert result == "2026-06-14 10:30"
+
+    def test_iso_8601_with_microseconds(self):
+        """ISO 8601 格式（带微秒）"""
+        result = format_date("2026-06-14T10:30:00.123456")
+        assert result == "2026-06-14 10:30"
+
+    def test_iso_8601_with_timezone(self):
+        """ISO 8601 格式（带时区）"""
+        result = format_date("2026-06-14T10:30:00+08:00")
+        assert result == "2026-06-14 10:30"
+
+    def test_standard_format(self):
+        """标准格式"""
+        result = format_date("2026-06-14 10:30:00")
+        assert result == "2026-06-14 10:30"
+
+    def test_alternative_separator(self):
+        """替代分隔符格式"""
+        result = format_date("2026/06/14 10:30:00")
+        assert result == "2026-06-14 10:30"
+
+    def test_empty_string(self):
+        """空字符串"""
+        result = format_date("")
+        assert result == ""
+
+    def test_none_input(self):
+        """None 输入"""
+        result = format_date(None)
+        assert result == ""
+
+    def test_unparseable_string(self):
+        """无法解析的字符串（原样返回）"""
+        result = format_date("Some random text")
+        assert result == "Some random text"
+
+    def test_trending_fetcher_datetime(self):
+        """TrendingFetcher 使用的 ISO 格式"""
+        from datetime import datetime
+        date_str = datetime.now().isoformat()
+        result = format_date(date_str)
+        # 应该成功格式化为 YYYY-MM-DD HH:MM
+        assert len(result) == 16  # "YYYY-MM-DD HH:MM"
+        assert result.count("-") == 2
+        assert result.count(":") == 1
+
+    def test_unix_timestamp_seconds(self):
+        """Unix 时间戳（秒）"""
+        result = format_date("1718343000")  # 2024-06-14 13:30
+        assert result == "2024-06-14 13:30"
+
+    def test_unix_timestamp_milliseconds(self):
+        """Unix 时间戳（毫秒）"""
+        result = format_date("1718343000000")
+        assert result == "2024-06-14 13:30"
+
+    def test_date_only_format(self):
+        """仅日期格式"""
+        result = format_date("2026-06-14")
+        assert result == "2026-06-14 00:00"

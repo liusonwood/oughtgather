@@ -177,6 +177,9 @@ class TrendingFetcher(BaseFetcher):
         Returns:
             str: HTML 格式文本
         """
+        # 清理 LLM 可能返回的代码块标记（如 ```html...``` 或 '''html...'''）
+        text = self._remove_code_block_markers(text)
+
         # 简单处理：将换行转换为段落
         paragraphs = text.split('\n\n')
         html_parts = []
@@ -203,3 +206,38 @@ class TrendingFetcher(BaseFetcher):
                     html_parts.append(f"<p>{para}</p>")
 
         return '\n'.join(html_parts)
+
+    @staticmethod
+    def _remove_code_block_markers(text: str) -> str:
+        """
+        移除代码块标记（如 ```html...``` 或 '''html...'''）
+
+        Args:
+            text: 原始文本
+
+        Returns:
+            str: 清理后的文本
+        """
+        # 处理 ```html ... ``` 格式
+        if text.strip().startswith('```'):
+            lines = text.split('\n')
+            # 移除第一行的 ```html 或 ```
+            if lines[0].strip().startswith('```'):
+                lines = lines[1:]
+            # 移除最后一行的 ```
+            if lines and lines[-1].strip() == '```':
+                lines = lines[:-1]
+            text = '\n'.join(lines)
+
+        # 处理 '''html ... ''' 格式
+        if text.strip().startswith("'''"):
+            lines = text.split('\n')
+            # 移除第一行的 '''html 或 '''
+            if lines[0].strip().startswith("'''"):
+                lines = lines[1:]
+            # 移除最后一行的 '''
+            if lines and lines[-1].strip() == "'''":
+                lines = lines[:-1]
+            text = '\n'.join(lines)
+
+        return text.strip()
