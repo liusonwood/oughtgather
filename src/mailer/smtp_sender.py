@@ -85,10 +85,10 @@ class SMTPSender:
         # 编码附件
         encoders.encode_base64(attachment)
 
-        # 添加附件头
+        # 添加附件头（使用关键字参数以支持非 ASCII 文件名的 RFC 2231 编码）
         attachment.add_header(
-            'Content-Disposition',
-            f'attachment; filename="{filename}"'
+            'Content-Disposition', 'attachment',
+            filename=filename
         )
 
         msg.attach(attachment)
