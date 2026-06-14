@@ -332,6 +332,12 @@ ul {
 li {
     margin: 0.5em 0;
 }
+nav ol {
+    line-height: 2.2;
+}
+nav li {
+    margin: 0.3em 0;
+}
 """
         )
         book.add_item(css)
