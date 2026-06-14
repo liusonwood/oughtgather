@@ -119,6 +119,9 @@ class EPUBGenerator:
             List[Tuple[ContentSource, List[Article], Optional[str]]]: 章节数据
             第三个元素为数据源的显示名称（如 RSS feed 标题）
         """
+        # 每个数据源最多保留 50 篇文章
+        MAX_ARTICLES_PER_SOURCE = 50
+
         # 按优先级排序（降序）
         sorted_results = sorted(
             results,
@@ -129,7 +132,9 @@ class EPUBGenerator:
         sections = []
         for result in sorted_results:
             if result.success and result.articles:
-                sections.append((result.source, result.articles, result.source_title))
+                # 限制每个数据源的文章数量
+                limited_articles = result.articles[:MAX_ARTICLES_PER_SOURCE]
+                sections.append((result.source, limited_articles, result.source_title))
 
         return sections
 

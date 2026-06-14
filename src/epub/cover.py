@@ -166,55 +166,55 @@ class CoverGenerator:
         title_text = self.title_config.get_display_text()
         lines = title_text.replace('</br>', '\n').split('\n')
 
-        # 为每行文字计算合适的字体大小（自动适应）
-        max_line_width = max(self.WIDTH * 0.8, 1000)  # 最大行宽（封面宽度的80%）
+        # 为每行文字计算合适的字体大小（每行独立撑满宽度）
+        max_line_width = self.WIDTH * 0.9  # 最大行宽（封面宽度的90%，每行自动撑满）
         max_total_height = self.HEIGHT * 0.4  # 最大总高度（封面高度的40%）
 
-        # 估算每行的字体大小
-        font_sizes = []
-        for line in lines:
-            font_size = self._calculate_font_size(draw, line, max_line_width)
-            font_sizes.append(font_size)
-
-        # 确保所有行使用相同的字体大小（取最小值）
-        common_font_size = min(font_sizes) if font_sizes else 120
-
-        # 加载字体（使用共同的字体大小）
-        font = self._load_font(common_font_size, bold=True)
-
-        # 计算每行的文字边界框
+        # 为每行独立计算字体大小（实现每行左右撑满）
+        line_fonts = []
         line_heights = []
         line_widths = []
+
         for line in lines:
+            # 计算该行的最佳字体大小
+            font_size = self._calculate_font_size(draw, line, max_line_width)
+            font = self._load_font(font_size, bold=True)
+            line_fonts.append(font)
+
+            # 计算该行的边界框
             bbox = draw.textbbox((0, 0), line, font=font)
             line_width = bbox[2] - bbox[0]
             line_height = bbox[3] - bbox[1]
             line_widths.append(line_width)
             line_heights.append(line_height)
 
-        # 计算总高度（包含行间距）
-        line_spacing = common_font_size * 0.3  # 行间距为字体大小的30%
-        total_height = sum(line_heights) + (len(lines) - 1) * line_spacing
+        # 计算总高度（包含行间距，使用各自字体大小的30%）
+        total_height = sum(line_heights) + sum([font.size * 0.3 for font in line_fonts[:-1]])
 
         # 计算起始Y位置（垂直居中）
         start_y = (self.HEIGHT - total_height) // 2
 
-        # 绘制每行文字（带黑色边框）
-        stroke_width = max(2, common_font_size // 30)  # 描边宽度，至少2像素
-
+        # 绘制每行文字（带黑色边框，每行独立字体大小）
         for i, line in enumerate(lines):
             # 计算X位置（水平居中）
             x = (self.WIDTH - line_widths[i]) // 2
 
             # 计算Y位置
-            y = start_y + sum(line_heights[:i]) + i * line_spacing
+            if i == 0:
+                y = start_y
+            else:
+                # 累加前一行的高度和行间距
+                prev_spacing = line_fonts[i-1].size * 0.3
+                y = start_y + sum(line_heights[:i]) + sum([line_fonts[j].size * 0.3 for j in range(i)])
+
+            # 计算描边宽度（基于该行的字体大小，增加到10%或至少5像素）
+            stroke_width = max(5, line_fonts[i].size // 10)
 
             # 绘制带描边的文字（黑色边框 + 白色文字）
-            # PIL的text方法支持stroke参数来实现描边效果
             draw.text(
                 (x, y),
                 line,
-                font=font,
+                font=line_fonts[i],
                 fill=(255, 255, 255),  # 白色文字
                 stroke_width=stroke_width,
                 stroke_fill=(0, 0, 0)  # 黑色边框
