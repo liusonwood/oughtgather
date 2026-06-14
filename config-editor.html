@@ -270,9 +270,9 @@
         type: '',
         src: '',
         title: '',
-        priority: '20',
-        keep_link: 'Y',
-        full_text: 'N',
+        priority: '',
+        keep_link: '',
+        full_text: '',
         chop: '',
         exclude: [],
         delete: '',
@@ -393,6 +393,7 @@
           <div class="form-row">
             <label>保留链接</label>
             <select onchange="updateField(${s._id}, 'keep_link', this.value)" style="max-width: 100px;">
+              <option value="" ${s.keep_link === '' ? 'selected' : ''}>--</option>
               <option value="Y" ${s.keep_link === 'Y' ? 'selected' : ''}>Y</option>
               <option value="N" ${s.keep_link === 'N' ? 'selected' : ''}>N</option>
             </select>
@@ -401,6 +402,7 @@
           <div class="form-row conditional ${s.type === 'rss' ? 'visible' : ''}" data-show-type="rss">
             <label>全文提取</label>
             <select onchange="updateField(${s._id}, 'full_text', this.value)" style="max-width: 100px;">
+              <option value="" ${s.full_text === '' ? 'selected' : ''}>--</option>
               <option value="N" ${s.full_text === 'N' ? 'selected' : ''}>N</option>
               <option value="Y" ${s.full_text === 'Y' ? 'selected' : ''}>Y</option>
             </select>
