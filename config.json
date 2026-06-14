@@ -1,0 +1,68 @@
+{
+  "title": {
+    "text": "{每日新闻 {time}}",
+    "img": ""
+  },
+  "body": [
+    {
+      "type": "rss",
+      "src": "https://hnrss.org/frontpage",
+      "title": "Hacker News 热门",
+      "priority": 15,
+      "keep_link": "Y",
+      "full_text": "N",
+      "chop": "/[0:1500]",
+      "exclude": [
+        { "type": "start", "value": "Comments" }
+      ],
+      "delete": "Show HN"
+    },
+    {
+      "type": "rss",
+      "src": "https://feeds.feedburner.com/ruanyifeng",
+      "title": "阮一峰的网络日志",
+      "priority": 12,
+      "keep_link": "Y",
+      "full_text": "N",
+      "chop": "/[0:2000]"
+    },
+    {
+      "type": "rss",
+      "src": "https://sspai.com/feed",
+      "title": "少数派",
+      "priority": 10,
+      "keep_link": "Y",
+      "full_text": "N",
+      "exclude": [
+        { "type": "exact", "value": "广告" }
+      ]
+    },
+    {
+      "type": "rss",
+      "src": "https://www.geekpark.net/feed",
+      "title": "极客公园",
+      "priority": 8,
+      "keep_link": "Y",
+      "full_text": "N"
+    },
+    {
+      "type": "rss",
+      "src": "https://36kr.com/feed",
+      "title": "36氪",
+      "priority": 6,
+      "keep_link": "Y",
+      "full_text": "N",
+      "delete": "广告,推广"
+    },
+    {
+      "type": "web",
+      "src": "https://meirishici.com/poetry/dailies",
+      "title": "古诗文",
+      "priority": 5,
+      "keep_link": "N",
+      "exclude": [
+        { "type": "start", "value": "分享到：" }
+        ]
+    }
+  ]
+}
