@@ -72,12 +72,12 @@ class EPUBGenerator:
         if error_log:
             self._add_error_log_chapter(book, error_log)
 
-        # 8. 添加样式
-        self._add_style(book)
-
-        # 9. 添加导航文件
+        # 8. 添加样式和导航文件
+        css = self._add_style(book)
+        nav = epub.EpubNav()
+        nav.add_link(href="style/default.css", type="text/css")
         book.add_item(epub.EpubNcx())
-        book.add_item(epub.EpubNav())
+        book.add_item(nav)
 
         # 10. 保存文件
         output_path = self._save_book(book)
@@ -213,17 +213,23 @@ class EPUBGenerator:
         article: Article
     ):
         """
-        添加图片到章节
+        添加图片到章节。
+
+        使用 BeautifulSoup 解析章节 HTML，按 decoded src 属性匹配 article.images，
+        避免因 HTML 编码差异（如 & → &amp;）导致的字符串替换失败。
 
         Args:
             book: EPUB 书籍对象
             chapter: 章节对象
             article: 文章对象
         """
-        # 处理文章中的图片
+        if not article.images:
+            return
+
+        # 预下载所有图片，建立 URL → (filename, data) 映射
+        url_to_filename: Dict[str, str] = {}
         for img_url in article.images:
             result = self.image_processor.download_and_process(img_url, article.url)
-
             if result:
                 filename, img_data = result
 
@@ -236,8 +242,29 @@ class EPUBGenerator:
                 )
                 book.add_item(epub_image)
 
-                # 在章节内容中替换图片 URL
-                chapter.content = chapter.content.replace(img_url, f"images/{filename}")
+                url_to_filename[img_url] = filename
+
+        if not url_to_filename:
+            return
+
+        # 用 BeautifulSoup 解析章节内容，按 decoded src 替换
+        soup = BeautifulSoup(chapter.content, 'html.parser')
+        processed_tags = set()
+        modified = False
+
+        for img_url, filename in url_to_filename.items():
+            for img in soup.find_all('img'):
+                if id(img) in processed_tags:
+                    continue
+                src = img.get('src', '')
+                if src == img_url:
+                    img['src'] = f"images/{filename}"
+                    processed_tags.add(id(img))
+                    modified = True
+                    break  # 只替换第一个未处理的匹配项
+
+        if modified:
+            chapter.content = str(soup)
 
     def _add_error_log_chapter(self, book: epub.EpubBook, error_log: List[str]):
         """
@@ -285,8 +312,13 @@ class EPUBGenerator:
 
         self.logger.info("Error log chapter added to EPUB")
 
-    def _add_style(self, book: epub.EpubBook):
-        """添加样式"""
+    def _add_style(self, book: epub.EpubBook) -> epub.EpubItem:
+        """
+        添加样式
+
+        Returns:
+            epub.EpubItem: CSS 样式项
+        """
         css = epub.EpubItem(
             uid="style",
             file_name="style/default.css",
@@ -333,14 +365,15 @@ li {
     margin: 0.5em 0;
 }
 nav ol {
-    line-height: 2.2;
+    list-style-type: none;
 }
 nav li {
-    margin: 0.3em 0;
+    margin: 0.6em 0;
 }
 """
         )
         book.add_item(css)
+        return css
 
     def _save_book(self, book: epub.EpubBook) -> str:
         """
