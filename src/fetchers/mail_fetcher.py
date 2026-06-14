@@ -3,7 +3,6 @@
 通过 testmail.app API 抓取订阅邮件
 """
 
-import re
 from typing import List, Optional
 from urllib.parse import quote
 from bs4 import BeautifulSoup
@@ -204,33 +203,19 @@ class MailFetcher(BaseFetcher):
             return html
 
         try:
-            # 优先使用 lxml，因为它对 XHTML 的支持更好
-            soup = BeautifulSoup(html, 'lxml')
+            soup = BeautifulSoup(html, 'html.parser')
 
-            # 移除所有不合法的属性名
+            # 移除所有不合法的属性名（包含大写字母或特殊字符）
             for tag in soup.find_all(True):
                 attrs_to_remove = []
                 for attr in tag.attrs:
-                    # XML 属性名规范：
-                    # 1. 必须以字母、下划线或冒号开头
-                    # 2. 后续字符可以是字母、数字、点、减号、下划线或冒号
-                    # 3. 不能包含空格和其他特殊字符
-                    if not re.match(r'^[a-zA-Z_:][a-zA-Z0-9._\-:]*$', attr):
+                    # XHTML 属性名必须是小写的，且不能包含特殊字符
+                    if attr != attr.lower() or not attr.replace('-', '').replace('_', '').isalnum():
                         attrs_to_remove.append(attr)
-                    # 此外，XHTML 推荐属性名使用小写
-                    elif attr != attr.lower():
-                        # 如果有大写，转换为小写（BeautifulSoup 默认会转，这里是保险）
-                        val = tag.attrs[attr]
-                        attrs_to_remove.append(attr)
-                        tag.attrs[attr.lower()] = val
-                        
                 for attr in attrs_to_remove:
-                    if attr in tag.attrs:
-                        del tag[attr]
+                    del tag[attr]
 
-            # 仅返回 body 内部的内容片段
-            if soup.body:
-                return soup.body.decode_contents()
+            # 重新序列化为 HTML（使用 html.parser 确保输出有效 HTML）
             return str(soup)
 
         except Exception as e:
