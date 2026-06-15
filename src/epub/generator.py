@@ -41,14 +41,7 @@ class EPUBGenerator:
         error_log: List[str] = None
     ) -> str:
         """
-        生成 EPUB 文件
-
-        Args:
-            results: 抓取结果列表
-            error_log: 错误日志
-
-        Returns:
-            str: EPUB 文件路径
+        生成 EPUB 文件 (EPUB 3.0 格式，符合规范)
         """
         # 1. 创建 EPUB 书籍对象
         book = epub.EpubBook()
@@ -59,33 +52,39 @@ class EPUBGenerator:
         # 3. 添加封面
         self._add_cover(book)
 
-        # 4. 准备章节数据
+        # 4. 添加导航文件 (EPUB 3.0 必需，必须在添加章节之前)
+        nav = epub.EpubNav()
+        book.add_item(nav)
+        ncx = epub.EpubNcx()
+        book.add_item(ncx)
+
+        # 5. 初始化 spine (包含 cover 和 nav)
+        # nav 对象本身会作为 spine 元素，不是字符串
+        book.spine = ['cover', nav]
+
+        # 6. 准备章节数据
         sections = self._prepare_sections(results)
 
-        # 5. 生成目录
+        # 7. 生成目录数据
         toc = self.toc_generator.generate(sections)
-        # 在目录最前面添加"目录"条目，方便快速跳转到导航页
-        toc.insert(0, epub.Link("nav.xhtml", "目录", "nav"))
         book.toc = toc
 
-        # 6. 添加章节
+        # 8. 添加章节
         self._add_chapters(book, sections)
 
-        # 7. 添加错误日志章节（如果有）
+        # 9. 添加错误日志章节（如果有）
         if error_log:
             self._add_error_log_chapter(book, error_log)
 
-        # 8. 添加样式
+        # 10. 添加样式
         self._add_style(book)
 
-        # 9. 添加导航文件
-        book.add_item(epub.EpubNcx())
-        book.add_item(epub.EpubNav())
+        # 11. 不设置 Guide 元素，避免在 nav.xhtml 中生成 landmarks 部分
 
-        # 10. 保存文件
+        # 12. 保存文件
         output_path = self._save_book(book)
 
-        self.logger.info(f"EPUB generated: {output_path}")
+        self.logger.info(f"EPUB 3.0 (compliant) generated: {output_path}")
         return output_path
 
     def _set_metadata(self, book: epub.EpubBook):
@@ -94,11 +93,12 @@ class EPUBGenerator:
         import uuid
         book.set_identifier(str(uuid.uuid4()))
         book.set_title(self.config.title.get_plain_text())
-        book.set_language('zh-CN')
+        # 使用 zh (匹配成功文件)
+        book.set_language('zh')
         book.add_author('Ought Gather')
 
     def _add_cover(self, book: epub.EpubBook):
-        """添加封面"""
+        """添加封面 (EPUB 3.0 格式)"""
         try:
             cover_filename, cover_data = self.cover_generator.generate()
 
@@ -109,38 +109,32 @@ class EPUBGenerator:
                 media_type='image/jpeg',
                 content=cover_data
             )
-            # Set properties attribute after creation (EPUB3 cover-image property)
-            cover_item.properties = ['cover-image']
             book.add_item(cover_item)
-            
-            # 2. 手动创建封面 XHTML (使用 SVG 适配 Kindle 全屏)
-            cover_xhtml = """<?xml version='1.0' encoding='utf-8'?>
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN">
+
+            # 2. 创建封面 XHTML 页面 (EPUB 3.0 使用 HTML5)
+            cover_html = f"""<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" epub:prefix="z3998: http://www.daisy.org/z3998/2012/vocab/structure/#" lang="zh" xml:lang="zh">
 <head>
     <title>Cover</title>
     <style type="text/css">
-        @page {padding: 0pt; margin:0pt}
-        body { text-align: center; padding:0pt; margin: 0pt; }
+        body {{ margin: 0; padding: 0; text-align: center; }}
+        img {{ max-width: 100%; height: auto; }}
     </style>
 </head>
 <body>
-    <div>
-        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="100%" height="100%" viewBox="0 0 1440 1920" preserveAspectRatio="none">
-            <image width="1440" height="1920" xlink:href="cover.jpg"/>
-        </svg>
-    </div>
+    <img src="{cover_filename}" alt="Cover"/>
 </body>
 </html>"""
+
             cover_page = epub.EpubHtml(
                 title='Cover',
                 file_name='cover.xhtml',
-                lang='zh-CN',
                 uid='cover'
             )
-            cover_page.content = cover_xhtml
+            cover_page.content = cover_html
             book.add_item(cover_page)
-            
-            self.logger.info("SVG Cover added to EPUB")
+
+            self.logger.info("Cover added to EPUB")
         except Exception as e:
             self.logger.error(f"Failed to add cover: {e}")
 
@@ -179,16 +173,19 @@ class EPUBGenerator:
         sections: List[Tuple[ContentSource, List[Article], Optional[str]]]
     ):
         """
-        添加章节
+        添加章节 (EPUB 3.0 格式)
 
         在每个不同数据源（大目录）的第一篇文章前插入一个章节分隔页，
         让阅读时能清楚地感知进入了新的栏目/分组。
         """
         chapter_id = 0
         divider_id = 0
-        # 把 cover 放在最前面，确保封面在第一页显示；
-        # 否则 cover.xhtml 不在 spine 中，阅读器会把它追加到末尾。
-        spine = ['cover', 'nav']
+
+        # 使用 book.spine 的当前值（ebooklib 会自动包含 cover 和 nav）
+        # 如果 book.spine 未初始化，先设置 cover
+        if not book.spine:
+            book.spine = ['cover']
+        spine = book.spine
 
         for source, articles, source_title in sections:
             # 在该分组的第一篇文章前插入章节分隔页，显示所属栏目标题
@@ -197,8 +194,7 @@ class EPUBGenerator:
             )
             divider = epub.EpubHtml(
                 title=section_title,
-                file_name=f"divider_{divider_id}.xhtml",
-                lang='zh-CN'
+                file_name=f"divider_{divider_id}.xhtml"
             )
             divider.content = self._generate_section_divider_content(section_title)
             book.add_item(divider)
@@ -212,8 +208,7 @@ class EPUBGenerator:
                 # 创建章节
                 chapter = epub.EpubHtml(
                     title=article.title,
-                    file_name=f"chapter_{chapter_id}.xhtml",
-                    lang='zh-CN'
+                    file_name=f"chapter_{chapter_id}.xhtml"
                 )
                 chapter.content = chapter_content
 
@@ -233,7 +228,7 @@ class EPUBGenerator:
 
     def _generate_chapter_content(self, article: Article) -> str:
         """
-        生成章节 HTML 内容
+        生成章节 HTML 内容 (EPUB 3.0 格式，返回目录链接在标题下方)
 
         Args:
             article: 文章对象
@@ -242,22 +237,21 @@ class EPUBGenerator:
             str: HTML 内容
         """
         import html
-        
+
         # 对标题和作者进行 HTML 转义，防止 & 等字符导致 XML 解析失败
         safe_title = html.escape(article.title)
         safe_author = html.escape(article.author) if article.author else ""
-        
-        # 注意：不能包含 <?xml ...?> 声明，否则 ebooklib 无法正确解析
-        # 使用 XHTML 命名空间
+
+        # EPUB 3.0 使用 HTML5 DOCTYPE
         content_html = f"""<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" epub:prefix="z3998: http://www.daisy.org/z3998/2012/vocab/structure/#" lang="zh" xml:lang="zh">
 <head>
     <title>{safe_title}</title>
     <link rel="stylesheet" type="text/css" href="style/default.css"/>
 </head>
 <body>
     <h1>{safe_title}</h1>
-    <p><a href='nav.xhtml'>返回目录</a></p>
+    <p class="toc-link"><a href="nav.xhtml">返回目录</a></p>
 """
 
         # 添加元信息
@@ -282,7 +276,7 @@ class EPUBGenerator:
 
     def _generate_section_divider_content(self, section_title: str) -> str:
         """
-        生成章节分隔页 HTML 内容
+        生成章节分隔页 HTML 内容 (EPUB 3.0 格式，返回目录链接在标题下方)
 
         在两个不同"大目录"之间插入，视觉上提示读者进入了新的栏目/分组。
 
@@ -294,14 +288,14 @@ class EPUBGenerator:
         """
         safe_title = html_module.escape(section_title)
         return f"""<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" epub:prefix="z3998: http://www.daisy.org/z3998/2012/vocab/structure/#" lang="zh" xml:lang="zh">
 <head>
     <title>{safe_title}</title>
     <link rel="stylesheet" type="text/css" href="style/default.css"/>
 </head>
 <body>
     <h1>{safe_title}</h1>
-    <p><a href='nav.xhtml'>返回目录</a></p>
+    <p class="toc-link"><a href="nav.xhtml">返回目录</a></p>
 </body>
 </html>"""
 
@@ -412,23 +406,24 @@ class EPUBGenerator:
 
     def _add_error_log_chapter(self, book: epub.EpubBook, error_log: List[str]):
         """
-        添加错误日志章节
+        添加错误日志章节 (EPUB 3.0 格式，返回目录链接在标题下方)
 
         Args:
             book: EPUB 书籍对象
             error_log: 错误日志列表
         """
         import html
-        
-        # 注意：不能包含 <?xml ...?> 声明，否则 ebooklib 无法正确解析
+
+        # EPUB 3.0 使用 HTML5 DOCTYPE
         content_html = """<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" epub:prefix="z3998: http://www.daisy.org/z3998/2012/vocab/structure/#" lang="zh" xml:lang="zh">
 <head>
     <title>错误日志</title>
     <link rel="stylesheet" type="text/css" href="style/default.css"/>
 </head>
 <body>
     <h1>错误日志</h1>
+    <p class="toc-link"><a href="nav.xhtml">返回目录</a></p>
     <p>以下是在抓取过程中发生的错误：</p>
     <ul>
 """
@@ -443,8 +438,7 @@ class EPUBGenerator:
 
         chapter = epub.EpubHtml(
             title="错误日志",
-            file_name="error_log.xhtml",
-            lang='zh-CN'
+            file_name="error_log.xhtml"
         )
         chapter.content = content_html
 
@@ -495,6 +489,15 @@ h1 {
     font-size: 0.8em;
     color: #999;
 }
+.toc-link {
+    margin-top: 2em;
+    font-size: 0.9em;
+    text-align: center;
+}
+.toc-link a {
+    color: #0066cc;
+    text-decoration: none;
+}
 a {
     color: #0066cc;
     text-decoration: none;
@@ -529,6 +532,7 @@ nav li {
         # 生成文件名
         from src.utils.helpers import sanitize_filename
         title = self.config.title.get_plain_text()
+        # 建议：如果还是失败，尝试将文件名改为纯英文/数字
         filename = sanitize_filename(title) + ".epub"
 
         # 确保输出目录存在

@@ -79,6 +79,15 @@ config.json → Fetchers → Processors → Dedup → EPUB Generator → SMTP Se
    - `cover.py`: Custom image (from `title.img`) or Bing daily wallpaper. Overlays title and date.
    - `toc.py`: Flat hierarchy (source → articles). No nested chapters.
    - `generator.py`: Assembles EPUB with ebooklib. Sorts by priority (descending), stable sort.
+   
+   **EPUB Compliance Requirements** (Critical - learned from EPUBCheck validation failures):
+   - **Directory Structure**: Must use standard `EPUB/` folder (default `FOLDER_NAME='EPUB'`). Setting `FOLDER_NAME=''` causes absolute paths like `/file.xhtml` which violate OCF spec (RSC-026 error).
+   - **EPUB Version**: ebooklib 0.20 hardcodes `version="3.0"` in OPF. Cannot downgrade to EPUB 2.0 via `book.version='2.0'`. Must accept EPUB 3.0 format.
+   - **Navigation**: EPUB 3.0 **requires** both `EpubNcx()` and `EpubNav()` items. Missing nav document causes RSC-005 error ("Exactly one manifest item must declare the 'nav' property").
+   - **CSS in f-string**: When writing CSS in Python f-string, must escape braces with `{{}}` (e.g., `body {{ margin: 0; }}`), otherwise Python interprets `{}` as expression placeholders.
+   - **Cover HTML**: Cover XHTML must have proper content, not empty. Use simple `<img src="cover.jpg"/>` structure for compatibility.
+   - **Guide Element**: Keep `book.guide` for backward compatibility (EPUB 2.0 feature, optional in EPUB 3.0).
+   - **Validation**: Always run EPUBCheck validation: `java -jar epubcheck.jar <file.epub>`. EPUBCheck validates against EPUB 3.3 rules by default.
 
 6. **Email Delivery** (`src/mailer/smtp_sender.py`): Sends EPUB as attachment to Kindle email.
 
