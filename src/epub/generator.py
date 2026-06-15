@@ -90,10 +90,9 @@ class EPUBGenerator:
 
     def _set_metadata(self, book: epub.EpubBook):
         """设置书籍元数据"""
-        # 使用日期时间作为唯一标识符，避免亚马逊 Send to Kindle 因重复标识符而拒绝
-        # 格式: ought-gather-epub-2026-06-15-143052（精确到秒，确保每次生成唯一）
-        datetime_str = get_now().strftime('%Y-%m-%d-%H%M%S')
-        book.set_identifier(f'ought-gather-epub-{datetime_str}')
+        # 使用标准的 UUID，并确保每次生成的 ID 唯一
+        import uuid
+        book.set_identifier(str(uuid.uuid4()))
         book.set_title(self.config.title.get_plain_text())
         book.set_language('zh-CN')
         book.add_author('Ought Gather')
@@ -102,17 +101,47 @@ class EPUBGenerator:
         """添加封面"""
         try:
             cover_filename, cover_data = self.cover_generator.generate()
-            book.set_cover(cover_filename, cover_data)
-            # ebooklib 默认将 cover.xhtml 标记为非线性内容（is_linear=False），
-            # 会导致 epubcheck 报 OPF-096 错误（非线性内容必须可从其他内容超链接到达）。
-            # 将其设为线性，使封面成为正文阅读顺序的第一页。
-            for item in book.items:
-                if getattr(item, 'file_name', '') == 'cover.xhtml':
-                    item.is_linear = True
-                    break
-            self.logger.info("Cover added to EPUB")
+            
+            # 1. 添加封面图片
+            book.add_item(epub.EpubItem(
+                uid='cover-img',
+                file_name=cover_filename,
+                media_type='image/jpeg',
+                content=cover_data,
+                properties='cover-image'
+            ))
+            
+            # 2. 手动创建封面 XHTML (使用 SVG 适配 Kindle 全屏)
+            cover_xhtml = """<?xml version='1.0' encoding='utf-8'?>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN">
+<head>
+    <title>Cover</title>
+    <style type="text/css">
+        @page {padding: 0pt; margin:0pt}
+        body { text-align: center; padding:0pt; margin: 0pt; }
+    </style>
+</head>
+<body>
+    <div>
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="100%" height="100%" viewBox="0 0 1440 1920" preserveAspectRatio="none">
+            <image width="1440" height="1920" xlink:href="cover.jpg"/>
+        </svg>
+    </div>
+</body>
+</html>"""
+            cover_page = epub.EpubHtml(
+                title='Cover',
+                file_name='cover.xhtml',
+                lang='zh-CN',
+                uid='cover'
+            )
+            cover_page.content = cover_xhtml
+            book.add_item(cover_page)
+            
+            self.logger.info("SVG Cover added to EPUB")
         except Exception as e:
             self.logger.error(f"Failed to add cover: {e}")
+
 
     def _prepare_sections(
         self,
@@ -304,6 +333,9 @@ class EPUBGenerator:
             # 优先检查懒加载属性 (Bug 3) 和 srcset
             src = None
             
+            # 记录所有可能包含远程 URL 的属性，以便清理
+            remote_attrs = ['data-src', 'data-original', 'data-actualsrc', 'data-lazy-src', 'srcset', 'data-srcset', 'file', 'zoom-target', 'original']
+            
             # 检查 srcset (Bug 4)
             srcset = img.get('data-srcset') or img.get('srcset')
             if srcset:
@@ -317,7 +349,7 @@ class EPUBGenerator:
             
             # 检查懒加载属性
             if not src:
-                for attr in ['data-src', 'data-original', 'data-actualsrc', 'data-lazy-src', 'file', 'zoom-target', 'original']:
+                for attr in remote_attrs:
                     val = img.get(attr)
                     if val and not any(ext in val.lower() for ext in ['.gif', '.svg']):
                         src = val
@@ -326,27 +358,29 @@ class EPUBGenerator:
             if not src:
                 src = img.get('src')
             
-            if not src:
+            # 彻底移除所有干扰属性，防止残留远程链接
+            for attr in remote_attrs:
+                if img.has_attr(attr):
+                    del img[attr]
+
+            if not src or src.startswith('data:'):
+                if not src:
+                    img.decompose()
                 continue
 
             # 如果已经处理过这个 URL
             if src in url_to_filename:
                 img['src'] = f"images/{url_to_filename[src]}"
-                # 移除干扰属性
-                for attr in ['data-src', 'data-original', 'data-actualsrc', 'data-lazy-src', 'srcset', 'data-srcset']:
-                    if img.has_attr(attr):
-                        del img[attr]
                 continue
 
             # 处理图片
-            # image_processor.download_and_process 会处理相对 URL
             result = self.image_processor.download_and_process(src, article.url)
 
             if result:
                 filename, img_data = result
                 url_to_filename[src] = filename
 
-                # 检查是否已经添加过这个 item（避免跨章节重复添加）
+                # 检查是否已经添加过这个 item
                 image_uid = f"image_{filename}"
                 is_already_added = False
                 for item in book.items:
@@ -363,18 +397,10 @@ class EPUBGenerator:
                     )
                     book.add_item(epub_image)
 
-                # 在章节内容中更新图片 URL
+                # 更新图片 URL
                 img['src'] = f"images/{filename}"
-                # 移除干扰属性 (Bug 3)
-                for attr in ['data-src', 'data-original', 'data-actualsrc', 'data-lazy-src', 'srcset', 'data-srcset']:
-                    if img.has_attr(attr):
-                        del img[attr]
             else:
-                # 图片下载/处理失败或被跳过（如小图片）：移除 img 标签以避免在 EPUB 中留下外部 URL。
-                # EPUB 3 标准不允许引用 EPUB 容器之外的资源（RSC-006），
-                # 否则 epubcheck 会报 RSC-006 和 OPF-014 错误。
-                # 注：真正的下载/处理错误已在 ImageProcessor 中用 error 级别记录，
-                # 小图片跳过也已用 debug 级别记录，此处仅记录移除标签的操作。
+                # 处理失败：彻底移除标签，绝不保留 http 引用
                 self.logger.debug(f"Removing image tag (processing failed or skipped): {src}")
                 img.decompose()
 

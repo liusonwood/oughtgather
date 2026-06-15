@@ -52,3 +52,5 @@ Thumbs.db
 .coverage
 htmlcov/
 epubcheck/
+
+temp_epub/
