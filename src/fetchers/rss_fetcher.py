@@ -5,7 +5,6 @@ RSS 抓取器模块
 
 from typing import List, Optional
 import feedparser
-from bs4 import BeautifulSoup
 import trafilatura
 
 from src.config import ContentSource
@@ -87,27 +86,10 @@ class RSSFetcher(BaseFetcher):
 
         # 提取内容
         if self.source.full_text == "Y":
-            # 抓取完整正文
-            content = self._fetch_full_text(link)
-            
-            # Bug 1 & 2: 提取图片并处理 Trafilatura 过于激进的问题
-            images = self._extract_images(content, base_url=link)
-            
-            # 如果 trafilatura 剥离了图片或者返回的内容太短，我们需要使用 fallback
-            if len(images) == 0 or len(content) < 300:
-                 try:
-                    resp = self._make_request(link)
-                    raw_html = resp.text
-                    raw_images = self._extract_images(raw_html, base_url=link)
-                    
-                    if len(raw_images) > len(images) or len(content) < 300:
-                        self.logger.warning(f"trafilatura might have been too aggressive for {title}, falling back to BeautifulSoup")
-                        fallback_content = self._fallback_extract(raw_html)
-                        if len(fallback_content) > len(content):
-                            content = fallback_content
-                            images = self._extract_images(content, base_url=link)
-                 except Exception as e:
-                    self.logger.error(f"Failed to recover content for {title}: {e}")
+            # 抓取完整正文（使用 trafilatura）
+            content, raw_html = self._fetch_full_text(link)
+            # 从原始 HTML 提取图片 URL（trafilatura 通常会剥离 <img>）
+            images = self._extract_images(raw_html, base_url=link)
         else:
             # 使用 RSS 摘要
             content = self._get_summary(entry)
@@ -151,7 +133,7 @@ class RSSFetcher(BaseFetcher):
 
         return ""
 
-    def _fetch_full_text(self, url: str) -> str:
+    def _fetch_full_text(self, url: str) -> tuple:
         """
         抓取完整正文
 
@@ -159,19 +141,19 @@ class RSSFetcher(BaseFetcher):
             url: 文章 URL
 
         Returns:
-            str: 正文 HTML
+            tuple: (正文 HTML, 原始页面 HTML)。trafilatura 失败时正文为空字符串。
         """
         if not url:
-            return ""
+            return "", ""
 
         try:
             # 下载网页
             response = self._make_request(url)
-            html = response.text
+            raw_html = response.text
 
             # 使用 trafilatura 提取正文
             content = trafilatura.extract(
-                html,
+                raw_html,
                 include_comments=False,
                 include_tables=True,
                 include_images=True,
@@ -181,41 +163,9 @@ class RSSFetcher(BaseFetcher):
 
             if not content:
                 self.logger.warning(f"trafilatura failed to extract content from {url}")
-                # 回退到使用 BeautifulSoup 提取
-                content = self._fallback_extract(html)
 
-            return content
+            return content or "", raw_html
 
         except Exception as e:
             self.logger.error(f"Failed to fetch full text from {url}: {e}")
-            return ""
-
-    def _fallback_extract(self, html: str) -> str:
-        """
-        备用的内容提取方法
-
-        Args:
-            html: HTML 内容
-
-        Returns:
-            str: 提取的内容
-        """
-        soup = BeautifulSoup(html, 'lxml')
-
-        # 移除 script 和 style
-        for script in soup(["script", "style"]):
-            script.decompose()
-
-        # 尝试找到主要内容区域
-        main_content = (
-            soup.find('article') or
-            soup.find('main') or
-            soup.find('div', class_='content') or
-            soup.find('div', class_='post') or
-            soup.body
-        )
-
-        if main_content:
-            return str(main_content)
-
-        return str(soup.body) if soup.body else ""
+            return "", ""

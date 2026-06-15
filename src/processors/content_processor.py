@@ -293,7 +293,7 @@ class ContentProcessor:
             html: HTML 内容
 
         Returns:
-            str: 清洗后的 HTML
+            str: 清洗后的 HTML 片段
         """
         soup = BeautifulSoup(html, 'lxml')
 
@@ -310,24 +310,25 @@ class ContentProcessor:
                 if attr not in allowed_attrs:
                     del tag[attr]
 
+        # 仅返回 body 内部的内容，避免产生嵌套的 html/body 标签
+        if soup.body:
+            return soup.body.decode_contents()
         return str(soup)
 
     def _ensure_valid_html(self, html: str) -> str:
         """
         确保 HTML 格式正确
-        添加必要的包装标签
+        主要用于修复未闭合标签
 
         Args:
             html: HTML 内容
 
         Returns:
-            str: 有效的 HTML
+            str: 有效的 HTML 片段
         """
-        # 检查是否有根标签
+        # 使用 BeautifulSoup 的修复能力
         soup = BeautifulSoup(html, 'lxml')
-
-        # 如果没有 body，添加一个
-        if not soup.body:
-            html = f"<body>{html}</body>"
-
-        return html
+        
+        if soup.body:
+            return soup.body.decode_contents()
+        return str(soup)
