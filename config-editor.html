@@ -251,6 +251,11 @@
         <input type="text" id="title-img" placeholder="留空使用 Bing 每日壁纸">
         <span class="hint">图片 URL 或留空</span>
       </div>
+      <div class="form-row">
+        <label>抓取上限</label>
+        <input type="number" id="global-limit" value="15" style="max-width: 100px;">
+        <span class="hint">每个源的抓取条数上限，默认 15</span>
+      </div>
     </div>
 
     <!-- Sources Section -->
@@ -291,6 +296,7 @@
     // ---- Title ----
     document.getElementById('title-text').value = '{每日新闻</br>{time}}';
     document.getElementById('title-img').value = '';
+    document.getElementById('global-limit').value = '15';
 
     // ---- Source Management ----
     function createEmptySource() {
@@ -703,11 +709,13 @@
 
     // ---- JSON Generation ----
     function buildConfig() {
+      const limitValue = parseInt(document.getElementById('global-limit').value) || 15;
       const config = {
         title: {
           text: document.getElementById('title-text').value,
           img: document.getElementById('title-img').value
         },
+        limit: limitValue,
         body: sources.map(s => {
           const item = {
             type: s.type,
@@ -836,6 +844,9 @@
         document.getElementById('title-text').value = config.title.text || '';
         document.getElementById('title-img').value = config.title.img || '';
       }
+
+      // Global limit
+      document.getElementById('global-limit').value = config.limit || 15;
 
       // Sources
       sources = [];

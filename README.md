@@ -63,6 +63,7 @@
     "text": "{Daily News {time}}",  // 支持 {time} 占位符和 </br> 换行符（如 "{Daily News</br>{time}}"）
     "img": ""  // 自定义封面 URL，留空则使用 Bing 每日壁纸
   },
+  "limit": 20,  // 每个数据源的抓取条数上限，默认 15
   "body": [
     {
       "type": "rss",
@@ -258,7 +259,24 @@ A: 编辑 `.github/workflows/daily-gather.yml`，修改 `cron` 表达式。
 
 ### Q: 支持哪些邮箱服务？
 
-A: 支持所有提供 SMTP 服务的邮箱，如 Gmail、QQ 邮箱、163 邮箱等。注意需要使用授权码而非登录密码。
+A: 支持所有提供 SMTP 服务的邮箱，如 Gmail、QQ 邮箱、163 箱等。注意需要使用授权码而非登录密码。
+
+### Q: 如何修改每个源的抓取条数上限？
+
+A: 在 `config.json` 中添加顶层 `limit` 字段即可修改全局上限（默认为 15 条）：
+
+```json
+{
+  "title": { ... },
+  "limit": 30,  // 每个数据源最多抓取 30 条
+  "body": [ ... ]
+}
+```
+
+**说明**：
+- 此参数为全局设置，应用到所有数据源（RSS/Web/Mail/Trending）
+- Mail 类型的 metadata 中也可以设置 `limit`（默认 50，最大 100），但这只针对单个 mail 源的 API 查询数量，优先级高于全局 limit
+- 如果某些源实际内容少于设置的上限，则按实际数量抓取
 
 ## 技术栈
 
