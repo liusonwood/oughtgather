@@ -366,10 +366,12 @@ class EPUBGenerator:
                     if img.has_attr(attr):
                         del img[attr]
             else:
-                # 图片下载/处理失败：移除 img 标签以避免在 EPUB 中留下外部 URL。
+                # 图片下载/处理失败或被跳过（如小图片）：移除 img 标签以避免在 EPUB 中留下外部 URL。
                 # EPUB 3 标准不允许引用 EPUB 容器之外的资源（RSC-006），
                 # 否则 epubcheck 会报 RSC-006 和 OPF-014 错误。
-                self.logger.warning(f"Failed to process image, removing tag: {src}")
+                # 注：真正的下载/处理错误已在 ImageProcessor 中用 error 级别记录，
+                # 小图片跳过也已用 debug 级别记录，此处仅记录移除标签的操作。
+                self.logger.debug(f"Removing image tag (processing failed or skipped): {src}")
                 img.decompose()
 
         # 将修改后的 HTML 写回 chapter.content (Bug 2)
