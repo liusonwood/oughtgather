@@ -58,6 +58,8 @@ class ImageProcessor:
 
             filename, image_data = result
             self.processed_images.append((filename, image_data))
+            size_kb = len(image_data) / 1024
+            self.logger.info(f"Successfully processed image: {filename} ({size_kb:.1f}KB) from {url}")
             return result
 
         except Exception as e:
