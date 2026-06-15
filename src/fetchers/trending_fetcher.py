@@ -17,14 +17,16 @@ from src.utils.helpers import generate_content_id, get_now
 class TrendingFetcher(BaseFetcher):
     """热点分析抓取器"""
 
-    def __init__(self, source: ContentSource):
+    def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):
         """
         初始化热点分析抓取器
 
         Args:
             source: 内容源配置
+            global_limit: 全局抓取数量限制
+            max_retries: 最大重试次数
         """
-        super().__init__(source)
+        super().__init__(source, global_limit=global_limit, max_retries=max_retries)
         self.config = get_openrouter_config()
 
         if not self.config:
