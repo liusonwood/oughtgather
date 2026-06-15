@@ -146,6 +146,9 @@ python -m pytest tests/test_config.py -v
 
 # 只运行某个测试类
 python -m pytest tests/test_config.py::TestTitleConfig -v
+
+# 运行EPUB合规性测试（验证EPUB生成符合规范）
+python -m pytest tests/test_epub_compliance.py -v
 ```
 
 当前测试覆盖：
@@ -155,7 +158,8 @@ python -m pytest tests/test_config.py::TestTitleConfig -v
 - **去重追踪**（`test_dedup_tracker.py`）
 - **数据抓取**（`test_fetchers.py`）
 - **图片处理**（`test_image_processor.py`）
-- **EPUB 合规验证**（`test_integration.py`）— 使用 [epubcheck](https://github.com/w3c/epubcheck) 验证生成的 EPUB 是否符合 EPUB 3 标准
+- **EPUB 合规性**（`test_epub_compliance.py`）— 21个测试验证EPUB生成符合规范（目录结构、OPF文件、nav document、spine顺序等）
+- **EPUB 标准验证**（`test_integration.py`）— 使用 [epubcheck](https://github.com/w3c/epubcheck) 验证生成的 EPUB 是否符合 EPUB 3 标准
 
 #### EPUB 合规验证
 
@@ -229,7 +233,9 @@ ought-gather/
 │   ├── test_content_processor.py # 内容处理测试
 │   ├── test_dedup_tracker.py   # 去重测试
 │   ├── test_fetchers.py        # 抓取器测试
-│   └── test_image_processor.py # 图片处理测试
+│   ├── test_image_processor.py # 图片处理测试
+│   ├── test_epub_compliance.py # EPUB合规性测试（21个测试）
+│   └── test_integration.py     # 集成测试（含epubcheck验证）
 ├── config.template.json        # 配置模板
 ├── docs/
 │   ├── CONFIG.md               # 配置指南（config.json 详细说明）
