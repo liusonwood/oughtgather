@@ -157,6 +157,21 @@ python -m pytest tests/test_config.py::TestTitleConfig -v
 
 详细测试指南见 [TESTING.md](docs/TESTING.md)。
 
+### 测试数据维护
+
+去重文件 `data/fetched_urls.txt` 超过 5000 条时会自动清理旧记录。如需在本地测试自动清理功能，可以手动缩减行数：
+
+```bash
+# 隔行删除（保留奇数行，删除偶数行），160 行 → 80 行
+awk 'NR % 2 == 1' data/fetched_urls.txt > /tmp/tmp_urls.txt && mv /tmp/tmp_urls.txt data/fetched_urls.txt
+
+# 反向：保留偶数行，删除奇数行
+awk 'NR % 2 == 0' data/fetched_urls.txt > /tmp/tmp_urls.txt && mv /tmp/tmp_urls.txt data/fetched_urls.txt
+
+# 查看当前行数
+wc -l data/fetched_urls.txt
+```
+
 ### 项目结构
 
 ```
