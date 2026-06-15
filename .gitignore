@@ -51,3 +51,4 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+epubcheck-5.3.0/

@@ -38,7 +38,7 @@ class WebFetcher(BaseFetcher):
                 result.error = "Failed to extract content from webpage"
                 return result
 
-            # 从原始 HTML 提取图片 URL（trafilatura 通常会剥离 <img>，
+            # 从原始 HTML 提取图片 URL（trafilatura 会将 <img> 转换为 <graphic>，
             # 所以直接从下载到的原始页面提取，避免图片丢失）
             images = self._extract_images(html)
 
@@ -117,5 +117,11 @@ class WebFetcher(BaseFetcher):
             include_links=True,
             output_format="html",
         )
+
+        if content:
+            # trafilatura 在 output_format="html" 时会将 <img> 转换为
+            # <graphic>（HTML5 元素），导致下游的 ContentProcessor 和
+            # EPUBGenerator 找不到 <img> 标签而丢失所有图片。
+            content = self._restore_img_tags(content)
 
         return content or ""

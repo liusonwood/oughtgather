@@ -92,8 +92,8 @@ class TestImageBugs:
 
                 assert result.success
                 assert len(result.articles) == 1
-                # 内容用 trafilatura 的
-                assert result.articles[0].content == trafilatura_content
+                # 内容用 trafilatura 的（_restore_img_tags 会去掉 html/body 包装）
+                assert result.articles[0].content == "<h1>Title</h1><p>Content</p>"
                 # 图片从原始 HTML 取回
                 assert "https://example.com/test.jpg" in result.articles[0].images
 
@@ -124,3 +124,114 @@ class TestImageBugs:
         assert "images/real.jpg" in chapter.content
         assert "data-src" not in chapter.content
         assert "placeholder.jpg" not in chapter.content
+
+    def test_restore_img_tags_converts_graphic_to_img(self):
+        """Test that _restore_img_tags converts <graphic> tags to <img> tags.
+
+        trafilatura in output_format="html" converts <img> to <graphic>
+        (an HTML5 element), which downstream code doesn't recognize.
+        """
+        from src.fetchers.base import BaseFetcher
+
+        html = """<html><body>
+        <h1>Title</h1>
+        <graphic src="https://example.com/img1.jpg"></graphic>
+        <p>Some text</p>
+        <graphic src="https://example.com/img2.png"></graphic>
+        </body></html>"""
+
+        result = BaseFetcher._restore_img_tags(html)
+        soup = BeautifulSoup(result, 'lxml')
+
+        # All <graphic> should be converted to <img>
+        assert len(soup.find_all('graphic')) == 0
+        imgs = soup.find_all('img')
+        assert len(imgs) == 2
+        assert imgs[0]['src'] == 'https://example.com/img1.jpg'
+        assert imgs[1]['src'] == 'https://example.com/img2.png'
+
+    def test_restore_img_tags_preserves_existing_img(self):
+        """Test that _restore_img_tags doesn't affect existing <img> tags."""
+        from src.fetchers.base import BaseFetcher
+
+        html = """<html><body>
+        <img src="https://example.com/normal.jpg">
+        <graphic src="https://example.com/converted.jpg"></graphic>
+        </body></html>"""
+
+        result = BaseFetcher._restore_img_tags(html)
+        soup = BeautifulSoup(result, 'lxml')
+
+        imgs = soup.find_all('img')
+        assert len(imgs) == 2
+        assert imgs[0]['src'] == 'https://example.com/normal.jpg'
+        assert imgs[1]['src'] == 'https://example.com/converted.jpg'
+
+    def test_web_fetcher_restores_graphic_tags(self):
+        """Test that WebFetcher restores <graphic> tags from trafilatura output."""
+        source = ContentSource(type="web", src="https://example.com", title="Test")
+        fetcher = WebFetcher(source)
+
+        raw_html = """
+        <html>
+            <body>
+                <article>
+                    <h1>Title</h1>
+                    <img src="https://example.com/test.jpg">
+                    <p>Content</p>
+                </article>
+            </body>
+        </html>
+        """
+
+        # Mock trafilatura to return <graphic> instead of <img>
+        trafilatura_content = "<html><body><h1>Title</h1><graphic src=\"https://example.com/test.jpg\"></graphic><p>Content</p></body></html>"
+        with patch("src.fetchers.web_fetcher.trafilatura.extract", return_value=trafilatura_content):
+            with patch.object(fetcher, "_make_request") as mock_req:
+                mock_req.return_value.text = raw_html
+                result = fetcher.fetch()
+
+                assert result.success
+                assert len(result.articles) == 1
+                # Content should have <img> tags, not <graphic>
+                content = result.articles[0].content
+                assert "<graphic" not in content
+                assert "https://example.com/test.jpg" in content
+
+    def test_rss_fetcher_full_text_restores_graphic_tags(self):
+        """Test that RSSFetcher with full_text=Y restores <graphic> tags from trafilatura."""
+        from src.fetchers.rss_fetcher import RSSFetcher
+
+        source = ContentSource(
+            type="rss",
+            src="https://example.com/feed.xml",
+            priority=10,
+            full_text="Y"
+        )
+        fetcher = RSSFetcher(source)
+
+        raw_html = """
+        <html>
+            <body>
+                <article>
+                    <h1>Article Title</h1>
+                    <img src="https://cdn.example.com/photo.webp">
+                    <p>Article content here.</p>
+                </article>
+            </body>
+        </html>
+        """
+
+        # Mock trafilatura to return <graphic> instead of <img>
+        trafilatura_content = "<html><body><h1>Article Title</h1><graphic src=\"https://cdn.example.com/photo.webp\"></graphic><p>Article content here.</p></body></html>"
+
+        with patch.object(fetcher, "_make_request") as mock_req:
+            mock_req.return_value.text = raw_html
+            with patch("src.fetchers.rss_fetcher.trafilatura.extract", return_value=trafilatura_content):
+                content, raw = fetcher._fetch_full_text("https://example.com/article")
+
+                # Content should have <img> tags, not <graphic>
+                assert "<graphic" not in content
+                assert "https://cdn.example.com/photo.webp" in content
+                soup = BeautifulSoup(content, 'lxml')
+                assert len(soup.find_all('img')) == 1

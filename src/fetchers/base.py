@@ -251,6 +251,21 @@ class BaseFetcher(ABC):
 
         return images
 
+    @staticmethod
+    def _restore_img_tags(html: str) -> str:
+        """
+        将 trafilatura 输出的 <graphic> 标签还原为 <img> 标签。
+
+        trafilatura 在 output_format="html" 模式下会把 <img> 转换为
+        <graphic>（EPUB/HTML5 标准元素），但下游的图片处理流程只识别 <img>。
+        """
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html, 'lxml')
+        for graphic in soup.find_all('graphic'):
+            graphic.name = 'img'
+        body = soup.body if soup.body else soup
+        return body.decode_contents()
+
     def _should_delete(self, title: str) -> bool:
         """
         检查是否应该删除该文章（基于 delete 配置）

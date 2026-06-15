@@ -99,6 +99,13 @@ class EPUBGenerator:
         try:
             cover_filename, cover_data = self.cover_generator.generate()
             book.set_cover(cover_filename, cover_data)
+            # ebooklib 默认将 cover.xhtml 标记为非线性内容（is_linear=False），
+            # 会导致 epubcheck 报 OPF-096 错误（非线性内容必须可从其他内容超链接到达）。
+            # 将其设为线性，使封面成为正文阅读顺序的第一页。
+            for item in book.items:
+                if getattr(item, 'file_name', '') == 'cover.xhtml':
+                    item.is_linear = True
+                    break
             self.logger.info("Cover added to EPUB")
         except Exception as e:
             self.logger.error(f"Failed to add cover: {e}")
@@ -359,7 +366,11 @@ class EPUBGenerator:
                     if img.has_attr(attr):
                         del img[attr]
             else:
-                self.logger.warning(f"Failed to process image: {src}")
+                # 图片下载/处理失败：移除 img 标签以避免在 EPUB 中留下外部 URL。
+                # EPUB 3 标准不允许引用 EPUB 容器之外的资源（RSC-006），
+                # 否则 epubcheck 会报 RSC-006 和 OPF-014 错误。
+                self.logger.warning(f"Failed to process image, removing tag: {src}")
+                img.decompose()
 
         # 将修改后的 HTML 写回 chapter.content (Bug 2)
         # BeautifulSoup 会生成完整的 HTML 结构并正确处理转义字符

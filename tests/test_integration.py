@@ -4,6 +4,8 @@
 """
 
 import os
+import subprocess
+import shutil
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -12,6 +14,7 @@ from src.fetchers.base import Article, FetchResult
 from src.fetchers.rss_fetcher import RSSFetcher
 from src.fetchers.web_fetcher import WebFetcher
 from src.processors.content_processor import ContentProcessor
+from src.processors.image_processor import ImageProcessor
 from src.dedup.tracker import DedupTracker
 from src.epub.generator import EPUBGenerator
 
@@ -530,5 +533,115 @@ class TestSectionDividers:
             divider_html = self._read_epub_xhtml(epub_path, "divider_0.xhtml")
             assert "nav.xhtml" in divider_html, "分隔页应包含返回目录的链接"
             print(f"✓ 分隔页包含返回目录的链接")
+        finally:
+            os.remove(epub_path)
+
+
+# =========================================================================
+# EPUB 标准合规性验证（使用 epubcheck）
+# =========================================================================
+
+class TestEpubcheckValidation:
+    """使用 W3C epubcheck 工具验证生成的 EPUB 是否符合 EPUB 3 标准"""
+
+    @staticmethod
+    def _epubcheck_jar():
+        """返回 epubcheck.jar 路径（项目根目录下）"""
+        return os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "epubcheck-5.3.0", "epubcheck.jar"
+        )
+
+    @staticmethod
+    def _generate_simple_epub(fetch_results):
+        """用给定的 FetchResult 列表生成 EPUB，返回路径"""
+        config_data = {
+            "title": {"text": "Epubcheck 合规测试", "img": ""},
+            "body": [
+                {"type": r.source.type, "src": r.source.src,
+                 "title": r.source.title, "priority": r.source.priority}
+                for r in fetch_results
+            ],
+        }
+        config = _parse_config(config_data)
+        generator = EPUBGenerator(config)
+        return generator.generate(fetch_results)
+
+    @pytest.mark.skipif(
+        not shutil.which("java"),
+        reason="需要 Java 运行时才能执行 epubcheck"
+    )
+    def test_epub_passes_epubcheck(self):
+        """生成的 EPUB 应通过 epubcheck 验证，无错误无警告"""
+        jar = self._epubcheck_jar()
+        if not os.path.exists(jar):
+            pytest.skip(f"epubcheck.jar 未找到：{jar}")
+
+        source = ContentSource(
+            type="rss", src="https://example.com/rss",
+            title="测试源", priority=10
+        )
+        articles = [
+            Article(title="文章一", content="<p>第一段正文内容。</p>",
+                    url="https://example.com/1"),
+            Article(title="文章二", content="<p>第二段正文内容。</p>",
+                    url="https://example.com/2"),
+        ]
+        results = [FetchResult(source=source, articles=articles)]
+
+        epub_path = self._generate_simple_epub(results)
+        try:
+            result = subprocess.run(
+                ["java", "-jar", jar, epub_path],
+                capture_output=True, text=True, timeout=60
+            )
+            print(result.stderr)
+            assert result.returncode == 0, (
+                f"epubcheck 验证失败（exit={result.returncode}）：\n"
+                f"{result.stderr}"
+            )
+        finally:
+            os.remove(epub_path)
+
+    @pytest.mark.skipif(
+        not shutil.which("java"),
+        reason="需要 Java 运行时才能执行 epubcheck"
+    )
+    def test_epub_with_failed_images_passes_epubcheck(self):
+        """即使含图片下载失败，生成的 EPUB 仍应通过 epubcheck 验证"""
+        jar = self._epubcheck_jar()
+        if not os.path.exists(jar):
+            pytest.skip(f"epubcheck.jar 未找到：{jar}")
+
+        source = ContentSource(
+            type="rss", src="https://example.com/rss",
+            title="图片测试源", priority=10
+        )
+        # 内容中包含无法下载的外部图片
+        articles = [
+            Article(
+                title="含图片文章",
+                content='<p>正文。</p><img src="https://via.placeholder.com/600x400"/>',
+                url="https://example.com/1",
+            ),
+        ]
+        results = [FetchResult(source=source, articles=articles)]
+
+        # Mock 图片下载失败
+        with patch.object(
+            ImageProcessor, 'download_and_process', return_value=None
+        ):
+            epub_path = self._generate_simple_epub(results)
+
+        try:
+            result = subprocess.run(
+                ["java", "-jar", jar, "--failonwarnings", epub_path],
+                capture_output=True, text=True, timeout=60
+            )
+            print(result.stderr)
+            assert result.returncode == 0, (
+                f"epubcheck 验证失败（exit={result.returncode}）：\n"
+                f"{result.stderr}"
+            )
         finally:
             os.remove(epub_path)

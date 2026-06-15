@@ -161,6 +161,13 @@ class RSSFetcher(BaseFetcher):
                 output_format="html"
             )
 
+            if content:
+                # trafilatura 在 output_format="html" 时会将 <img> 转换为
+                # <graphic>（HTML5 元素），导致下游的 ContentProcessor 和
+                # EPUBGenerator 找不到 <img> 标签而丢失所有图片。
+                # 这里将 <graphic src="..."> 转换回 <img src="...">。
+                content = self._restore_img_tags(content)
+
             if not content:
                 self.logger.warning(f"trafilatura failed to extract content from {url}")
 
