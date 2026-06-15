@@ -1,22 +1,17 @@
 {
   "title": {
-    "text": "{每日新闻 {time}}",
+    "text": "{每日新闻</br>{time}}",
     "img": ""
   },
-  "limit": 15,
+  "limit": 5,
   "body": [
     {
       "type": "rss",
-      "src": "https://hnrss.org/frontpage",
-      "title": "Hacker News 热门",
-      "priority": 15,
-      "keep_link": "Y",
-      "full_text": "N",
-      "chop": "/[0:1500]",
-      "exclude": [
-        { "type": "start", "value": "Comments" }
-      ],
-      "delete": "Show HN"
+      "src": "https://raw.githubusercontent.com/liusonwood/rssqweather/main/weather.xml",
+      "title": "",
+      "priority": "",
+      "keep_link": "",
+      "full_text": ""
     }
   ]
 }
