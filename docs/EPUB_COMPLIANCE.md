@@ -233,7 +233,100 @@ book.add_item(cover_page)
 
 ---
 
-### 错误5: EPUB 3.0属性误用
+### 错误5: 图片属性小数点错误
+
+**错误信息**：
+```
+ERROR(RSC-005): value of attribute "height" is invalid;
+must be a decimal number without any significant digits after the decimal point
+```
+
+**问题描述**：
+图片的 `width` 或 `height` 属性值包含小数点，EPUB规范要求必须是整数。
+
+**错误示例**：
+```html
+<!-- ❌ 小数点格式的尺寸 -->
+<img src="image.jpg" width="120.5" height="798.67"/>
+```
+
+**根本原因**：
+抓取的网页内容中，图片尺寸可能来自JavaScript动态计算或CSS样式，保留了小数点精度。
+
+**解决方案**：
+```python
+# ✅ 在内容处理器中自动取整
+for img in soup.find_all('img'):
+    if 'width' in img.attrs:
+        width_str = img.get('width', '').strip()
+        if width_str:
+            try:
+                width = int(float(width_str))  # 取整
+                img['width'] = str(width)
+            except (ValueError, TypeError):
+                del img['width']  # 无效值，删除属性
+
+    if 'height' in img.attrs:
+        height_str = img.get('height', '').strip()
+        if height_str:
+            try:
+                height = int(float(height_str))  # 取整
+                img['height'] = str(height)
+            except (ValueError, TypeError):
+                del img['height']  # 无效值，删除属性
+
+# 生成的HTML（正确）
+# <img src="image.jpg" width="120" height="798"/>
+```
+
+---
+
+### 错误6: 非法HTML标签 - `<cell>`
+
+**错误信息**：
+```
+ERROR(RSC-005): element "cell" not allowed here;
+expected the element end-tag or element "script", "td", "template" or "th"
+```
+
+**问题描述**：
+使用了非标准的 `<cell>` 标签（应该是 `<td>` 或 `<th>`）。
+
+**错误示例**：
+```html
+<!-- ❌ 非标准的 <cell> 标签 -->
+<table>
+    <row>
+        <cell>单元格1</cell>
+        <cell>单元格2</cell>
+    </row>
+</table>
+```
+
+**根本原因**：
+某些网页或邮件内容使用了自定义的HTML标签，不符合XHTML规范。
+
+**解决方案**：
+```python
+# ✅ 自动转换为标准标签
+for cell in soup.find_all('cell'):
+    cell.name = 'td'  # 转换为标准表格单元格标签
+
+for row in soup.find_all('row'):
+    row.name = 'tr'  # 转换为标准表格行标签
+
+# 生成的HTML（正确）
+# <table>
+#     <tr>
+#         <td>单元格1</td>
+#         <td>单元格2</td>
+#     </tr>
+# </table>
+```
+
+---
+
+### 错误7: EPUB 3.0属性误用
 
 **问题描述**：
 EPUB 3.0引入了 `properties` 属性，但ebooklib在某些版本中处理不当。
@@ -319,13 +412,16 @@ EPUBCheck completed
 
 ### 常见EPUBCheck错误代码
 
-| 错误代码 | 说明 | 严重程度 |
-|---------|------|---------|
-| RSC-005 | OPF manifest缺少必需属性 | Error |
-| RSC-016 | XHTML文件解析失败 | Fatal |
-| RSC-026 | URL路径泄露到容器外部 | Error |
-| OPF-031 | guide元素引用未声明的文件 | Error |
-| RSC-007 | 引用的资源未找到 | Error |
+| 错误代码 | 说明 | 严重程度 | 出现章节 |
+|---------|------|---------|---------|
+| RSC-005 | OPF manifest缺少必需属性 / HTML元素嵌套错误 | Error | 多处 |
+| RSC-016 | XHTML文件解析失败（文件为空） | Fatal | cover.xhtml |
+| RSC-026 | URL路径泄露到容器外部（绝对路径） | Error | 所有文件 |
+| RSC-007 | 引用的资源未找到 | Error | content.opf |
+| OPF-031 | guide元素引用未声明的文件 | Error | content.opf |
+| HTM-010 | HTML属性值无效（小数点等） | Error | chapter_x.xhtml |
+
+**注意**：同一个错误代码可能对应多个不同的问题，如 RSC-005 既可能表示缺少nav属性，也可能表示HTML嵌套错误。
 
 ---
 
@@ -509,7 +605,10 @@ cat report.json
 3. ✅ **添加nav document** - EPUB 3.0必需，用 `EpubNav()`
 4. ✅ **转义CSS大括号** - 在f-string中使用 `{{}}`
 5. ✅ **简化HTML结构** - 避免复杂的SVG封装
-6. ✅ **验证EPUB文件** - 使用EPUBCheck确保合规
+6. ✅ **清理非法标签** - `<cell>` → `<td>`，`<row>` → `<tr>`
+7. ✅ **取整图片属性** - `width` 和 `height` 必须是整数
+8. ✅ **修复嵌套结构** - `<p>` 内不能有块级元素
+9. ✅ **验证EPUB文件** - 使用EPUBCheck确保合规
 
 ### 验证成功的标志
 

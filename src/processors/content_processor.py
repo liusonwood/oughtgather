@@ -299,10 +299,14 @@ class ContentProcessor:
 
         # === EPUB 验证修复规则 ===
 
-        # 1. 转换废弃标签
+        # 1. 转换废弃/非法标签
         # <row> → <tr>（表格行）
         for row in soup.find_all('row'):
             row.name = 'tr'
+
+        # <cell> → <td>（表格单元格）
+        for cell in soup.find_all('cell'):
+            cell.name = 'td'
 
         # <font> → <span>，保留样式属性
         for font in soup.find_all('font'):
@@ -324,13 +328,43 @@ class ContentProcessor:
             if style_parts:
                 font['style'] = ';'.join(style_parts)
 
-        # 2. 移除 SVG 和远程资源标签
+        # 2. 修复图片属性：width/height 必须是整数
+        for img in soup.find_all('img'):
+            # 处理 width 属性
+            if 'width' in img.attrs:
+                width_value = img.get('width', '')
+                if isinstance(width_value, str):
+                    width_str = width_value.strip()
+                    if width_str:  # 非空字符串
+                        try:
+                            width = int(float(width_str))
+                            img['width'] = str(width)
+                        except (ValueError, TypeError):
+                            del img['width']
+                    else:  # 空字符串，删除属性
+                        del img['width']
+
+            # 处理 height 属性
+            if 'height' in img.attrs:
+                height_value = img.get('height', '')
+                if isinstance(height_value, str):
+                    height_str = height_value.strip()
+                    if height_str:  # 非空字符串
+                        try:
+                            height = int(float(height_str))
+                            img['height'] = str(height)
+                        except (ValueError, TypeError):
+                            del img['height']
+                    else:  # 空字符串，删除属性
+                        del img['height']
+
+        # 3. 移除 SVG 和远程资源标签
         # SVG 缺少命名空间会导致 EPUB 验证失败
         # 视频/音频是远程资源，Kindle 不支持
         for tag in soup(['svg', 'video', 'source', 'audio', 'track']):
             tag.decompose()
 
-        # 3. 修复嵌套结构：块级元素不能在 <p> 内
+        # 4. 修复嵌套结构：块级元素不能在 <p> 内
         self._fix_nested_blocks(soup)
 
         # === 原有安全规则 ===
@@ -377,7 +411,9 @@ class ContentProcessor:
         }
 
         # 多次遍历确保深度嵌套也被修复
-        for _ in range(3):
+        # 增加迭代次数到 5 次，确保多层嵌套都被处理
+        for _ in range(5):
+            fixed_count = 0
             for p_tag in soup.find_all('p'):
                 children_to_move = []
                 for child in p_tag.children:
@@ -387,6 +423,11 @@ class ContentProcessor:
                 for child in children_to_move:
                     child.extract()
                     p_tag.insert_after(child)
+                    fixed_count += 1
+
+            # 如果没有修复任何问题，提前退出
+            if fixed_count == 0:
+                break
 
     def _ensure_valid_html(self, html: str) -> str:
         """

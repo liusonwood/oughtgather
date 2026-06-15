@@ -580,3 +580,49 @@ class TestEpubValidationFixes:
         assert "段落1" in result.content
         assert "块内容" in result.content
         assert "段落2" in result.content
+
+    def test_cell_to_td_conversion(self):
+        """<cell> 应转换为 <td>"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = "<table><row><cell>单元格1</cell><cell>单元格2</cell></row></table>"
+        article = _make_article(html)
+        result = processor.process(article)
+        assert "<td>" in result.content
+        assert "<cell>" not in result.content
+        assert "单元格1" in result.content
+        assert "单元格2" in result.content
+
+    def test_img_width_height_integer_conversion(self):
+        """图片 width/height 属性有小数点时应转换为整数"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = '<img src="test.jpg" width="120.5" height="798.67"/>'
+        article = _make_article(html)
+        result = processor.process(article)
+        # 小数应被取整
+        assert 'width="120"' in result.content
+        assert 'height="798"' in result.content
+        assert "120.5" not in result.content
+        assert "798.67" not in result.content
+
+    def test_img_width_height_already_integer(self):
+        """图片 width/height 属性已经是整数时应保持不变"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = '<img src="test.jpg" width="100" height="200"/>'
+        article = _make_article(html)
+        result = processor.process(article)
+        assert 'width="100"' in result.content
+        assert 'height="200"' in result.content
+
+    def test_img_invalid_width_removed(self):
+        """图片 width/height 属性无效时应被移除"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = '<img src="test.jpg" width="abc" height=""/>'
+        article = _make_article(html)
+        result = processor.process(article)
+        # 无效属性应被移除
+        assert 'width=' not in result.content or 'width=""' not in result.content
+        assert 'height=' not in result.content or 'height=""' not in result.content
