@@ -182,6 +182,13 @@ tests/
 ├── test_dedup_tracker.py    # 19 tests - dedup tracking, persistence, and auto-cleanup
 ├── test_fetchers.py         # 26 tests - RSS/Web/Mail/Trending fetchers (mocked HTTP)
 └── test_image_processor.py  # 32 tests - image download, resize, compress, small-image filtering
+
+docs/
+├── CONFIG.md                # Configuration guide (detailed config.json explanation)
+├── TESTING.md               # Testing guide
+├── EPUB_COMPLIANCE.md       # EPUB compliance guide (common errors and solutions)
+├── design.md                # Project design documentation
+└── testmail-api.md          # TestMail.app API documentation
 ```
 
 ## Documentation Maintenance

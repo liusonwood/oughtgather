@@ -14,7 +14,7 @@
 
 - **多数据源支持**：邮件订阅、RSS、网页、AI 热点分析
 - **智能去重**：自动记录已抓取内容，避免重复；超过 5000 条时自动清理旧记录
-- **EPUB 生成**：自动生成带封面、目录的电子书
+- **EPUB 生成**：自动生成带封面、目录的电子书，符合EPUB 3.0规范（详见 [EPUB合规指南](docs/EPUB_COMPLIANCE.md)）
 - **Kindle 推送**：通过邮件自动发送到 Kindle
 - **定时运行**：GitHub Actions 每天自动执行
 - **内容过滤**：支持关键词过滤、内容裁剪等规则
@@ -240,6 +240,7 @@ ought-gather/
 ├── docs/
 │   ├── CONFIG.md               # 配置指南（config.json 详细说明）
 │   ├── TESTING.md              # 测试指南
+│   ├── EPUB_COMPLIANCE.md      # EPUB合规指南（常见错误与解决方案）
 │   ├── design.md               # Ought Gather 项目设计文档
 │   └── testmail-api.md         # TestMail.app API 文档
 └── .github/workflows/          # GitHub Actions
