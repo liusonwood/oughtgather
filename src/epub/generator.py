@@ -14,6 +14,7 @@ from src.epub.cover import CoverGenerator
 from src.epub.toc import TOCGenerator
 from src.processors.image_processor import ImageProcessor
 from src.utils.logger import get_logger
+from src.utils.helpers import get_now
 
 import html as html_module
 
@@ -89,7 +90,10 @@ class EPUBGenerator:
 
     def _set_metadata(self, book: epub.EpubBook):
         """设置书籍元数据"""
-        book.set_identifier('ought-gather-epub')
+        # 使用日期时间作为唯一标识符，避免亚马逊 Send to Kindle 因重复标识符而拒绝
+        # 格式: ought-gather-epub-2026-06-15-143052（精确到秒，确保每次生成唯一）
+        datetime_str = get_now().strftime('%Y-%m-%d-%H%M%S')
+        book.set_identifier(f'ought-gather-epub-{datetime_str}')
         book.set_title(self.config.title.get_plain_text())
         book.set_language('zh-CN')
         book.add_author('Ought Gather')
