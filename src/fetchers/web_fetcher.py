@@ -3,9 +3,11 @@
 抓取单个网页并提取正文
 """
 
+from typing import List
 from bs4 import BeautifulSoup
 import trafilatura
 
+from src.config import ContentSource
 from src.fetchers.base import BaseFetcher, FetchResult, Article
 from src.utils.logger import get_logger
 
@@ -38,16 +40,25 @@ class WebFetcher(BaseFetcher):
                 result.error = "Failed to extract content from webpage"
                 return result
 
-            # 从原始 HTML 提取图片 URL（trafilatura 通常会剥离 <img>，
-            # 所以直接从下载到的原始页面提取，避免图片丢失）
-            images = self._extract_images(html)
+            # Bug 1 & 2: 提取图片并处理 Trafilatura 剥离问题
+            images = self._extract_images(content)
+            
+            # 如果正文内容太短，或者虽然有图片但 content 里一个 <img> 都没有，说明 trafilatura 过于激进
+            if len(images) == 0 or len(content) < 300:
+                raw_images = self._extract_images(html)
+                if len(raw_images) > len(images) or len(content) < 300:
+                    self.logger.warning(f"trafilatura might have been too aggressive for {self.source.src}, falling back to BeautifulSoup")
+                    fallback_content = self._fallback_extract(html)
+                    if len(fallback_content) > len(content):
+                        content = fallback_content
+                        images = self._extract_images(content)
 
             # 创建文章对象
             article = Article(
                 title=title,
                 content=content,
                 url=self.source.src,
-                images=images,
+                images=images
             )
 
             # 检查是否应该删除
@@ -109,13 +120,50 @@ class WebFetcher(BaseFetcher):
         Returns:
             str: 正文 HTML
         """
+        # 使用 trafilatura 提取正文
         content = trafilatura.extract(
             html,
             include_comments=False,
             include_tables=True,
             include_images=True,
             include_links=True,
-            output_format="html",
+            output_format="html"
         )
 
-        return content or ""
+        if content:
+            return content
+
+        # 回退到备用方法
+        self.logger.warning("trafilatura failed, using fallback extraction")
+        return self._fallback_extract(html)
+
+    def _fallback_extract(self, html: str) -> str:
+        """
+        备用的内容提取方法
+
+        Args:
+            html: HTML 内容
+
+        Returns:
+            str: 提取的内容
+        """
+        soup = BeautifulSoup(html, 'lxml')
+
+        # 移除不需要的元素
+        for element in soup(['script', 'style', 'nav', 'footer', 'header', 'aside']):
+            element.decompose()
+
+        # 尝试找到主要内容区域
+        main_content = (
+            soup.find('article') or
+            soup.find('main') or
+            soup.find('div', class_='content') or
+            soup.find('div', class_='post') or
+            soup.find('div', class_='article') or
+            soup.body
+        )
+
+        if main_content:
+            return str(main_content)
+
+        return ""

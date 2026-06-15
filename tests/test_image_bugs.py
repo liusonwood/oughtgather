@@ -66,11 +66,11 @@ class TestImageBugs:
         assert url_with_amp not in chapter.content
         assert "w=800&amp;h=600" not in chapter.content
 
-    def test_trafilatura_images_from_raw_html(self):
-        """Test Bug 1: trafilatura 剥离图片时，从原始 HTML 取回图片 URL。"""
+    def test_trafilatura_fallback(self):
+        """Test Bug 1: Trafilatura stripping images fallback."""
         source = ContentSource(type="web", src="https://example.com", title="Test")
         fetcher = WebFetcher(source)
-
+        
         raw_html = """
         <html>
             <body>
@@ -82,19 +82,17 @@ class TestImageBugs:
             </body>
         </html>
         """
-
-        # Mock trafilatura.extract 返回不含 <img> 的内容
-        trafilatura_content = "<html><body><h1>Title</h1><p>Content</p></body></html>"
-        with patch("src.fetchers.web_fetcher.trafilatura.extract", return_value=trafilatura_content):
+        
+        # Mock trafilatura.extract to return content without <img>
+        with patch("src.fetchers.web_fetcher.trafilatura.extract", return_value="<html><body><h1>Title</h1><p>Content</p></body></html>"):
             with patch.object(fetcher, "_make_request") as mock_req:
                 mock_req.return_value.text = raw_html
                 result = fetcher.fetch()
-
+                
                 assert result.success
                 assert len(result.articles) == 1
-                # 内容用 trafilatura 的
-                assert result.articles[0].content == trafilatura_content
-                # 图片从原始 HTML 取回
+                # Should have fallen back to BeautifulSoup and thus preserved the <img> tag
+                assert "<img" in result.articles[0].content
                 assert "https://example.com/test.jpg" in result.articles[0].images
 
     def test_lazy_loading_removal_in_epub(self):

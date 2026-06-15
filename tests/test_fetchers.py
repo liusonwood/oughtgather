@@ -333,18 +333,18 @@ class TestWebFetcher:
 
     @patch("src.fetchers.web_fetcher.trafilatura.extract")
     @patch.object(WebFetcher, "_make_request")
-    def test_trafilatura_fails_empty_content(self, mock_request, mock_extract, web_source):
-        """trafilatura 失败时，内容为空，不生成文章"""
+    def test_trafilatura_fails_fallback(self, mock_request, mock_extract, web_source):
+        """测试 trafilatura 失败时回退到 BeautifulSoup"""
         mock_response = MagicMock()
-        mock_response.text = "<html><body><article><p>内容</p></article></body></html>"
+        mock_response.text = "<html><body><article><p>备用内容</p></article></body></html>"
         mock_request.return_value = mock_response
         mock_extract.return_value = None  # trafilatura 失败
 
         fetcher = WebFetcher(web_source)
         result = fetcher.fetch()
 
-        assert result.success is False
-        assert len(result.articles) == 0
+        assert result.success is True
+        assert "备用内容" in result.articles[0].content
 
     @patch.object(WebFetcher, "_make_request")
     def test_extract_title_from_h1(self, mock_request):
@@ -372,35 +372,6 @@ class TestWebFetcher:
             result = fetcher.fetch()
             # 没有 <title>/<h1>/og:title 时回退到 source.title
             assert result.articles[0].title == "自定义标题"
-
-    @patch.object(WebFetcher, "_make_request")
-    def test_images_from_raw_html(self, mock_request):
-        """图片从原始 HTML 提取，不依赖 trafilatura 的输出"""
-        source = ContentSource(type="web", src="https://example.com/article")
-        mock_response = MagicMock()
-        # raw HTML 有图片
-        mock_response.text = (
-            "<html><body><article>"
-            "<h1>Article</h1>"
-            "<img src='https://example.com/photo.jpg'/>"
-            "<p>Some content here.</p>"
-            "</article></body></html>"
-        )
-        mock_request.return_value = mock_response
-
-        # trafilatura 返回的正文不含图片
-        with patch(
-            "src.fetchers.web_fetcher.trafilatura.extract",
-            return_value="<p>Some content here.</p>",
-        ):
-            fetcher = WebFetcher(source)
-            result = fetcher.fetch()
-
-            assert result.success is True
-            # 内容用 trafilatura 的（不含 <img>）
-            assert result.articles[0].content == "<p>Some content here.</p>"
-            # 图片从原始 HTML 取回
-            assert "https://example.com/photo.jpg" in result.articles[0].images
 
 
 # =========================================================================
