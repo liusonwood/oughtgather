@@ -11,7 +11,7 @@ from typing import Optional, Dict, Any
 from src.config import ContentSource, get_openrouter_config
 from src.fetchers.base import BaseFetcher, FetchResult, Article
 from src.utils.logger import get_logger
-from src.utils.helpers import generate_content_id
+from src.utils.helpers import generate_content_id, get_now
 
 
 class TrendingFetcher(BaseFetcher):
@@ -64,7 +64,7 @@ class TrendingFetcher(BaseFetcher):
 
             # 创建文章对象（带当日时间戳，用于去重哈希计算）
             title = self.source.title or f"热点分析: {self.source.src}"
-            today = datetime.now().strftime("%Y-%m-%d")
+            today = get_now().strftime("%Y-%m-%d")
             article = Article(
                 title=title,
                 content=analysis,
@@ -168,7 +168,7 @@ class TrendingFetcher(BaseFetcher):
         Returns:
             str: prompt 文本
         """
-        today = datetime.now().strftime("%Y年%m月%d日")
+        today = get_now().strftime("%Y年%m月%d日")
         return f"""## 分析任务
 
 **当前日期**: {today}

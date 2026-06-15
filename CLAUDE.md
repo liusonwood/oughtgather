@@ -54,6 +54,7 @@ A visual HTML editor for `config.json` is available — open [config-editor.html
 - Automated daily run: UTC 00:00 (Beijing 08:00)
 - Manual trigger: via GitHub Actions UI "Daily Gather" workflow
 - Logs and EPUB artifacts uploaded automatically
+- **Timezone**: Uses `TZ=Asia/Shanghai` environment variable to ensure all timestamps are in Beijing time (UTC+8)
 
 ## Architecture
 
@@ -83,6 +84,7 @@ config.json → Fetchers → Processors → Dedup → EPUB Generator → SMTP Se
 
 ### Key Design Decisions
 
+- **Timezone**: All datetime operations use `get_now()` from `src/utils/helpers.py` which returns Beijing time (UTC+8) via `zoneinfo.ZoneInfo("Asia/Shanghai")`. GitHub Actions workflow sets `TZ=Asia/Shanghai` for consistency.
 - **Error Tolerance**: Failed sources are skipped and logged. Errors included in EPUB as a final chapter.
 - **No livequery**: Mail fetcher queries existing emails, not waiting for new ones.
 - **URL Encoding**: Namespace in MailFetcher is URL-encoded to handle special characters. Spaces are stripped. `src` supports `"namespace.tag"` format — splits on first dot into namespace + tag.
@@ -125,10 +127,11 @@ config.json → Fetchers → Processors → Dedup → EPUB Generator → SMTP Se
 
 ## Development Notes
 
-- **Python 3.11+** required
+- **Python 3.11+** required (uses `zoneinfo` module for timezone support, available since Python 3.9)
 - **Dependencies**: feedparser, trafilatura, ebooklib, Pillow, httpx, beautifulsoup4, lxml
 - **Test dependencies**: pytest, pytest-mock
 - **Logging**: Uses singleton logger (`src/utils/logger.py`). Logs to `logs/` directory.
+- **Timezone**: All timestamps use Beijing time (UTC+8) via `zoneinfo.ZoneInfo("Asia/Shanghai")`.
 - **Data Directory**: `data/fetched_urls.txt` for dedup. Gitignored except in GitHub Actions.
 - **Output**: EPUB files written to `output/` directory.
 - **Test Suite**: 171 tests in `tests/` directory. All tests use mocks to avoid network requests. See [TESTING.md](docs/TESTING.md) for details.

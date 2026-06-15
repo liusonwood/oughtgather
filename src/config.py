@@ -9,6 +9,8 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 
+from src.utils.helpers import get_now
+
 
 @dataclass
 class TitleConfig:
@@ -18,7 +20,7 @@ class TitleConfig:
 
     def get_display_text(self) -> str:
         """获取显示文本，处理时间占位符"""
-        now = datetime.now()
+        now = get_now()
         result = self.text
         date_str = now.strftime("%Y-%m-%d")
 

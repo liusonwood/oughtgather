@@ -5,8 +5,29 @@
 
 import re
 import hashlib
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from typing import Optional
 from urllib.parse import urlparse
+
+
+# 默认时区：北京时间 UTC+8
+DEFAULT_TZ = ZoneInfo("Asia/Shanghai")
+
+
+def get_now(tz: Optional[ZoneInfo] = None) -> datetime:
+    """
+    获取当前时间（带时区）
+
+    Args:
+        tz: 可选时区，默认为 Asia/Shanghai (UTC+8)
+
+    Returns:
+        datetime: 带时区的当前时间
+    """
+    if tz is None:
+        tz = DEFAULT_TZ
+    return datetime.now(tz)
 
 
 def normalize_url(url: str) -> str:

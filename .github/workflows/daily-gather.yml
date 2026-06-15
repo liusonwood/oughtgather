@@ -55,6 +55,9 @@ jobs:
 
       - name: Run Ought Gather
         env:
+          # 时区设置：使用北京时间 UTC+8
+          TZ: Asia/Shanghai
+
           # SMTP 配置（必需）
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}

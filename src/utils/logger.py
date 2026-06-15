@@ -6,7 +6,12 @@
 import logging
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from typing import Optional
+
+
+# 默认时区：北京时间 UTC+8
+DEFAULT_TZ = ZoneInfo("Asia/Shanghai")
 
 
 class Logger:
@@ -31,7 +36,7 @@ class Logger:
         # 生成日志文件名
         log_file = os.path.join(
             log_dir,
-            f"gather_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+            f"gather_{datetime.now(DEFAULT_TZ).strftime('%Y%m%d_%H%M%S')}.log"
         )
 
         # 配置日志格式
