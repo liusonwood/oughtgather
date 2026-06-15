@@ -101,15 +101,17 @@ class EPUBGenerator:
         """添加封面"""
         try:
             cover_filename, cover_data = self.cover_generator.generate()
-            
+
             # 1. 添加封面图片
-            book.add_item(epub.EpubItem(
+            cover_item = epub.EpubItem(
                 uid='cover-img',
                 file_name=cover_filename,
                 media_type='image/jpeg',
-                content=cover_data,
-                properties='cover-image'
-            ))
+                content=cover_data
+            )
+            # Set properties attribute after creation (EPUB3 cover-image property)
+            cover_item.properties = ['cover-image']
+            book.add_item(cover_item)
             
             # 2. 手动创建封面 XHTML (使用 SVG 适配 Kindle 全屏)
             cover_xhtml = """<?xml version='1.0' encoding='utf-8'?>
