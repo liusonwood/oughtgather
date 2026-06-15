@@ -154,6 +154,28 @@ python -m pytest tests/test_config.py::TestTitleConfig -v
 - **去重追踪**（`test_dedup_tracker.py`）
 - **数据抓取**（`test_fetchers.py`）
 - **图片处理**（`test_image_processor.py`）
+- **EPUB 合规验证**（`test_integration.py`）— 使用 [epubcheck](https://github.com/w3c/epubcheck) 验证生成的 EPUB 是否符合 EPUB 3 标准
+
+#### EPUB 合规验证
+
+集成测试中包含 epubcheck 验证，用于确保生成的 EPUB 符合 W3C EPUB 3 标准。此测试为可选功能，未配置时会自动跳过。
+
+**配置步骤**：
+
+1. 确保已安装 Java 运行时（`java -version` 检查）
+2. 从 [epubcheck releases](https://github.com/w3c/epubcheck/releases) 下载最新版 ZIP 并解压
+3. 将解压后的目录放到项目根目录，重命名为 `epubcheck`，确保结构为：
+   ```
+   ought-gather/
+   └── epubcheck/
+       └── epubcheck.jar
+   ```
+4. 运行测试：
+   ```bash
+   python -m pytest tests/test_integration.py::TestEpubcheckValidation -v
+   ```
+
+> 未配置 epubcheck 时，其他测试仍正常运行，EPUB 合规测试会被跳过并提示"⚠ EPUB 合规测试不存在"。
 
 详细测试指南见 [TESTING.md](docs/TESTING.md)。
 

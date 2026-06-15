@@ -544,12 +544,20 @@ class TestSectionDividers:
 class TestEpubcheckValidation:
     """使用 W3C epubcheck 工具验证生成的 EPUB 是否符合 EPUB 3 标准"""
 
+    def setup_method(self, method):
+        """检查 epubcheck 是否可用，不可用则跳过并提示"""
+        if not shutil.which("java"):
+            pytest.skip("⚠ EPUB 合规测试不存在：未找到 Java 运行时，请先安装 Java")
+        jar = self._epubcheck_jar()
+        if not os.path.exists(jar):
+            pytest.skip(f"⚠ EPUB 合规测试不存在：未找到 {jar}，请参考 README 配置 epubcheck")
+
     @staticmethod
     def _epubcheck_jar():
         """返回 epubcheck.jar 路径（项目根目录下）"""
         return os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            "epubcheck-5.3.0", "epubcheck.jar"
+            "epubcheck", "epubcheck.jar"
         )
 
     @staticmethod
@@ -567,15 +575,9 @@ class TestEpubcheckValidation:
         generator = EPUBGenerator(config)
         return generator.generate(fetch_results)
 
-    @pytest.mark.skipif(
-        not shutil.which("java"),
-        reason="需要 Java 运行时才能执行 epubcheck"
-    )
     def test_epub_passes_epubcheck(self):
         """生成的 EPUB 应通过 epubcheck 验证，无错误无警告"""
         jar = self._epubcheck_jar()
-        if not os.path.exists(jar):
-            pytest.skip(f"epubcheck.jar 未找到：{jar}")
 
         source = ContentSource(
             type="rss", src="https://example.com/rss",
@@ -603,15 +605,9 @@ class TestEpubcheckValidation:
         finally:
             os.remove(epub_path)
 
-    @pytest.mark.skipif(
-        not shutil.which("java"),
-        reason="需要 Java 运行时才能执行 epubcheck"
-    )
     def test_epub_with_failed_images_passes_epubcheck(self):
         """即使含图片下载失败，生成的 EPUB 仍应通过 epubcheck 验证"""
         jar = self._epubcheck_jar()
-        if not os.path.exists(jar):
-            pytest.skip(f"epubcheck.jar 未找到：{jar}")
 
         source = ContentSource(
             type="rss", src="https://example.com/rss",
