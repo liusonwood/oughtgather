@@ -268,7 +268,7 @@ class ContentProcessor:
 
     def _remove_links(self, html: str) -> str:
         """
-        移除所有超链接
+        移除所有超链接，保留内部标签（如图片）
 
         Args:
             html: HTML 内容
@@ -278,16 +278,16 @@ class ContentProcessor:
         """
         soup = BeautifulSoup(html, 'lxml')
 
-        # 将所有 <a> 标签替换为纯文本
+        # 使用 unwrap() 移除 <a> 标签本身，但保留其子节点
         for link in soup.find_all('a'):
-            link.replace_with(link.get_text())
+            link.unwrap()
 
         return str(soup)
 
     def _clean_html(self, html: str) -> str:
         """
         清洗 HTML
-        移除不需要的标签和属性
+        移除不需要的标签和属性，修复 EPUB 验证错误
 
         Args:
             html: HTML 内容
@@ -297,14 +297,58 @@ class ContentProcessor:
         """
         soup = BeautifulSoup(html, 'lxml')
 
+        # === EPUB 验证修复规则 ===
+
+        # 1. 转换废弃标签
+        # <row> → <tr>（表格行）
+        for row in soup.find_all('row'):
+            row.name = 'tr'
+
+        # <font> → <span>，保留样式属性
+        for font in soup.find_all('font'):
+            font.name = 'span'
+            # 将 color/face/size 转换为 style
+            style_parts = []
+            if font.get('color'):
+                style_parts.append(f"color:{font['color']}")
+                del font['color']
+            if font.get('face'):
+                style_parts.append(f"font-family:{font['face']}")
+                del font['face']
+            if font.get('size'):
+                # HTML font size 1-7 转换为 px
+                sizes = {'1': '8', '2': '10', '3': '12', '4': '14', '5': '18', '6': '24', '7': '36'}
+                px = sizes.get(font['size'], '12')
+                style_parts.append(f"font-size:{px}px")
+                del font['size']
+            if style_parts:
+                font['style'] = ';'.join(style_parts)
+
+        # 2. 移除 SVG 和远程资源标签
+        # SVG 缺少命名空间会导致 EPUB 验证失败
+        # 视频/音频是远程资源，Kindle 不支持
+        for tag in soup(['svg', 'video', 'source', 'audio', 'track']):
+            tag.decompose()
+
+        # 3. 修复嵌套结构：块级元素不能在 <p> 内
+        self._fix_nested_blocks(soup)
+
+        # === 原有安全规则 ===
+
         # 移除 script 和 style 标签
-        for tag in soup(['script', 'style', 'iframe', 'form', 'input', 'button']):
+        for tag in soup(['script', 'style', 'iframe', 'form', 'input', 'button', 'noscript']):
             tag.decompose()
 
         # 移除不安全的属性
+        # 保留基本属性和图片处理所需的属性，以及表格/样式属性
+        allowed_attrs = [
+            'href', 'src', 'alt', 'title', 'class', 'style',
+            'srcset', 'data-srcset', 'data-src', 'data-original',
+            'data-actualsrc', 'data-lazy-src', 'file', 'zoom-target', 'original',
+            'width', 'height', 'colspan', 'rowspan', 'id'
+        ]
+
         for tag in soup.find_all(True):
-            # 保留基本属性
-            allowed_attrs = ['href', 'src', 'alt', 'title', 'class']
             attrs = dict(tag.attrs)
             for attr in attrs:
                 if attr not in allowed_attrs:
@@ -314,6 +358,35 @@ class ContentProcessor:
         if soup.body:
             return soup.body.decode_contents()
         return str(soup)
+
+    def _fix_nested_blocks(self, soup: BeautifulSoup) -> None:
+        """
+        修复 HTML 嵌套结构问题
+        将 <p> 内的块级元素移出，确保 EPUB 验证通过
+
+        EPUB 3.3 不允许 <p> 内包含块级元素（section, div, p 等）
+
+        Args:
+            soup: BeautifulSoup 解析对象
+        """
+        block_elements = {
+            'section', 'div', 'article', 'aside', 'header', 'footer',
+            'nav', 'main', 'figure', 'blockquote', 'pre', 'ul', 'ol',
+            'li', 'table', 'form', 'fieldset', 'h1', 'h2', 'h3',
+            'h4', 'h5', 'h6', 'p', 'address', 'hr', 'dl', 'dt', 'dd'
+        }
+
+        # 多次遍历确保深度嵌套也被修复
+        for _ in range(3):
+            for p_tag in soup.find_all('p'):
+                children_to_move = []
+                for child in p_tag.children:
+                    if hasattr(child, 'name') and child.name in block_elements:
+                        children_to_move.append(child)
+
+                for child in children_to_move:
+                    child.extract()
+                    p_tag.insert_after(child)
 
     def _ensure_valid_html(self, html: str) -> str:
         """

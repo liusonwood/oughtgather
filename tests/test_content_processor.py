@@ -415,3 +415,168 @@ class TestCleanHtml:
         assert "data-x" not in result.content
         # class 是允许保留的属性
         assert "class" in result.content
+
+
+# =========================================================================
+# EPUB 验证错误修复测试
+# =========================================================================
+
+class TestEpubValidationFixes:
+    """EPUB 验证错误修复测试"""
+
+    def test_row_to_tr_conversion(self):
+        """<row> 应转换为 <tr>"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = "<table><row><td>单元格</td></row></table>"
+        article = _make_article(html)
+        result = processor.process(article)
+        assert "<tr>" in result.content
+        assert "<row>" not in result.content
+
+    def test_font_to_span_with_color(self):
+        """<font color='red'> 应转换为 <span style='color:red'>"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = "<font color='red'>红色文字</font>"
+        article = _make_article(html)
+        result = processor.process(article)
+        assert "<span" in result.content
+        assert "color:red" in result.content
+        assert "<font" not in result.content
+
+    def test_font_to_span_with_size(self):
+        """<font size='5'> 应转换为带 font-size 的 <span>"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = "<font size='5'>大号文字</font>"
+        article = _make_article(html)
+        result = processor.process(article)
+        assert "<span" in result.content
+        assert "font-size:18px" in result.content  # size 5 → 18px
+        assert "<font" not in result.content
+
+    def test_font_to_span_with_multiple_attrs(self):
+        """<font color='blue' face='Arial'> 应转换多个属性"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = "<font color='blue' face='Arial'>蓝色Arial</font>"
+        article = _make_article(html)
+        result = processor.process(article)
+        assert "<span" in result.content
+        assert "color:blue" in result.content
+        assert "font-family:Arial" in result.content
+        assert "<font" not in result.content
+
+    def test_svg_removal(self):
+        """SVG 元素应被移除"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = "<svg><circle cx='50' cy='50' r='40'/></svg>正文"
+        article = _make_article(html)
+        result = processor.process(article)
+        assert "<svg" not in result.content
+        assert "正文" in result.content
+
+    def test_video_removal(self):
+        """视频元素应被移除"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = "<video src='https://example.com/video.mp4'></video>正文"
+        article = _make_article(html)
+        result = processor.process(article)
+        assert "<video" not in result.content
+        assert "正文" in result.content
+
+    def test_audio_removal(self):
+        """音频元素应被移除"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = "<audio src='https://example.com/audio.mp3'></audio>正文"
+        article = _make_article(html)
+        result = processor.process(article)
+        assert "<audio" not in result.content
+        assert "正文" in result.content
+
+    def test_nested_section_in_p_fixed(self):
+        """<p> 内的 <section> 应移到外面"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = "<p>文本<section>块内容</section>更多文本</p>"
+        article = _make_article(html)
+        result = processor.process(article)
+        # section 不应在 p 内
+        soup = BeautifulSoup(result.content, 'lxml')
+        for p in soup.find_all('p'):
+            assert not p.find('section')
+
+    def test_nested_div_in_p_fixed(self):
+        """<p> 内的 <div> 应移到外面"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = "<p>文本<div>块内容</div>更多文本</p>"
+        article = _make_article(html)
+        result = processor.process(article)
+        soup = BeautifulSoup(result.content, 'lxml')
+        for p in soup.find_all('p'):
+            assert not p.find('div')
+
+    def test_nested_p_in_p_fixed(self):
+        """嵌套 <p> 应被拆分"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = "<p>外层<p>内层</p>继续</p>"
+        article = _make_article(html)
+        result = processor.process(article)
+        # 不应有嵌套的 p
+        soup = BeautifulSoup(result.content, 'lxml')
+        for p in soup.find_all('p'):
+            assert not p.find('p')
+
+    def test_nested_header_in_p_fixed(self):
+        """<p> 内的 <h1> 应移到外面"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = "<p>文本<h1>标题</h1>更多文本</p>"
+        article = _make_article(html)
+        result = processor.process(article)
+        soup = BeautifulSoup(result.content, 'lxml')
+        for p in soup.find_all('p'):
+            assert not p.find(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+
+    def test_complex_nested_structure(self):
+        """复杂嵌套结构应被修复"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = "<p>文本1<section><p>文本2</p></section>文本3</p>"
+        article = _make_article(html)
+        result = processor.process(article)
+        # 检查结构是否有效
+        soup = BeautifulSoup(result.content, 'lxml')
+        assert soup.find('section') is not None
+        # 所有 p 内不应有嵌套的块级元素
+        for p in soup.find_all('p'):
+            assert not p.find(['section', 'div', 'p', 'article', 'aside'])
+
+    def test_deep_nested_structure_fixed(self):
+        """深度嵌套应被多次遍历修复"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = "<p>外<p>中<p>内</p></p></p>"
+        article = _make_article(html)
+        result = processor.process(article)
+        soup = BeautifulSoup(result.content, 'lxml')
+        # 确保没有嵌套的 p
+        for p in soup.find_all('p'):
+            assert not p.find('p')
+
+    def test_text_preserved_after_fix(self):
+        """修复嵌套结构后文本内容应保留"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = "<p>段落1<section>块内容</section>段落2</p>"
+        article = _make_article(html)
+        result = processor.process(article)
+        assert "段落1" in result.content
+        assert "块内容" in result.content
+        assert "段落2" in result.content
