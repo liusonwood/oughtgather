@@ -336,11 +336,12 @@ class ContentProcessor:
         # <font> → <span>，保留样式属性
         for font in soup.find_all('font'):
             font.name = 'span'
-            # 将 color/face/size 转换为 style
+            # 将 face/size 转换为 style
             style_parts = []
+            # 忽略 color 属性以避免在 Kindle 上显示为灰色
             if font.get('color'):
-                style_parts.append(f"color:{font['color']}")
                 del font['color']
+                
             if font.get('face'):
                 style_parts.append(f"font-family:{font['face']}")
                 del font['face']
@@ -352,6 +353,20 @@ class ContentProcessor:
                 del font['size']
             if style_parts:
                 font['style'] = ';'.join(style_parts)
+
+        # 清洗所有标签的 style 属性，移除颜色设置
+        for tag in soup.find_all(True):
+            if 'style' in tag.attrs:
+                style_str = tag['style']
+                # 移除 color 和 background-color 属性
+                # 匹配 color: ...; 或 background-color: ...;
+                new_style = re.sub(r'(?i)\b(background-)?color\s*:[^;]+(;|$)', '', style_str)
+                # 移除多余的空格和分号
+                new_style = new_style.strip().strip(';')
+                if new_style:
+                    tag['style'] = new_style
+                else:
+                    del tag['style']
 
         # 2. 修复图片属性：width/height 必须是整数
         for img in soup.find_all('img'):

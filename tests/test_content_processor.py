@@ -435,14 +435,14 @@ class TestEpubValidationFixes:
         assert "<row>" not in result.content
 
     def test_font_to_span_with_color(self):
-        """<font color='red'> 应转换为 <span style='color:red'>"""
+        """<font color='red'> 应转换为 <span>，但忽略 color 以免 Kindle 灰色"""
         source = ContentSource(type="rss", src="https://example.com/rss")
         processor = ContentProcessor(source)
         html = "<font color='red'>红色文字</font>"
         article = _make_article(html)
         result = processor.process(article)
         assert "<span" in result.content
-        assert "color:red" in result.content
+        assert "color" not in result.content  # 不应包含颜色
         assert "<font" not in result.content
 
     def test_font_to_span_with_size(self):
@@ -457,16 +457,27 @@ class TestEpubValidationFixes:
         assert "<font" not in result.content
 
     def test_font_to_span_with_multiple_attrs(self):
-        """<font color='blue' face='Arial'> 应转换多个属性"""
+        """<font color='blue' face='Arial'> 应转换多个属性，但忽略 color"""
         source = ContentSource(type="rss", src="https://example.com/rss")
         processor = ContentProcessor(source)
         html = "<font color='blue' face='Arial'>蓝色Arial</font>"
         article = _make_article(html)
         result = processor.process(article)
         assert "<span" in result.content
-        assert "color:blue" in result.content
+        assert "color" not in result.content  # 忽略颜色
         assert "font-family:Arial" in result.content
         assert "<font" not in result.content
+
+    def test_strip_inline_color_styles(self):
+        """应从 style 属性中移除 color 和 background-color"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = '<p style="color:red; font-weight:bold; background-color: #fff;">内容</p>'
+        article = _make_article(html)
+        result = processor.process(article)
+        assert 'font-weight:bold' in result.content
+        assert 'color' not in result.content
+        assert 'background-color' not in result.content
 
     def test_svg_removal(self):
         """SVG 元素应被移除"""
