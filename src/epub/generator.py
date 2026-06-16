@@ -508,11 +508,37 @@ class EPUBGenerator:
 <head>
     <title>{safe_title}</title>
     <style type="text/css">
+        body {{ font-family: sans-serif; padding: 1em; }}
+        h1 {{ text-align: center; font-size: 1.6em; margin-bottom: 1.2em; border-bottom: 2px solid #333; padding-bottom: 0.5em; }}
         nav ol {{ list-style-type: none; margin: 0; padding: 0; }}
-        nav li {{ margin: 0.5em 0; }}
-        nav li ol {{ margin-left: 1.5em; list-style-type: none; }}
-        a {{ text-decoration: none; color: #0066cc; }}
-        h1 {{ text-align: center; }}
+        nav li {{ margin: 0.8em 0; }}
+        
+        /* 大章节样式 (Section/Divider) */
+        .section-link {{ 
+            font-weight: bold; 
+            font-size: 1.15em; 
+            color: #222; 
+            display: block;
+            margin-bottom: 0.3em;
+        }}
+        
+        /* 小章节/文章样式 (Article) */
+        .article-link {{ 
+            font-weight: normal; 
+            font-size: 1.0em; 
+            color: #0066cc; 
+        }}
+        
+        nav li ol {{ 
+            margin-left: 1.2em; 
+            list-style-type: none; 
+            border-left: 2px solid #eee;
+            padding-left: 0.8em;
+        }}
+        
+        nav li ol li {{ margin: 0.4em 0; }}
+        
+        a {{ text-decoration: none; }}
         .landmarks {{ margin-top: 2em; border-top: 1px solid #ccc; padding-top: 1em; display: none; }}
     </style>
 </head>
@@ -524,15 +550,16 @@ class EPUBGenerator:
         for item in toc:
             if isinstance(item, epub_lib.Link):
                 # 扁平链接（如 web/trending 或 error_log）
-                content += f'            <li id="toc_{item.uid}"><a href="{item.href}">{html.escape(item.title)}</a></li>\n'
+                # 这里的 web/trending 其实是该源的唯一入口，也使用大章节样式
+                content += f'            <li id="toc_{item.uid}"><a class="section-link" href="{item.href}">{html.escape(item.title)}</a></li>\n'
             elif isinstance(item, tuple) and len(item) == 2:
                 # 两级结构（如 mail/rss）
                 section_link, links = item
                 content += f'            <li id="toc_{section_link.uid}">\n'
-                content += f'                <a href="{section_link.href}">{html.escape(section_link.title)}</a>\n'
+                content += f'                <a class="section-link" href="{section_link.href}">{html.escape(section_link.title)}</a>\n'
                 content += f'                <ol>\n'
                 for link in links:
-                    content += f'                    <li id="toc_{link.uid}"><a href="{link.href}">{html.escape(link.title)}</a></li>\n'
+                    content += f'                    <li id="toc_{link.uid}"><a class="article-link" href="{link.href}">{html.escape(link.title)}</a></li>\n'
                 content += f'                </ol>\n'
                 content += f'            </li>\n'
         
