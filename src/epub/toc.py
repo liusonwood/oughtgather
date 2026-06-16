@@ -35,30 +35,34 @@ class TOCGenerator:
 
         Returns:
             List[TOCEntry]: 目录结构
-            - mail/rss: (Section, [Link, ...]) 两级结构
-            - web/trending: epub.Link 扁平结构（无小标题）
+            - mail/rss: (Link, [Link, ...]) 两级结构
+            - web/trending: epub.Link 扁平结构
         """
         toc: List[TOCEntry] = []
-        chapter_counter = 0  # 与 generator.py 中的 chapter_id 保持一致
+        chapter_counter = 0
+        divider_counter = 0
 
         for source, articles, source_title in sections:
             if not articles:
                 continue
 
+            section_title = self._get_source_title(source, articles, source_title)
+            
             # web/trending：无小标题，直接生成扁平链接
             if source.type in ("web", "trending"):
                 chapter_filename = f"chapter_{chapter_counter}.xhtml"
                 chapter_id = f"chapter_{chapter_counter}"
-                link_title = self._get_source_title(source, articles, source_title)
 
-                link = epub.Link(chapter_filename, link_title, chapter_id)
+                link = epub.Link(chapter_filename, section_title, chapter_id)
                 toc.append(link)
                 chapter_counter += 1
+                divider_counter += 1 # 对应 generator.py 中的 divider_id
                 continue
 
             # mail/rss：两级结构（章节 → 文章列表）
-            section_title = self._get_source_title(source, articles, source_title)
-            section = epub.Section(section_title)
+            section_uid = f"section_{divider_counter}"
+            section_href = f"divider_{divider_counter}.xhtml"
+            section_link = epub.Link(section_href, section_title, section_uid)
 
             links = []
             for article in articles:
@@ -69,7 +73,8 @@ class TOCGenerator:
                 links.append(link)
                 chapter_counter += 1
 
-            toc.append((section, links))
+            toc.append((section_link, links))
+            divider_counter += 1
 
         self.logger.info(f"Generated TOC with {len(toc)} entries")
         return toc

@@ -4,7 +4,7 @@ EPUB 生成器模块
 """
 
 import os
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional, Union
 from ebooklib import epub
 from bs4 import BeautifulSoup
 
@@ -52,39 +52,49 @@ class EPUBGenerator:
         # 3. 添加封面
         self._add_cover(book)
 
-        # 4. 添加导航文件 (EPUB 3.0 必需，必须在添加章节之前)
-        nav = epub.EpubNav()
-        book.add_item(nav)
+        # 4. 添加 NCX (EPUB 2.0 兼容)
         ncx = epub.EpubNcx()
         book.add_item(ncx)
 
-        # 5. 初始化 spine (包含 cover 和 nav)
-        # nav 对象本身会作为 spine 元素，不是字符串
-        book.spine = ['cover', nav]
-
-        # 6. 准备章节数据
+        # 5. 准备章节数据
         sections = self._prepare_sections(results)
 
-        # 7. 生成目录数据
+        # 6. 生成目录数据
         toc = self.toc_generator.generate(sections)
         book.toc = toc
 
-        # 8. 添加章节
+        # 初始化 spine (包含 cover)
+        book.spine = ['cover']
+
+        # 7. 添加章节 (必须在添加导航文件之前，因为需要其生成 chapter_id)
+        # _add_chapters 会将章节追加到 book.spine
         self._add_chapters(book, sections)
 
-        # 9. 添加错误日志章节（如果有）
+        # 8. 添加错误日志章节（如果有）
         if error_log:
             self._add_error_log_chapter(book, error_log)
 
-        # 10. 添加样式
+        # 9. 手动生成并添加 nav.xhtml (EPUB 3.0 必需)
+        # 我们手动生成它，以便为每个 <li> 添加 ID，支持从正文跳转回目录特定位置
+        nav = epub.EpubNav()
+        nav.content = self._generate_nav_content(book.title, book.toc)
+        book.add_item(nav)
+
+        # 10. 将 nav 插入到 spine 的封面之后
+        if isinstance(book.spine, list):
+            book.spine.insert(1, nav)
+        else:
+            book.spine = ['cover', nav]
+
+        # 11. 添加样式
         self._add_style(book)
 
-        # 11. 设置 Guide 元素，增加兼容性 (Kindle 等设备)
+        # 12. 设置 Guide 元素，增加兼容性 (Kindle 等设备)
         book.guide = [
             {'href': 'cover.xhtml', 'title': 'Cover', 'type': 'cover'}
         ]
 
-        # 12. 保存文件
+        # 13. 保存文件
         output_path = self._save_book(book)
 
         self.logger.info(f"EPUB 3.0 (compliant) generated: {output_path}")
@@ -221,14 +231,14 @@ class EPUBGenerator:
                 title=section_title,
                 file_name=f"divider_{divider_id}.xhtml"
             )
-            divider.content = self._generate_section_divider_content(section_title)
+            divider.content = self._generate_section_divider_content(section_title, divider_id)
             book.add_item(divider)
             spine.append(divider)
             divider_id += 1
 
             for article in articles:
                 # 生成章节内容
-                chapter_content = self._generate_chapter_content(article)
+                chapter_content = self._generate_chapter_content(article, chapter_id)
 
                 # 创建章节
                 chapter = epub.EpubHtml(
@@ -251,12 +261,13 @@ class EPUBGenerator:
             f"Added {chapter_id} chapters and {divider_id} section dividers to EPUB"
         )
 
-    def _generate_chapter_content(self, article: Article) -> str:
+    def _generate_chapter_content(self, article: Article, chapter_id: int) -> str:
         """
         生成章节 HTML 内容 (EPUB 3.0 格式，返回目录链接在标题下方)
 
         Args:
             article: 文章对象
+            chapter_id: 章节 ID
 
         Returns:
             str: HTML 内容
@@ -276,7 +287,7 @@ class EPUBGenerator:
 </head>
 <body>
     <h1>{safe_title}</h1>
-    <p class="toc-link"><a href="nav.xhtml">返回目录</a></p>
+    <p class="toc-link"><a href="nav.xhtml#toc_chapter_{chapter_id}">返回目录</a></p>
 """
 
         # 添加元信息
@@ -299,7 +310,7 @@ class EPUBGenerator:
 
         return content_html
 
-    def _generate_section_divider_content(self, section_title: str) -> str:
+    def _generate_section_divider_content(self, section_title: str, divider_id: int) -> str:
         """
         生成章节分隔页 HTML 内容 (EPUB 3.0 格式，返回目录链接在标题下方)
 
@@ -307,6 +318,7 @@ class EPUBGenerator:
 
         Args:
             section_title: 章节/栏目标题
+            divider_id: 分隔页 ID
 
         Returns:
             str: HTML 内容
@@ -320,7 +332,7 @@ class EPUBGenerator:
 </head>
 <body>
     <h1>{safe_title}</h1>
-    <p class="toc-link"><a href="nav.xhtml">返回目录</a></p>
+    <p class="toc-link"><a href="nav.xhtml#toc_section_{divider_id}">返回目录</a></p>
 </body>
 </html>"""
 
@@ -448,7 +460,7 @@ class EPUBGenerator:
 </head>
 <body>
     <h1>错误日志</h1>
-    <p class="toc-link"><a href="nav.xhtml">返回目录</a></p>
+    <p class="toc-link"><a href="nav.xhtml#toc_error_log">返回目录</a></p>
     <p>以下是在抓取过程中发生的错误：</p>
     <ul>
 """
@@ -477,6 +489,52 @@ class EPUBGenerator:
             book.spine.append(chapter)
 
         self.logger.info("Error log chapter added to EPUB")
+
+    def _generate_nav_content(self, book_title: str, toc: List[Union[epub.Link, Tuple[epub.Link, List[epub.Link]]]]) -> str:
+        """
+        手动生成 EPUB 3.0 的 nav.xhtml 内容，为每个条目添加 ID 以便回跳。
+        """
+        import html
+        from ebooklib import epub as epub_lib
+        safe_title = html.escape(book_title)
+        
+        content = f"""<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh" xml:lang="zh">
+<head>
+    <title>{safe_title}</title>
+    <style type="text/css">
+        nav ol {{ list-style-type: none; margin: 0; padding: 0; }}
+        nav li {{ margin: 0.5em 0; }}
+        nav li ol {{ margin-left: 1.5em; list-style-type: none; }}
+        a {{ text-decoration: none; color: #0066cc; }}
+        h1 {{ text-align: center; }}
+    </style>
+</head>
+<body>
+    <nav epub:type="toc" id="toc">
+        <h1>{safe_title}</h1>
+        <ol>
+"""
+        for item in toc:
+            if isinstance(item, epub_lib.Link):
+                # 扁平链接（如 web/trending 或 error_log）
+                content += f'            <li id="toc_{item.uid}"><a href="{item.href}">{html.escape(item.title)}</a></li>\n'
+            elif isinstance(item, tuple) and len(item) == 2:
+                # 两级结构（如 mail/rss）
+                section_link, links = item
+                content += f'            <li id="toc_{section_link.uid}">\n'
+                content += f'                <a href="{section_link.href}">{html.escape(section_link.title)}</a>\n'
+                content += f'                <ol>\n'
+                for link in links:
+                    content += f'                    <li id="toc_{link.uid}"><a href="{link.href}">{html.escape(link.title)}</a></li>\n'
+                content += f'                </ol>\n'
+                content += f'            </li>\n'
+        
+        content += """        </ol>
+    </nav>
+</body>
+</html>"""
+        return content
 
     def _add_style(self, book: epub.EpubBook):
         """添加样式"""
