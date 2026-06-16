@@ -271,12 +271,12 @@ class TestEpubSpine:
 
             return spine_items
 
-    def test_spine_starts_with_nav(self, shared_epub):
-        """测试spine以目录开始，确保打开电子书首先看到目录"""
+    def test_spine_starts_with_cover(self, shared_epub):
+        """测试spine以封面开始"""
         spine = self._get_spine_order(shared_epub)
-        assert spine[0] == 'nav.xhtml', f"spine应以nav.xhtml开始，实际为{spine[0]}"
+        assert spine[0] == 'cover.xhtml', f"spine应以cover.xhtml开始，实际为{spine[0]}"
 
-        print(f"✓ spine以目录开始")
+        print(f"✓ spine以封面开始")
 
     def test_spine_includes_nav(self, shared_epub):
         """测试spine包含nav.xhtml"""
@@ -286,12 +286,12 @@ class TestEpubSpine:
         print(f"✓ spine包含nav.xhtml")
 
     def test_spine_order_correct(self, shared_epub):
-        """测试spine顺序正确：nav → cover → chapters"""
+        """测试spine顺序正确：cover → nav → chapters"""
         spine = self._get_spine_order(shared_epub)
 
         # 验证顺序
-        assert spine[0] == 'nav.xhtml', "第一位应为导航"
-        assert spine[1] == 'cover.xhtml', "第二位应为封面"
+        assert spine[0] == 'cover.xhtml', "第一位应为封面"
+        assert spine[1] == 'nav.xhtml', "第二位应为导航"
 
         # 后续应为章节（包括divider）
         chapters_in_spine = [f for f in spine if f.startswith('chapter_')]

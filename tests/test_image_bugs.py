@@ -55,7 +55,7 @@ class TestImageBugs:
         )
         
         chapter = epub.EpubHtml(title="Test", file_name="test.xhtml")
-        chapter.content = generator._generate_chapter_content(article)
+        chapter.content = generator._generate_chapter_content(article, 0)
         
         book = epub.EpubBook()
         
