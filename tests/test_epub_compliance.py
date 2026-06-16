@@ -191,6 +191,17 @@ class TestEpubContent:
 
         print(f"✓ 封面XHTML包含正确的img标签")
 
+    def test_nav_has_landmarks(self, shared_epub):
+        """测试nav.xhtml包含landmarks部分（EPUB 3.0用于辅助导航和指定起始页）"""
+        nav_html = self._read_epub_xhtml(shared_epub, 'nav.xhtml')
+
+        # 检查landmarks命名空间或属性
+        assert 'epub:type="landmarks"' in nav_html, "nav.xhtml应包含landmarks导航"
+        assert 'epub:type="toc"' in nav_html, "landmarks应包含toc引用"
+        assert 'epub:type="bodymatter"' in nav_html or 'epub:type="text"' in nav_html, "landmarks应包含正文起始引用"
+
+        print(f"✓ nav.xhtml包含landmarks地标导航")
+
     def test_chapter_has_doctype(self, shared_epub):
         """测试章节XHTML包含DOCTYPE声明"""
         chapter_html = self._read_epub_xhtml(shared_epub, 'chapter_0.xhtml')
@@ -258,12 +269,12 @@ class TestEpubSpine:
 
             return spine_items
 
-    def test_spine_starts_with_cover(self, shared_epub):
-        """测试spine以封面开始"""
+    def test_spine_starts_with_nav(self, shared_epub):
+        """测试spine以目录开始，确保打开电子书首先看到目录"""
         spine = self._get_spine_order(shared_epub)
-        assert spine[0] == 'cover.xhtml', f"spine应以cover.xhtml开始，实际为{spine[0]}"
+        assert spine[0] == 'nav.xhtml', f"spine应以nav.xhtml开始，实际为{spine[0]}"
 
-        print(f"✓ spine以封面开始")
+        print(f"✓ spine以目录开始")
 
     def test_spine_includes_nav(self, shared_epub):
         """测试spine包含nav.xhtml"""
@@ -273,12 +284,12 @@ class TestEpubSpine:
         print(f"✓ spine包含nav.xhtml")
 
     def test_spine_order_correct(self, shared_epub):
-        """测试spine顺序正确：cover → nav → chapters"""
+        """测试spine顺序正确：nav → cover → chapters"""
         spine = self._get_spine_order(shared_epub)
 
         # 验证顺序
-        assert spine[0] == 'cover.xhtml', "第一位应为封面"
-        assert spine[1] == 'nav.xhtml', "第二位应为导航"
+        assert spine[0] == 'nav.xhtml', "第一位应为导航"
+        assert spine[1] == 'cover.xhtml', "第二位应为封面"
 
         # 后续应为章节（包括divider）
         chapters_in_spine = [f for f in spine if f.startswith('chapter_')]
@@ -321,8 +332,8 @@ class TestEpubMetadata:
 
             print(f"✓ 元数据包含所有必需字段")
 
-    def test_opf_has_guide_with_cover(self, shared_epub):
-        """测试OPF包含guide元素并引用了封面（向后兼容）"""
+    def test_opf_has_guide_with_toc_and_cover(self, shared_epub):
+        """测试OPF包含guide元素并引用了封面和目录（增加设备兼容性，指定起始页）"""
         with zipfile.ZipFile(shared_epub, 'r') as zf:
             opf_content = zf.read('EPUB/content.opf')
             root = ET.fromstring(opf_content)
@@ -331,13 +342,21 @@ class TestEpubMetadata:
             guide = root.find('.//{*}guide')
             assert guide is not None, "OPF应包含guide元素"
 
-            # 查找cover引用
-            # 注意：ebooklib在OPF 3.0中可能不包含guide，但在我们的代码中显式设置了
-            reference = guide.find('.//{*}reference[@type="cover"]')
-            assert reference is not None, "guide应包含type='cover'的引用"
-            assert reference.get('href') == 'cover.xhtml', f"封面引用href应为'cover.xhtml'，实际为'{reference.get('href')}'"
+            # 查找目录引用 (toc)
+            toc_ref = guide.find('.//{*}reference[@type="toc"]')
+            assert toc_ref is not None, "guide应包含type='toc'的引用"
+            assert toc_ref.get('href') == 'nav.xhtml', f"目录引用href应为'nav.xhtml'，实际为'{toc_ref.get('href')}'"
 
-            print(f"✓ OPF包含正确的guide/reference元素")
+            # 查找封面引用 (cover)
+            cover_ref = guide.find('.//{*}reference[@type="cover"]')
+            assert cover_ref is not None, "guide应包含type='cover'的引用"
+            assert cover_ref.get('href') == 'cover.xhtml', f"封面引用href应为'cover.xhtml'，实际为'{cover_ref.get('href')}'"
+
+            # 查找正文起始引用 (text)
+            text_ref = guide.find('.//{*}reference[@type="text"]')
+            assert text_ref is not None, "guide应包含type='text'的引用"
+
+            print(f"✓ OPF包含正确的guide(toc/cover/text)元素")
 
     def test_language_is_zh(self, shared_epub):
         """测试语言设置为中文"""

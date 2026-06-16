@@ -75,23 +75,27 @@ class EPUBGenerator:
             self._add_error_log_chapter(book, error_log)
 
         # 9. 手动生成并添加 nav.xhtml (EPUB 3.0 必需)
-        # 我们手动生成它，以便为每个 <li> 添加 ID，支持从正文跳转回目录特定位置
-        nav = epub.EpubNav()
+        # 使用 EpubHtml 而不是 EpubNav，并手动设置 'nav' 属性，
+        # 这样可以防止 ebooklib 在 write_epub 时用其默认生成的模板覆盖我们的自定义内容。
+        nav = epub.EpubHtml(title=book.title, file_name='nav.xhtml', uid='nav')
+        nav.properties = ['nav']
         nav.content = self._generate_nav_content(book.title, book.toc)
         book.add_item(nav)
 
-        # 10. 将 nav 插入到 spine 的封面之后
+        # 10. 将 nav 插入到 spine 的最前面，确保打开电子书时首先进入目录页
         if isinstance(book.spine, list):
-            book.spine.insert(1, nav)
+            book.spine.insert(0, nav)
         else:
-            book.spine = ['cover', nav]
+            book.spine = [nav, 'cover']
 
         # 11. 添加样式
         self._add_style(book)
 
-        # 12. 设置 Guide 元素，增加兼容性 (Kindle 等设备)
+        # 12. 设置 Guide 元素，明确指定启动页面为目录 (增加老旧设备兼容性)
         book.guide = [
-            {'href': 'cover.xhtml', 'title': 'Cover', 'type': 'cover'}
+            {'href': 'nav.xhtml', 'title': 'Table of Contents', 'type': 'toc'},
+            {'href': 'cover.xhtml', 'title': 'Cover', 'type': 'cover'},
+            {'href': 'divider_0.xhtml', 'title': 'Start Reading', 'type': 'text'}
         ]
 
         # 13. 保存文件
@@ -492,7 +496,8 @@ class EPUBGenerator:
 
     def _generate_nav_content(self, book_title: str, toc: List[Union[epub.Link, Tuple[epub.Link, List[epub.Link]]]]) -> str:
         """
-        手动生成 EPUB 3.0 的 nav.xhtml 内容，为每个条目添加 ID 以便回跳。
+        手动生成 EPUB 3.0 的 nav.xhtml 内容，包含目录和地标 (landmarks)。
+        为每个条目添加 ID 以便回跳。
         """
         import html
         from ebooklib import epub as epub_lib
@@ -508,6 +513,7 @@ class EPUBGenerator:
         nav li ol {{ margin-left: 1.5em; list-style-type: none; }}
         a {{ text-decoration: none; color: #0066cc; }}
         h1 {{ text-align: center; }}
+        .landmarks {{ margin-top: 2em; border-top: 1px solid #ccc; padding-top: 1em; display: none; }}
     </style>
 </head>
 <body>
@@ -531,6 +537,14 @@ class EPUBGenerator:
                 content += f'            </li>\n'
         
         content += """        </ol>
+    </nav>
+    <nav epub:type="landmarks" class="landmarks">
+        <h2>Landmarks</h2>
+        <ol>
+            <li><a epub:type="toc" href="nav.xhtml#toc">Table of Contents</a></li>
+            <li><a epub:type="cover" href="cover.xhtml">Cover</a></li>
+            <li><a epub:type="bodymatter" href="divider_0.xhtml">Start Reading</a></li>
+        </ol>
     </nav>
 </body>
 </html>"""
