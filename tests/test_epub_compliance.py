@@ -19,6 +19,8 @@ import zipfile
 import xml.etree.ElementTree as ET
 from unittest.mock import patch, MagicMock
 import pytest
+import subprocess
+import shutil
 
 from src.config import ContentSource, _parse_config
 from src.fetchers.base import Article, FetchResult
@@ -426,3 +428,45 @@ class TestMimetype:
             assert first_file == 'mimetype', f"第一个文件应为'mimetype'，实际为'{first_file}'"
 
             print(f"✓ mimetype是ZIP中的第一个文件")
+
+
+class TestEpubcheck:
+    """使用 W3C epubcheck 工具验证生成的 EPUB 是否符合 EPUB 3 标准"""
+
+    def setup_method(self, method):
+        """检查 epubcheck 是否可用，不可用则跳过并提示"""
+        if not shutil.which("java"):
+            pytest.skip("⚠ EPUB 合规测试不存在：未找到 Java 运行时，请先安装 Java")
+
+        jar = self._epubcheck_jar()
+        if not os.path.exists(jar):
+            pytest.skip(f"⚠ EPUB 合规测试不存在：未找到 {jar}，请参考 README 配置 epubcheck")
+
+    @staticmethod
+    def _epubcheck_jar():
+        """返回 epubcheck.jar 路径（项目根目录下）"""
+        return os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "epubcheck", "epubcheck.jar"
+        )
+
+    def test_epub_passes_epubcheck(self, shared_epub):
+        """生成的 EPUB 应通过 epubcheck 验证，无错误无警告"""
+        jar = self._epubcheck_jar()
+
+        result = subprocess.run(
+            ["java", "-jar", jar, shared_epub],
+            capture_output=True, text=True, timeout=60
+        )
+
+        # 打印输出方便调试
+        if result.returncode != 0:
+            print(f"\nEPUBCheck Output:\n{result.stderr}")
+            print(f"\nEPUBCheck Stdout:\n{result.stdout}")
+
+        assert result.returncode == 0, (
+            f"epubcheck 验证失败（exit={result.returncode}）：\n"
+            f"{result.stderr}"
+        )
+
+        print(f"✓ EPUBCheck 验证通过")
