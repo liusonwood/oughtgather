@@ -115,6 +115,24 @@ class TestEpubStructure:
 
             print(f"✓ OPF manifest中有nav属性声明")
 
+    def test_opf_has_cover_image_property(self, shared_epub):
+        """测试OPF manifest中封面图片声明了cover-image属性（EPUB 3.0用于识别封面）"""
+        with zipfile.ZipFile(shared_epub, 'r') as zf:
+            opf_content = zf.read('EPUB/content.opf')
+            root = ET.fromstring(opf_content)
+
+            # 查找manifest中的cover-image item
+            manifest = root.find('.//{*}manifest')
+            cover_image_items = []
+            for item in manifest.findall('.//{*}item'):
+                properties = item.get('properties', '')
+                if 'cover-image' in properties:
+                    cover_image_items.append(item.get('id'))
+
+            assert len(cover_image_items) == 1, f"应有1个cover-image item，实际{len(cover_image_items)}个：{cover_image_items}"
+
+            print(f"✓ OPF manifest中有cover-image属性声明")
+
     def test_epub_has_ncx_file(self, shared_epub):
         """测试EPUB包含NCX导航文件（向后兼容）"""
         with zipfile.ZipFile(shared_epub, 'r') as zf:
@@ -302,6 +320,24 @@ class TestEpubMetadata:
             assert len(languages) >= 1, "元数据应包含language"
 
             print(f"✓ 元数据包含所有必需字段")
+
+    def test_opf_has_guide_with_cover(self, shared_epub):
+        """测试OPF包含guide元素并引用了封面（向后兼容）"""
+        with zipfile.ZipFile(shared_epub, 'r') as zf:
+            opf_content = zf.read('EPUB/content.opf')
+            root = ET.fromstring(opf_content)
+
+            # 查找guide元素
+            guide = root.find('.//{*}guide')
+            assert guide is not None, "OPF应包含guide元素"
+
+            # 查找cover引用
+            # 注意：ebooklib在OPF 3.0中可能不包含guide，但在我们的代码中显式设置了
+            reference = guide.find('.//{*}reference[@type="cover"]')
+            assert reference is not None, "guide应包含type='cover'的引用"
+            assert reference.get('href') == 'cover.xhtml', f"封面引用href应为'cover.xhtml'，实际为'{reference.get('href')}'"
+
+            print(f"✓ OPF包含正确的guide/reference元素")
 
     def test_language_is_zh(self, shared_epub):
         """测试语言设置为中文"""

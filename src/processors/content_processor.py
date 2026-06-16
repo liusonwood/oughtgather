@@ -166,79 +166,100 @@ class ContentProcessor:
 
     def _delete_from_start(self, html: str, keyword: str) -> str:
         """删除从文档开头到 keyword（含 keyword 本身）之间的全部内容"""
-        soup, text_nodes = self._iter_text_nodes(html)
-
-        if not text_nodes:
-            return html
-
-        # 在文本节点中顺序查找 keyword
-        for node in text_nodes:
-            text = str(node)
+        soup = BeautifulSoup(html, 'lxml')
+        
+        # 1. 寻找第一个包含 keyword 的文本节点
+        target_node = None
+        for node in soup.find_all(string=True):
+            if keyword in node:
+                target_node = node
+                break
+        
+        if target_node:
+            # 找到关键词所在位置
+            text = str(target_node)
             idx = text.find(keyword)
+            
+            # 保留关键词之后的内容
+            remaining_text = text[idx + len(keyword):]
+            
+            # 向上递归处理：删除当前节点及其所有父节点之前的兄弟节点
+            curr = target_node
+            while curr and curr.name != '[document]':
+                # 获取当前节点的所有前序兄弟节点（包括元素、文本等）
+                # 必须转换为列表，因为 extract() 会改变迭代器
+                for prev in list(curr.previous_siblings):
+                    prev.extract()
+                curr = curr.parent
+            
+            # 更新目标文本节点的内容
+            if remaining_text:
+                target_node.replace_with(remaining_text)
+            else:
+                target_node.extract()
+                
+            return str(soup.body if soup.body else soup)
 
-            if idx != -1:
-                # keyword 完整落在当前节点内
-                kept = text[:idx]
-                if kept.strip():
-                    node.replace_with(kept)
-                else:
-                    node.extract()
-                return str(soup.body if soup.body else soup)
-
-        # keyword 未在任何单节点中找到——检查是否跨节点
-        full = soup.get_text()
-        if keyword in full:
+        # 2. 如果单节点没找到，尝试跨节点检查（仅做文本层面的检查，但不建议破坏结构）
+        full_text = soup.get_text()
+        if keyword in full_text:
             self.logger.warning(
-                "exclude 'start' keyword spans multiple text nodes; "
-                "HTML structure will be simplified"
+                f"exclude 'start' keyword '{keyword}' spans multiple nodes. "
+                "Structure preservation might be imperfect."
             )
-            idx = full.find(keyword)
-            remaining = full[idx + len(keyword):]
-            return f"<p>{remaining}</p>"
+            # 这里的策略：如果跨节点，我们至少不再退回到纯文本
+            # 而是尝试定位到大致的元素位置，或者直接报错不处理以保护图片
+            # 目前采用更安全的做法：如果不确定如何精确切割 DOM，则不执行删除，以保护图片
+            # 除非是极简单的文档，否则跨节点切割 DOM 非常容易出错
+            return html
 
         self.logger.debug(f"exclude 'start' keyword not found: '{keyword}'")
         return html
 
     def _delete_from_end(self, html: str, keyword: str) -> str:
         """删除从 keyword（含 keyword 本身）到文档结尾的全部内容"""
-        soup, text_nodes = self._iter_text_nodes(html)
-
-        if not text_nodes:
-            return html
-
-        # 逆序遍历，找到 keyword 的最后一次出现（rfind 语义）
-        target_idx = -1
-        for i in range(len(text_nodes) - 1, -1, -1):
-            node = text_nodes[i]
-            text = str(node)
-            idx = text.rfind(keyword)
-
-            if idx != -1:
-                target_idx = i
-                kept = text[:idx]
-                if kept.strip():
-                    node.replace_with(kept)
-                else:
-                    node.extract()
+        soup = BeautifulSoup(html, 'lxml')
+        
+        # 1. 寻找最后一个包含 keyword 的文本节点（从后往前找）
+        text_nodes = soup.find_all(string=True)
+        target_node = None
+        for node in reversed(text_nodes):
+            if keyword in node:
+                target_node = node
                 break
-
-        if target_idx != -1:
-            # 移除该节点之后的所有文本节点（通过预收集的列表引用，不依赖已脱离的 node）
-            for node in text_nodes[target_idx + 1:]:
-                if node.parent:
-                    node.extract()
+        
+        if target_node:
+            # 找到关键词最后一次出现的位置
+            text = str(target_node)
+            idx = text.rfind(keyword)
+            
+            # 保留关键词之前的内容
+            remaining_text = text[:idx]
+            
+            # 向上递归处理：删除当前节点及其所有父节点之后的兄弟节点
+            curr = target_node
+            while curr and curr.name != '[document]':
+                # 获取当前节点的所有后续兄弟节点
+                for nxt in list(curr.next_siblings):
+                    nxt.extract()
+                curr = curr.parent
+            
+            # 更新目标文本节点的内容
+            if remaining_text:
+                target_node.replace_with(remaining_text)
+            else:
+                target_node.extract()
+                
             return str(soup.body if soup.body else soup)
 
-        # 跨节点检查
-        full = soup.get_text()
-        if keyword in full:
+        # 2. 跨节点检查
+        full_text = soup.get_text()
+        if keyword in full_text:
             self.logger.warning(
-                "exclude 'end' keyword spans multiple text nodes; "
-                "HTML structure will be simplified"
+                f"exclude 'end' keyword '{keyword}' spans multiple nodes. "
+                "Deletion skipped to preserve HTML structure and images."
             )
-            idx = full.rfind(keyword)
-            remaining = full[:idx]
-            return f"<p>{remaining}</p>"
+            return html
 
         self.logger.debug(f"exclude 'end' keyword not found: '{keyword}'")
         return html
@@ -252,15 +273,19 @@ class ContentProcessor:
 
     @staticmethod
     def _cleanup_empty_tags(html: str) -> str:
-        """移除没有文本内容的空标签（如 <p></p>、<footer></footer>）"""
+        """移除没有文本内容且无子标签的空标签，但保留 img, br, hr 等自闭合标签"""
         soup = BeautifulSoup(html, 'lxml')
         body = soup.body if soup.body else soup
 
+        # 允许不包含内容或子标签的标签列表（自闭合标签或特殊标签）
+        allowed_empty_tags = {'img', 'br', 'hr', 'td', 'th', 'iframe', 'video', 'audio'}
+
         # 逆序遍历，避免删除父标签后子标签引用失效
         for tag in reversed(body.find_all(True)):
-            if tag.name in ('html', 'body', 'head'):
+            if tag.name in ('html', 'body', 'head') or tag.name in allowed_empty_tags:
                 continue
-            # 没有任何子节点（文本节点也算）→ 空标签
+            
+            # 没有任何文本内容且没有子标签 → 视为真正可以删除的空标签
             if not tag.get_text(strip=True) and not tag.find_all(True):
                 tag.extract()
 

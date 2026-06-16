@@ -79,7 +79,10 @@ class EPUBGenerator:
         # 10. 添加样式
         self._add_style(book)
 
-        # 11. 不设置 Guide 元素，避免在 nav.xhtml 中生成 landmarks 部分
+        # 11. 设置 Guide 元素，增加兼容性 (Kindle 等设备)
+        book.guide = [
+            {'href': 'cover.xhtml', 'title': 'Cover', 'type': 'cover'}
+        ]
 
         # 12. 保存文件
         output_path = self._save_book(book)
@@ -102,27 +105,49 @@ class EPUBGenerator:
         try:
             cover_filename, cover_data = self.cover_generator.generate()
 
-            # 1. 添加封面图片
-            cover_item = epub.EpubItem(
-                uid='cover-img',
-                file_name=cover_filename,
-                media_type='image/jpeg',
-                content=cover_data
-            )
-            book.add_item(cover_item)
+            # 1. 设置封面图片 (使用 set_cover 确保 properties="cover-image" 被正确设置)
+            # ebooklib 会自动处理 manifest 中的 properties
+            # 设置 create_page=False，因为我们要手动创建自定义样式的封面页
+            book.set_cover(cover_filename, cover_data, create_page=False)
 
             # 2. 创建封面 XHTML 页面 (EPUB 3.0 使用 HTML5)
+            # 使用更好的 CSS 确保图片在 Kindle 等设备上充满屏幕，背景为黑色避免白边
             cover_html = f"""<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" epub:prefix="z3998: http://www.daisy.org/z3998/2012/vocab/structure/#" lang="zh" xml:lang="zh">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh" xml:lang="zh">
 <head>
     <title>Cover</title>
     <style type="text/css">
-        body {{ margin: 0; padding: 0; text-align: center; }}
-        img {{ max-width: 100%; height: auto; }}
+        @page {{ margin: 0; padding: 0; }}
+        html, body {{ 
+            margin: 0; 
+            padding: 0; 
+            width: 100%; 
+            height: 100%; 
+        }}
+        body {{ 
+            display: table; 
+            text-align: center; 
+            background-color: #000000; 
+        }}
+        .cover {{ 
+            display: table-cell; 
+            vertical-align: middle; 
+            width: 100%; 
+            height: 100%; 
+        }}
+        img {{ 
+            max-width: 100%; 
+            max-height: 100%; 
+            display: block; 
+            margin: 0 auto;
+            object-fit: contain;
+        }}
     </style>
 </head>
 <body>
-    <img src="{cover_filename}" alt="Cover"/>
+    <div class="cover">
+        <img src="{cover_filename}" alt="Cover"/>
+    </div>
 </body>
 </html>"""
 
