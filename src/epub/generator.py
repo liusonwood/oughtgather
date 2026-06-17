@@ -237,7 +237,15 @@ class EPUBGenerator:
                 title=section_title,
                 file_name=f"divider_{divider_id}.xhtml"
             )
-            divider.content = self._generate_section_divider_content(section_title, divider_id)
+            # 确定返回目录时应该锚定到目录 (nav.xhtml) 中的哪一个条目：
+            # - web / trending: 对应扁平链接，锚定到 toc_chapter_{chapter_id}
+            # - mail / rss: 对应两级结构，锚定到 toc_section_{divider_id}
+            if source.type in ("web", "trending"):
+                target_toc_id = f"toc_chapter_{chapter_id}"
+            else:
+                target_toc_id = f"toc_section_{divider_id}"
+
+            divider.content = self._generate_section_divider_content(section_title, target_toc_id)
             book.add_item(divider)
             spine.append(divider)
             divider_id += 1
@@ -316,7 +324,7 @@ class EPUBGenerator:
 
         return content_html
 
-    def _generate_section_divider_content(self, section_title: str, divider_id: int) -> str:
+    def _generate_section_divider_content(self, section_title: str, target_toc_id: str) -> str:
         """
         生成章节分隔页 HTML 内容 (EPUB 3.0 格式，返回目录链接在标题下方)
 
@@ -324,7 +332,7 @@ class EPUBGenerator:
 
         Args:
             section_title: 章节/栏目标题
-            divider_id: 分隔页 ID
+            target_toc_id: 返回目录链接指向的 TOC 元素的 ID
 
         Returns:
             str: HTML 内容
@@ -338,7 +346,7 @@ class EPUBGenerator:
 </head>
 <body>
     <h1>{safe_title}</h1>
-    <p class="toc-link"><a href="nav.xhtml#toc_section_{divider_id}">返回目录</a></p>
+    <p class="toc-link"><a href="nav.xhtml#{target_toc_id}">返回目录</a></p>
 </body>
 </html>"""
 
@@ -498,7 +506,7 @@ class EPUBGenerator:
 
     def _generate_nav_content(self, book_title: str, toc: List[Union[epub.Link, Tuple[epub.Link, List[epub.Link]]]]) -> str:
         """
-        手动生成 EPUB 3.0 的 nav.xhtml 内容，包含目录和地标 (landmarks)。
+        手动生成 EPUB 3.0 的 nav.xhtml 内容，只包含目录（不包含 landmarks）。
         为每个条目添加 ID 以便回跳。
         """
         import html
@@ -518,10 +526,11 @@ class EPUBGenerator:
         /* 大章节样式 (Section/Divider) */
         .section-link {{ 
             font-weight: bold; 
-            font-size: 1.15em; 
-            color: #222; 
+            font-size: 1.35em; 
+            color: #111; 
             display: block;
-            margin-bottom: 0.3em;
+            margin-top: 0.6em;
+            margin-bottom: 0.4em;
         }}
         
         /* 小章节/文章样式 (Article) */
@@ -541,7 +550,6 @@ class EPUBGenerator:
         nav li ol li {{ margin: 0.4em 0; }}
         
         a {{ text-decoration: none; }}
-        .landmarks {{ margin-top: 2em; border-top: 1px solid #ccc; padding-top: 1em; display: none; }}
     </style>
 </head>
 <body>
@@ -566,14 +574,6 @@ class EPUBGenerator:
                 content += f'            </li>\n'
         
         content += """        </ol>
-    </nav>
-    <nav epub:type="landmarks" class="landmarks">
-        <h2>Landmarks</h2>
-        <ol>
-            <li><a epub:type="toc" href="nav.xhtml#toc">Table of Contents</a></li>
-            <li><a epub:type="cover" href="cover.xhtml">Cover</a></li>
-            <li><a epub:type="bodymatter" href="divider_0.xhtml">Start Reading</a></li>
-        </ol>
     </nav>
 </body>
 </html>"""

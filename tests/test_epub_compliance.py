@@ -193,16 +193,15 @@ class TestEpubContent:
 
         print(f"✓ 封面XHTML包含正确的img标签")
 
-    def test_nav_has_landmarks(self, shared_epub):
-        """测试nav.xhtml包含landmarks部分（EPUB 3.0用于辅助导航和指定起始页）"""
+    def test_nav_does_not_have_landmarks(self, shared_epub):
+        """测试nav.xhtml不包含landmarks部分（确保目录干净，不带landmarks）"""
         nav_html = self._read_epub_xhtml(shared_epub, 'nav.xhtml')
 
-        # 检查landmarks命名空间或属性
-        assert 'epub:type="landmarks"' in nav_html, "nav.xhtml应包含landmarks导航"
-        assert 'epub:type="toc"' in nav_html, "landmarks应包含toc引用"
-        assert 'epub:type="bodymatter"' in nav_html or 'epub:type="text"' in nav_html, "landmarks应包含正文起始引用"
+        # 确保landmarks命名空间或属性不存在于目录中
+        assert 'epub:type="landmarks"' not in nav_html, "nav.xhtml不应该包含landmarks导航"
+        assert '<h2>Landmarks</h2>' not in nav_html, "nav.xhtml不应该包含Landmarks标题"
 
-        print(f"✓ nav.xhtml包含landmarks地标导航")
+        print(f"✓ nav.xhtml不包含landmarks地标导航")
 
     def test_chapter_has_doctype(self, shared_epub):
         """测试章节XHTML包含DOCTYPE声明"""

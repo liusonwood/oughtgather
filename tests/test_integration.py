@@ -536,6 +536,36 @@ class TestSectionDividers:
         finally:
             os.remove(epub_path)
 
+    def test_divider_link_back_to_toc_matches_nav_ids(self, tmp_path):
+        """测试不同类型（rss/web）的分隔页返回目录的链接ID在nav.xhtml中确实存在且匹配"""
+        source_rss = ContentSource(type="rss", src="https://rss.com", title="RSS源", priority=10)
+        source_web = ContentSource(type="web", src="https://web.com", title="Web源", priority=5)
+
+        results = [
+            self._make_fetch_result(source_rss, ["RSS文章1", "RSS文章2"]),
+            self._make_fetch_result(source_web, ["Web文章"]),
+        ]
+        epub_path = self._generate_epub(results)
+        try:
+            # 读取 nav.xhtml
+            nav_html = self._read_epub_xhtml(epub_path, "nav.xhtml")
+
+            # RSS 分隔页为第一个：divider_0.xhtml
+            divider_rss_html = self._read_epub_xhtml(epub_path, "divider_0.xhtml")
+            # 应该链接到 toc_section_0
+            assert 'href="nav.xhtml#toc_section_0"' in divider_rss_html, "RSS分隔页链接错误"
+            assert 'id="toc_section_0"' in nav_html, "nav.xhtml中应该有id='toc_section_0'"
+
+            # Web 分隔页为第二个：divider_1.xhtml
+            divider_web_html = self._read_epub_xhtml(epub_path, "divider_1.xhtml")
+            # 应该链接到第3个章节 (前面有2个rss章节，所以是 chapter_2)
+            assert 'href="nav.xhtml#toc_chapter_2"' in divider_web_html, "Web分隔页链接错误"
+            assert 'id="toc_chapter_2"' in nav_html, "nav.xhtml中应该有id='toc_chapter_2'"
+
+            print(f"✓ 分隔页返回目录的链接完全匹配 nav.xhtml 中的 ID")
+        finally:
+            os.remove(epub_path)
+
 
 # =========================================================================
 # EPUB 标准合规性验证（使用 epubcheck）
