@@ -83,15 +83,12 @@ class EPUBGenerator:
         book.add_item(nav)
 
         # 10. 将 nav 插入到 spine 中。
-        # 如果第一页是封面 (cover)，则将 nav 插在封面之后；
-        # 否则插在最前面。确保阅读顺序合理。
+        # 我们希望首次打开电子书时直接进入目录 (nav.xhtml)，因此把 nav 排在最前面，
+        # 随后是封面 (cover) 以及各个章节。确保阅读顺序合理且首次打开即为目录。
         if isinstance(book.spine, list):
-            if len(book.spine) > 0 and (book.spine[0] == 'cover' or getattr(book.spine[0], 'id', None) == 'cover'):
-                book.spine.insert(1, nav)
-            else:
-                book.spine.insert(0, nav)
+            book.spine.insert(0, nav)
         else:
-            book.spine = ['cover', nav]
+            book.spine = [nav, 'cover']
 
         # 11. 添加样式
         self._add_style(book)
