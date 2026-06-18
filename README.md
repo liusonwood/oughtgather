@@ -185,7 +185,7 @@ export KINDLE_EMAIL="name@kindle.com"
 | 变量 | 用途 |
 | --- | --- |
 | `CONFIG_JSON` | 完整 `config.json` 字符串；优先级高于本地 `config.json` |
-| `TESTMAIL_APP_API_KEY` | 读取 TestMail.app 邮件 |
+| `TESTMAIL_APP_API_KEY` | 读取 [TestMail.app](https://testmail.app/) 邮件 |
 | `OPENROUTER_API_KEY` | 调用 LLM 生成热点分析 |
 | `OPENROUTER_API_ENDPOINT` | 自定义 OpenRouter 兼容接口，默认 `https://openrouter.ai/api/v1/chat/completions` |
 | `OPENROUTER_MODEL` | `trending` 源的全局默认模型；低于单个源的 `model` 字段 |
