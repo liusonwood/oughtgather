@@ -70,9 +70,8 @@ class EPUBGenerator:
         # _add_chapters 会将章节追加到 book.spine
         self._add_chapters(book, sections)
 
-        # 8. 添加错误日志章节（如果有）
-        if error_log:
-            self._add_error_log_chapter(book, error_log)
+        # 8. 添加推送汇总章节 (包括运行统计、详细状态和工具介绍)
+        self._add_summary_chapter(book, results, error_log)
 
         # 9. 手动生成并添加 nav.xhtml (EPUB 3.0 必需)
         # 使用 EpubHtml 而不是 EpubNav，并手动设置 'nav' 属性，
@@ -455,54 +454,164 @@ class EPUBGenerator:
         # BeautifulSoup 会生成完整的 HTML 结构并正确处理转义字符
         chapter.content = str(soup)
 
-    def _add_error_log_chapter(self, book: epub.EpubBook, error_log: List[str]):
+    def _add_summary_chapter(self, book: epub.EpubBook, results: List[FetchResult], error_log: List[str] = None):
         """
-        添加错误日志章节 (EPUB 3.0 格式，返回目录链接在标题下方)
+        添加推送汇总章节 (EPUB 3.0 格式，包含本次推送的统计数据与工具介绍)
 
         Args:
             book: EPUB 书籍对象
+            results: 抓取与处理结果列表
             error_log: 错误日志列表
         """
         import html
 
+        error_log = error_log or []
+        push_time = get_now().strftime("%Y-%m-%d %H:%M:%S")
+        total_sources = len(results)
+        success_sources = sum(1 for r in results if r.success)
+        failed_sources = sum(1 for r in results if not r.success)
+        total_articles = sum(len(r.articles) for r in results)
+
+        source_details = ""
+        for r in results:
+            src_type = r.source.type.upper()
+            src_name = html.escape(r.source_title or r.source.title or r.source.src)
+            if r.success:
+                source_details += f"""
+            <li class="source-item">
+                <span class="stat-label">[{src_type}] {src_name}</span>：
+                <span class="tag-success">成功</span>，新增 <span class="tag-success">{len(r.articles)}</span> 篇文章
+            </li>"""
+            else:
+                err_msg = html.escape(r.error or "未知错误")
+                source_details += f"""
+            <li class="source-item">
+                <span class="stat-label">[{src_type}] {src_name}</span>：
+                <span class="tag-failed">失败</span> ({err_msg})
+            </li>"""
+
+        if error_log:
+            error_log_content = "<ul>\n"
+            for error in error_log:
+                safe_error = html.escape(error)
+                error_log_content += f"        <li>{safe_error}</li>\n"
+            error_log_content += "    </ul>"
+        else:
+            error_log_content = "<p style='color: #2e7d32; font-weight: bold;'>🎉 一切正常，本次运行未发生任何错误。</p>"
+
         # EPUB 3.0 使用 HTML5 DOCTYPE
-        content_html = """<!DOCTYPE html>
+        content_html = f"""<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" epub:prefix="z3998: http://www.daisy.org/z3998/2012/vocab/structure/#" lang="zh" xml:lang="zh">
 <head>
-    <title>错误日志</title>
+    <title>推送汇总</title>
     <link rel="stylesheet" type="text/css" href="style/default.css"/>
+    <style type="text/css">
+        .summary-title {{
+            text-align: center;
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            color: #333333;
+        }}
+        .card {{
+            border: 1px solid #dddddd;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 1.5em;
+            background-color: #f9f9f9;
+        }}
+        .card-title {{
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eeeeee;
+            padding-bottom: 5px;
+        }}
+        .stat-item {{
+            margin: 8px 0;
+            line-height: 1.4;
+        }}
+        .stat-label {{
+            font-weight: bold;
+            color: #444444;
+        }}
+        .source-list {{
+            list-style-type: none;
+            padding-left: 0;
+            margin: 0;
+        }}
+        .source-item {{
+            padding: 8px 0;
+            border-bottom: 1px dashed #e0e0e0;
+            list-style: none;
+        }}
+        .source-item:last-child {{
+            border-bottom: none;
+        }}
+        .tag-success {{
+            color: #2e7d32;
+            font-weight: bold;
+        }}
+        .tag-failed {{
+            color: #c62828;
+            font-weight: bold;
+        }}
+        .intro-text {{
+            line-height: 1.6;
+            text-indent: 2em;
+            margin-bottom: 1em;
+            color: #333333;
+        }}
+    </style>
 </head>
 <body>
-    <h1>错误日志</h1>
-    <p class="toc-link"><a href="nav.xhtml#toc_error_log">返回目录</a></p>
-    <p>以下是在抓取过程中发生的错误：</p>
-    <ul>
-"""
+    <h1 class="summary-title">推送汇总</h1>
+    <p class="toc-link" style="text-align: center;"><a href="nav.xhtml#toc_summary">返回目录</a></p>
+    
+    <div class="card">
+        <div class="card-title">📊 运行数据统计</div>
+        <div class="stat-item"><span class="stat-label">推送时间：</span>{push_time}</div>
+        <div class="stat-item"><span class="stat-label">数据源总数：</span>{total_sources} 个</div>
+        <div class="stat-item"><span class="stat-label">成功抓取：</span><span class="tag-success">{success_sources}</span> 个</div>
+        <div class="stat-item"><span class="stat-label">抓取失败：</span><span class="tag-failed">{failed_sources}</span> 个</div>
+        <div class="stat-item"><span class="stat-label">新增文章：</span><span class="tag-success">{total_articles}</span> 篇</div>
+    </div>
 
-        for error in error_log:
-            safe_error = html.escape(error)
-            content_html += f"        <li>{safe_error}</li>\n"
+    <div class="card">
+        <div class="card-title">🔌 订阅源详情</div>
+        <ul class="source-list">
+            {source_details}
+        </ul>
+    </div>
 
-        content_html += """    </ul>
+    <div class="card">
+        <div class="card-title">⚠️ 异常与错误记录</div>
+        {error_log_content}
+    </div>
+
+    <div class="card">
+        <div class="card-title">ℹ️ 关于 Ought Gather</div>
+        <p class="intro-text">Ought Gather 是一款开源的自动化信息聚合与 Kindle 推送工具。它能够定时从 RSS、订阅邮件、网页、热门榜单等多种渠道抓取最新、最有价值的资讯，对内容进行清洗、排版、智能去重，自动生成符合 EPUB 3.0 标准的精美电子书，并一键推送到您的 Kindle 设备。让您告别碎片化阅读，在专注、无干扰的墨水屏体验中，重获深度思考的力量。</p>
+        <p class="intro-text">想要添加或修改订阅源、查看系统说明或贡献代码，请访问 GitHub 项目主页，或使用内置的配置编辑器 <code>config-editor.html</code> 进行可视化管理。</p>
+    </div>
 </body>
 </html>"""
 
         chapter = epub.EpubHtml(
-            title="错误日志",
-            file_name="error_log.xhtml"
+            title="推送汇总",
+            file_name="summary.xhtml"
         )
         chapter.content = content_html
 
         book.add_item(chapter)
 
         # 添加到目录
-        book.toc.append(epub.Link("error_log.xhtml", "错误日志", "error_log"))
+        book.toc.append(epub.Link("summary.xhtml", "推送汇总", "summary"))
 
         # 添加到 spine（阅读顺序）
         if isinstance(book.spine, list):
             book.spine.append(chapter)
 
-        self.logger.info("Error log chapter added to EPUB")
+        self.logger.info("Summary chapter added to EPUB")
 
     def _generate_nav_content(self, book_title: str, toc: List[Union[epub.Link, Tuple[epub.Link, List[epub.Link]]]]) -> str:
         """
@@ -562,7 +671,7 @@ class EPUBGenerator:
 """
         for item in toc:
             if isinstance(item, epub_lib.Link):
-                # 扁平链接（如 web/trending 或 error_log）
+                # 扁平链接（如 web/trending 或 summary）
                 # 这里的 web/trending 其实是该源的唯一入口，也使用大章节样式
                 content += f'            <li id="toc_{item.uid}"><a class="section-link" href="{item.href}">{html.escape(item.title)}</a></li>\n'
             elif isinstance(item, tuple) and len(item) == 2:
