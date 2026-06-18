@@ -110,6 +110,53 @@
       box-shadow: var(--shadow-lg);
     }
 
+    .project-intro {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 24px;
+      align-items: center;
+    }
+    .project-intro h2 {
+      margin-bottom: 14px;
+    }
+    .project-intro p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 14px;
+    }
+    .project-intro ul {
+      list-style: none;
+      display: grid;
+      gap: 10px;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+    .project-intro li {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .project-intro li::before {
+      content: "•";
+      color: var(--accent);
+      font-weight: 700;
+      line-height: 1.4;
+    }
+    .kindle-gallery {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .kindle-gallery img {
+      width: 100%;
+      aspect-ratio: 3 / 4;
+      object-fit: cover;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: #fdfdfb;
+      box-shadow: var(--shadow-sm);
+    }
+
     /* Form Fields styling */
     .form-row {
       display: flex;
@@ -704,6 +751,28 @@
       font-size: 0.95rem;
       padding: 30px 0;
     }
+
+    @media (max-width: 760px) {
+      body {
+        padding: 28px 14px;
+      }
+      .project-intro {
+        grid-template-columns: 1fr;
+      }
+      .kindle-gallery {
+        gap: 8px;
+      }
+      .form-row {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .form-row label,
+      .hint {
+        width: auto;
+        margin-left: 0;
+      }
+    }
   </style>
 </head>
 <body>
@@ -714,6 +783,24 @@
       <p class="subtitle">E-Book Synthesizer & Kindle Newsletter Aggregator</p>
       <div class="separator"></div>
     </header>
+
+    <!-- Project Introduction -->
+    <div class="card project-intro">
+      <div>
+        <h2>📖 项目介绍</h2>
+        <p>Ought Gather 是一个面向 Kindle 和电子书阅读场景的内容聚合工具，可以把 RSS、邮件、网页和趋势信息源整理成适合每日阅读的电子书或 newsletter。</p>
+        <ul>
+          <li>通过可视化表单管理内容源、优先级、抓取上限和过滤规则。</li>
+          <li>支持为不同来源配置全文抓取、链接保留、裁剪和元数据条件。</li>
+          <li>生成标准 JSON 配置后，可直接用于自动化内容收集与电子书合成流程。</li>
+        </ul>
+      </div>
+      <div class="kindle-gallery" aria-label="Kindle 阅读效果截图">
+        <img src="https://raw.githubusercontent.com/liusonwood/oughtgather/main/img/Kindle_img1.jpg" alt="Ought Gather Kindle 阅读效果截图 1">
+        <img src="https://raw.githubusercontent.com/liusonwood/oughtgather/main/img/Kindle_img2.jpg" alt="Ought Gather Kindle 阅读效果截图 2">
+        <img src="https://raw.githubusercontent.com/liusonwood/oughtgather/main/img/Kindle_img3.jpg" alt="Ought Gather Kindle 阅读效果截图 3">
+      </div>
+    </div>
 
     <!-- Title Section -->
     <div class="card">
