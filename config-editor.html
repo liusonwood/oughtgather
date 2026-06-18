@@ -49,6 +49,11 @@
       font-weight: 500;
       color: #555;
     }
+    .required-asterisk {
+      color: var(--danger);
+      margin-left: 2px;
+      font-weight: bold;
+    }
     .form-row input, .form-row select, .form-row textarea {
       flex: 1;
       padding: 6px 10px;
@@ -231,6 +236,151 @@
       text-align: center; padding: 24px 0; color: #27ae60; font-size: 1.1em;
     }
     .modal-box .btn-row { text-align: right; margin-top: 16px; }
+
+    /* Drag & Drop Config Section Styles */
+    .drag-drop-card {
+      border: 1px solid var(--primary);
+      box-shadow: 0 4px 12px rgba(74, 144, 217, 0.1);
+    }
+    .drag-drop-card h2 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-intro {
+      font-size: 0.88em;
+      color: #666;
+      margin-bottom: 16px;
+    }
+    .drag-drop-zone {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 16px;
+      background: #fdfdfd;
+      border: 2px dashed #ccc;
+      border-radius: var(--radius);
+      padding: 12px;
+      min-height: 80px;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+    .drag-drop-zone.dragover {
+      border-color: var(--primary);
+      background: rgba(74, 144, 217, 0.05);
+    }
+    .drag-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: grab;
+      user-select: none;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .drag-item:active {
+      cursor: grabbing;
+    }
+    .drag-item.dragging {
+      opacity: 0.5;
+      border-style: dashed;
+      border-color: var(--primary);
+      box-shadow: 0 8px 16px rgba(74, 144, 217, 0.15);
+      transform: scale(0.98);
+    }
+    .drag-item-handle {
+      color: var(--text-muted);
+      cursor: grab;
+      font-size: 1.2em;
+      margin-right: 12px;
+      display: flex;
+      align-items: center;
+    }
+    .drag-item-content {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .drag-item-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 200px;
+    }
+    .drag-item-index {
+      font-weight: 700;
+      color: var(--primary);
+      background: rgba(74, 144, 217, 0.1);
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-size: 0.8em;
+    }
+    .drag-item-title {
+      font-weight: 600;
+      font-size: 0.9em;
+      max-width: 180px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .drag-item-props {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .drag-prop-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.82em;
+    }
+    .drag-prop-group label {
+      color: #666;
+      font-weight: 500;
+    }
+    .drag-prop-group input, .drag-prop-group select {
+      padding: 3px 6px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 0.9em;
+      background: #fafafa;
+    }
+    .drag-prop-group input:focus, .drag-prop-group select:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: #fff;
+    }
+    .drag-drop-settings {
+      font-size: 0.85em;
+      color: #555;
+      padding: 10px 14px;
+      background: #f9f9f9;
+      border-radius: 6px;
+      border: 1px solid #eee;
+    }
+    .drag-drop-settings label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .drag-empty-msg {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.9em;
+      padding: 20px 0;
+    }
   </style>
 </head>
 <body>
@@ -242,7 +392,7 @@
     <div class="card">
       <h2>📌 标题设置</h2>
       <div class="form-row">
-        <label>标题文字</label>
+        <label>标题文字<span class="required-asterisk">*</span></label>
         <input type="text" id="title-text" placeholder="例如: {每日新闻</br>{time}}">
         <span class="hint">支持 {time} 占位符</span>
       </div>
@@ -263,6 +413,25 @@
       <h2>📋 内容源</h2>
       <div id="sources-list"></div>
       <button class="btn btn-primary" onclick="addSource()">+ 添加内容源</button>
+    </div>
+
+    <!-- Drag & Drop Config Section -->
+    <div class="card drag-drop-card">
+      <h2>🔀 智能拖拽排序与属性快捷配置 (Drag & Drop Auto-Config)</h2>
+      <p class="section-intro">在下方拖拽调整内容源的优先级顺序（文件中的先后自然顺序不受影响）。您可以在此查看并快速配置核心属性。拖拽会自动分配新优先级。</p>
+      
+      <div id="drag-drop-zone" class="drag-drop-zone">
+        <!-- Draggable items will be rendered here -->
+      </div>
+      
+      <div class="drag-drop-settings" style="display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 12px;">
+        <button class="btn btn-outline btn-sm" onclick="recalculatePrioritiesFromDrag()" style="border-color: var(--primary); color: var(--primary); background: #fff; font-size: 0.82em; display: flex; align-items: center; gap: 4px;">
+          ⚡️ 重新分配优先级 (从 
+          <input type="number" id="priority-start" value="10" style="width: 55px; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; text-align: center;" onclick="event.stopPropagation()" onchange="saveDragSettings()"> 
+          开始，每项递增 
+          <input type="number" id="priority-step" value="10" style="width: 45px; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; text-align: center;" onclick="event.stopPropagation()" onchange="saveDragSettings()">)
+        </button>
+      </div>
     </div>
 
     <!-- Actions -->
@@ -354,7 +523,27 @@
 
     function updateField(id, field, value) {
       const s = getSource(id);
-      if (s) s[field] = value;
+      if (s) {
+        s[field] = value;
+
+        // Dynamic surgical updates to drag & drop items to keep views in sync without losing focus
+        const dragItem = document.querySelector(`.drag-item[data-id="${id}"]`);
+        if (dragItem) {
+          if (field === 'title' || field === 'src') {
+            const titleEl = dragItem.querySelector('.drag-item-title');
+            if (titleEl) {
+              const displayName = s.title || s.src || '(未命名)';
+              titleEl.textContent = displayName;
+              titleEl.setAttribute('title', displayName);
+            }
+          } else if (field === 'priority') {
+            const priorityInput = dragItem.querySelector('input[oninput*="priority"]');
+            if (priorityInput) {
+              priorityInput.value = value;
+            }
+          }
+        }
+      }
     }
 
     // ---- Exclude rules ----
@@ -378,7 +567,7 @@
     }
 
     // ---- Render ----
-    function renderSources() {
+    function renderSources(renderDrag = true) {
       // Save open state of collapsible sections before re-render
       const openSections = new Set();
       document.querySelectorAll('#sources-list .collapsible').forEach(el => {
@@ -411,14 +600,14 @@
           </div>
 
           <div class="form-row">
-            <label>类型</label>
+            <label>类型<span class="required-asterisk">*</span></label>
             <select onchange="updateField(${s._id}, 'type', this.value); renderSources();">
               ${typeOptions}
             </select>
           </div>
 
           <div class="form-row">
-            <label>来源 (src)</label>
+            <label>来源 (src)<span class="required-asterisk">*</span></label>
             <input type="text" value="${escapeHtml(s.src)}" oninput="updateField(${s._id}, 'src', this.value)"
               placeholder="${getSrcPlaceholder(s.type)}">
           </div>
@@ -545,6 +734,10 @@
           }
         }
       });
+
+      if (renderDrag) {
+        renderDragDropList();
+      }
     }
 
     function getSrcPlaceholder(type) {
@@ -879,8 +1072,213 @@
       renderSources();
     }
 
+    // ---- Drag & Drop Auto-Configuration ----
+    function renderDragDropList() {
+      const container = document.getElementById('drag-drop-zone');
+      if (!container) return;
+
+      if (sources.length === 0) {
+        container.innerHTML = '<div class="drag-empty-msg">暂无内容源，请在上方添加</div>';
+        return;
+      }
+
+      // Sort a copy of sources for rendering the drag & drop list by priority descending (stable sort using natural order as fallback)
+      const sortedSources = [...sources].sort((a, b) => {
+        const pA = a.priority !== '' && a.priority !== undefined && a.priority !== null ? Number(a.priority) : 0;
+        const pB = b.priority !== '' && b.priority !== undefined && b.priority !== null ? Number(b.priority) : 0;
+        if (pB !== pA) {
+          return pB - pA;
+        }
+        return sources.indexOf(a) - sources.indexOf(b);
+      });
+
+      container.innerHTML = sortedSources.map((s, i) => {
+        const badgeClass = `badge-${s.type}`;
+
+        return `
+          <div class="drag-item" draggable="true" data-id="${s._id}">
+            <div class="drag-item-handle">⋮⋮</div>
+            <div class="drag-item-content">
+              <div class="drag-item-info">
+                <span class="drag-item-index">${i + 1}</span>
+                <span class="drag-item-title" title="${escapeHtml(s.title || s.src)}">
+                  ${escapeHtml(s.title || s.src || '(未命名)')}
+                </span>
+                <span class="source-type-badge ${badgeClass}">${s.type || '无'}</span>
+              </div>
+              <div class="drag-item-props">
+                <div class="drag-prop-group">
+                  <label>优先级</label>
+                  <input type="number" value="${s.priority}" 
+                    oninput="updateFieldFromDrag(${s._id}, 'priority', parseInt(this.value)||0)" 
+                    style="width: 60px;">
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Re-attach drag-and-drop event listeners to the new drag items
+      attachDragEvents();
+    }
+
+    function attachDragEvents() {
+      const items = document.querySelectorAll('.drag-item');
+      items.forEach(item => {
+        item.addEventListener('dragstart', () => {
+          item.classList.add('dragging');
+        });
+        item.addEventListener('dragend', () => {
+          item.classList.remove('dragging');
+          // Only update visual numbering indexes on drag end, do NOT assign priorities automatically
+          updateDragItemIndexes();
+        });
+      });
+    }
+
+    function updateDragItemIndexes() {
+      const container = document.getElementById('drag-drop-zone');
+      if (!container) return;
+      const indexElements = container.querySelectorAll('.drag-item-index');
+      indexElements.forEach((el, idx) => {
+        el.textContent = idx + 1;
+      });
+    }
+
+    function recalculatePriorities() {
+      const startPriorityInput = document.getElementById('priority-start');
+      const stepPriorityInput = document.getElementById('priority-step');
+      
+      let currentPriority = parseInt(startPriorityInput.value);
+      if (isNaN(currentPriority)) currentPriority = 10;
+      
+      let step = parseInt(stepPriorityInput.value);
+      if (isNaN(step)) step = 10;
+      
+      // Get the current order from the drag-and-drop zone DOM
+      const container = document.getElementById('drag-drop-zone');
+      if (container) {
+        const itemElements = [...container.querySelectorAll('.drag-item')];
+        if (itemElements.length > 0) {
+          const dragIds = itemElements.map(el => parseInt(el.getAttribute('data-id')));
+          const N = dragIds.length;
+          dragIds.forEach((id, idx) => {
+            const s = getSource(id);
+            if (s) {
+              s.priority = currentPriority + (N - 1 - idx) * step;
+            }
+          });
+          return;
+        }
+      }
+      
+      // Fallback: if DOM is not rendered yet, sort sources by priority descending and assign
+      const sorted = [...sources].sort((a, b) => {
+        const pA = a.priority !== '' && a.priority !== undefined && a.priority !== null ? Number(a.priority) : 0;
+        const pB = b.priority !== '' && b.priority !== undefined && b.priority !== null ? Number(b.priority) : 0;
+        if (pB !== pA) {
+          return pB - pA;
+        }
+        return sources.indexOf(a) - sources.indexOf(b);
+      });
+      const N = sorted.length;
+      sorted.forEach((s, idx) => {
+        s.priority = currentPriority + (N - 1 - idx) * step;
+      });
+    }
+
+    function recalculatePrioritiesFromDrag() {
+      recalculatePriorities();
+      renderSources(true);
+      showToast('已根据当前拖拽顺序重新分配优先级！', 'success');
+      saveDragSettings();
+    }
+
+    function saveDragSettings() {
+      const start = document.getElementById('priority-start').value;
+      const step = document.getElementById('priority-step').value;
+      
+      localStorage.setItem('og_priority_start_v2', start);
+      localStorage.setItem('og_priority_step_v2', step);
+    }
+
+    function loadDragSettings() {
+      const start = localStorage.getItem('og_priority_start_v2');
+      const step = localStorage.getItem('og_priority_step_v2');
+      
+      if (start !== null) {
+        document.getElementById('priority-start').value = start;
+      } else {
+        document.getElementById('priority-start').value = "10";
+      }
+      if (step !== null) {
+        document.getElementById('priority-step').value = step;
+      } else {
+        document.getElementById('priority-step').value = "10";
+      }
+    }
+
+    function updateFieldFromDrag(id, field, value) {
+      const s = getSource(id);
+      if (s) {
+        s[field] = value;
+        // Update the main sources list DOM directly, but do NOT re-render the drag-drop list
+        // to prevent input blur / focus loss.
+        renderSources(false);
+      }
+    }
+
+    function initDragAndDrop() {
+      const container = document.getElementById('drag-drop-zone');
+      if (!container) return;
+      
+      container.addEventListener('dragover', e => {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(container, e.clientY);
+        const draggable = document.querySelector('.drag-item.dragging');
+        if (draggable) {
+          if (afterElement == null) {
+            container.appendChild(draggable);
+          } else {
+            container.insertBefore(draggable, afterElement);
+          }
+        }
+      });
+
+      container.addEventListener('dragenter', e => {
+        e.preventDefault();
+        container.classList.add('dragover');
+      });
+
+      container.addEventListener('dragleave', () => {
+        container.classList.remove('dragover');
+      });
+
+      container.addEventListener('drop', e => {
+        e.preventDefault();
+        container.classList.remove('dragover');
+      });
+    }
+
+    function getDragAfterElement(container, y) {
+      const draggableElements = [...container.querySelectorAll('.drag-item:not(.dragging)')];
+      
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
     // ---- Init ----
+    loadDragSettings();
     renderSources();
+    initDragAndDrop();
   </script>
 </body>
 </html>
