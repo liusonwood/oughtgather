@@ -577,6 +577,7 @@ class EPUBGenerator:
         <div class="card-title">ℹ️ 关于 Ought Gather</div>
         <p class="intro-text">Ought Gather 是一款专为深度阅读与墨水屏爱好者打造的自动化内容聚合与 Kindle 推送工具。在这个算法推荐和信息碎片化的时代，Ought Gather 旨在帮助您重获阅读的主动权。它能够定时从您信任的 RSS、订阅邮件、网页及 AI 热点中提取最纯净的资讯，经过排版净化、图片压缩与智能去重，自动生成符合 EPUB 3.0 标准的精美电子书，并一键推送到您的 Kindle 设备。让您在专注、无干扰的阅读中，重新找回沉浸式思考的力量。</p>
         <p class="intro-text">想要添加或修改订阅源、查看系统说明或贡献代码，请访问 GitHub 项目主页，或使用内置的配置编辑器 <code>config-editor.html</code> 进行可视化管理。</p>
+        <p class="intro-text">GitHub 链接：https://github.com/liusonwood/oughtgather</p>
     </div>
     
     <div class="card">

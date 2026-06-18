@@ -1,206 +1,310 @@
 # Ought Gather
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-green.svg)](https://www.python.org/downloads/)
-[![CI Status](https://github.com/liusonwood/oughtgather/workflows/Daily%20Gather/badge.svg)](https://github.com/liusonwood/oughtgather/actions)
+[![Daily Gather](https://github.com/liusonwood/oughtgather/actions/workflows/daily-gather.yml/badge.svg)](https://github.com/liusonwood/oughtgather/actions/workflows/daily-gather.yml)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![EPUB 3.0](https://img.shields.io/badge/EPUB-3.0-6f42c1)](docs/EPUB_COMPLIANCE.md)
+[![Kindle Delivery](https://img.shields.io/badge/Kindle-Email%20Delivery-orange)](#github-actions)
 
-**每天早上 8 点，自动为你生成一份专属的电子书，推送至 Kindle —— 从此告别碎片化阅读，拥抱深度思考。**
+Ought Gather 是一个 Python 自动化信息聚合工具。它从 RSS、网页、TestMail.app 邮件和 LLM 热点分析源收集内容，去重和清洗后生成 EPUB，并通过 SMTP 邮件发送到 Kindle 接收邮箱。
 
-在信息爆炸的时代，我们每天被各种邮件订阅、RSS 推送、社交媒体热点所淹没。Ought Gather 为你提供了一个优雅的解决方案：它自动化聚合来自不同渠道的优质内容，生成格式精美的 EPUB 电子书，直接发送到你的 Kindle。无论是通勤路上、睡前时光，还是周末午后，你都可以在纸质般的阅读体验中，专注地消化这一天最有价值的信息。
+项目内置 GitHub Actions 工作流：每天 UTC 00:00 运行一次，也可以手动触发。工作流会安装依赖、准备 `config.json`、执行 `python src/main.py`、提交去重记录，并把生成的 EPUB 作为 artifact 保留 7 天。
 
-无需手动整理，无需切换应用，只需一次配置，每天都能收获一份为你量身定制的"数字晨报"。
+## 功能
 
-## 功能特性
+- 支持四类内容源：`rss`、`web`、`mail`、`trending`
+- 生成 EPUB 3.0 文件，包含封面、目录、正文和推送汇总章节
+- 封面可使用自定义图片；未配置时尝试使用 Bing 每日壁纸，失败后使用纯色背景
+- 支持标题日期占位符 `{time}` 和封面标题换行标记 `</br>`
+- 支持按源设置优先级、链接保留、全文抓取、内容裁剪、HTML 过滤和标题关键词删除
+- 使用 `data/fetched_urls.txt` 记录已处理内容；记录超过 50000 条时保留最新记录
+- 支持通过 `CONFIG_JSON` 环境变量提供完整配置，避免把私有源写入仓库
 
-- **多数据源支持**：邮件订阅、RSS、网页、AI 热点分析
-- **智能去重**：自动记录已抓取内容，避免重复；超过 5000 条时自动清理旧记录
-- **EPUB 生成**：自动生成带封面、目录的电子书，符合EPUB 3.0规范（详见 [EPUB合规指南](docs/EPUB_COMPLIANCE.md)）
-- **Kindle 推送**：通过邮件自动发送到 Kindle
-- **定时运行**：GitHub Actions 每天自动执行
-- **内容过滤**：支持关键词过滤、内容裁剪等规则
+## 环境要求
 
-## 快速开始
+- Python 3.11+
+- 依赖见 `requirements.txt`
+- Kindle 推送需要可用的 SMTP 邮箱
+- `mail` 源需要 `TESTMAIL_APP_API_KEY`
+- `trending` 源需要 `OPENROUTER_API_KEY`
 
-### 1. Fork 本仓库
+## 新手简单使用教程
 
-点击 GitHub 页面右上角的 "Fork" 按钮。
+这条路线不需要在本地安装 Python，适合只想每天自动收到 Kindle 推送的用户。
 
-### 2. 配置 Secrets
+### 1. Fork 仓库
 
-在仓库的 **Settings → Secrets and variables → Actions** 中添加以下 Secrets：
+在 GitHub 页面点击 `Fork`，把项目复制到自己的账号下。后续配置都在你自己的仓库里完成。
 
-注意：仓库 Settings → Actions → General 里 "Workflow permissions" 需要改成 "Read and write permissions"
+### 2. 开启 Actions 写入权限
 
-#### 必需配置（邮件发送）
+进入你的仓库：
 
-| Secret 名称 | 说明 | 示例 |
-|------------|------|------|
-| `SMTP_HOST` | SMTP 服务器地址 | `smtp.gmail.com` |
-| `SMTP_PORT` | SMTP 端口 | `587` 或 `465` |
-| `SMTP_USERNAME` | 发送邮箱账号 | `your-email@gmail.com` |
-| `SMTP_PASSWORD` | 邮箱授权码（非登录密码） | `xxxx xxxx xxxx xxxx` |
-| `KINDLE_EMAIL` | Kindle 接收邮箱 | `your-name@kindle.com` |
+```text
+Settings -> Actions -> General -> Workflow permissions
+```
 
-**注意**：需要在亚马逊后台将发送邮箱添加到 Kindle 的"已认可的发件人电子邮箱列表"中。
+选择 `Read and write permissions`，然后保存。这个权限用于让工作流更新 `data/fetched_urls.txt`，避免每天重复推送同一批文章。
 
-#### 可选配置
+### 3. 准备 Kindle 和发件邮箱
 
-| Secret 名称 | 说明 |
-|------------|------|
-| `CONFIG_JSON` | 完整的 config.json 内容（推荐，可保护隐私） |
-| `TESTMAIL_APP_API_KEY` | TestMail.app API Key（邮件订阅抓取） |
-| `OPENROUTER_API_KEY` | OpenRouter API Key（AI 热点分析） |
-| `OPENROUTER_API_ENDPOINT` | 自定义 LLM API 端点 |
-| `OPENROUTER_MODEL` | 全局默认模型 ID。优先级低于 config.json 中每个源的 `model` 字段。示例：`anthropic/claude-3.5-sonnet`、`openai/gpt-4o` |
+你需要两个邮箱地址：
 
-### 3. 配置数据源
+| 项目 | 说明 |
+| --- | --- |
+| 发件邮箱 | 用来通过 SMTP 发送 EPUB 附件 |
+| Kindle 接收邮箱 | Kindle 的 `@kindle.com` 收件地址 |
 
-创建 `config.json` 文件（或通过 `CONFIG_JSON` Secret 配置）：
+在亚马逊 Kindle 设置里，把发件邮箱加入“已认可的发件人电子邮箱列表”。否则邮件发送成功后，Kindle 也可能不会接收附件。
+
+### 4. 添加 GitHub Secrets
+
+进入你的仓库：
+
+```text
+Settings -> Secrets and variables -> Actions -> New repository secret
+```
+
+先添加这 5 个必需 Secret：
+
+| Secret | 示例 | 说明 |
+| --- | --- | --- |
+| `SMTP_HOST` | `smtp.gmail.com` | 发件邮箱的 SMTP 服务器 |
+| `SMTP_PORT` | `587` | 常见值是 `587` 或 `465` |
+| `SMTP_USERNAME` | `sender@example.com` | 发件邮箱账号 |
+| `SMTP_PASSWORD` | `xxxx xxxx xxxx xxxx` | 邮箱授权码或应用密码 |
+| `KINDLE_EMAIL` | `name@kindle.com` | Kindle 接收邮箱 |
+
+如果只使用 RSS 和网页源，可以先不配置 `TESTMAIL_APP_API_KEY`、`OPENROUTER_API_KEY`。
+
+### 5. 添加配置 Secret
+
+继续新建一个名为 `CONFIG_JSON` 的 Secret，值填完整配置。可以先使用下面这个最小配置：
 
 ```json
 {
   "title": {
-    "text": "{Daily News {time}}",  // 支持 {time} 占位符和 </br> 换行符（如 "{Daily News</br>{time}}"）
-    "img": ""  // 自定义封面 URL，留空则使用 Bing 每日壁纸
+    "text": "{每日新闻 {time}}",
+    "img": ""
   },
-  "limit": 20,  // 每个数据源的抓取条数上限，默认 15
+  "limit": 10,
   "body": [
     {
       "type": "rss",
-      "title": "科技新闻",
-      "src": "https://example.com/rss",
+      "src": "https://hnrss.org/frontpage",
+      "title": "Hacker News",
       "priority": 10,
       "keep_link": "Y",
-      "full_text": "Y"
+      "full_text": "N"
     }
   ]
 }
 ```
-项目提供了一个可视化 HTML 配置编辑器，浏览器打开 `config-editor.html` 即可使用：
 
-详细配置说明见 [配置指南](docs/CONFIG.md)：
+确认能跑通后，可以下载 `config-editor.html` 在浏览器中打开，配置订阅源。
 
-- 标题与封面配置（`title`）
-- 四种数据源类型（`rss` / `web` / `mail` / `trending`）的专属字段
-- 内容过滤（`exclude` / `chop` / `delete`）
-- 完整示例与可视化配置编辑器（`config-editor.html`）
+### 6. 手动运行一次
 
-### 4. 运行
+进入：
 
-- **自动运行**：每天 UTC 00:00（北京时间 08:00）自动执行
-- **手动运行**：在 GitHub Actions 页面手动触发 "Daily Gather" 工作流
-- **修改运行时间**：
-  1. 编辑 `.github/workflows/daily-gather.yml` 文件
-  2. 找到 `cron` 字段，修改调度时间
-  
-  **示例**（修改为北京时间 09:00 运行）：
-  ```yaml
-  schedule:
-    - cron: '0 1 * * *'  # UTC 01:00 = 北京时间 09:00
-  ```
-  
-  **时区说明**：
-  - GitHub Actions 的 cron 使用 **UTC 时区**
-  - 北京时间 = UTC + 8 小时
-  - 如需北京时间 09:00，对应 UTC 01:00（即 `0 1 * * *`）
-  
-  **常用时间对照表**：
-  | 北京时间 | UTC 时区 | cron 表达式 |
-  |---------|---------|------------|
-  | 08:00   | 00:00   | `0 0 * * *` |
-  | 09:00   | 01:00   | `0 1 * * *` |
-  | 10:00   | 02:00   | `0 2 * * *` |
-  | 12:00   | 04:00   | `0 4 * * *` |
-  | 20:00   | 12:00   | `0 12 * * *` |
+```text
+Actions -> Daily Gather -> Run workflow
+```
 
-## 本地开发
+点击运行后，等待任务完成。成功时通常会发生三件事：
 
-### 安装依赖
+- `output/` 中生成 EPUB，并作为 Actions artifact 上传
+- EPUB 通过邮件发送到 `KINDLE_EMAIL`
+- `data/fetched_urls.txt` 被提交更新，用于下次去重
+
+### 7. 检查失败原因
+
+如果没有收到 Kindle 推送，先在 Actions 运行记录里看失败步骤：
+
+| 现象 | 常见原因 |
+| --- | --- |
+| 配置准备失败 | `CONFIG_JSON` 不是合法 JSON |
+| SMTP 登录失败 | `SMTP_USERNAME`、`SMTP_PASSWORD`、端口或授权码错误 |
+| 邮件发出但 Kindle 没收到 | 发件邮箱没有加入 Kindle 认可列表 |
+| 没生成 EPUB | 所有内容都已抓取过，或内容源没有新文章 |
+
+## 快速开始
+
+### 1. 安装依赖
 
 ```bash
 pip install -r requirements.txt
 ```
 
-需要测试依赖：
+### 2. 准备配置
+
+复制模板并修改：
+
 ```bash
-pip install pytest pytest-mock
+cp config.template.json config.json
 ```
 
-### 运行
+最小示例：
+
+```json
+{
+  "title": {
+    "text": "{每日新闻 {time}}",
+    "img": ""
+  },
+  "limit": 15,
+  "body": [
+    {
+      "type": "rss",
+      "src": "https://hnrss.org/frontpage",
+      "title": "Hacker News",
+      "priority": 10,
+      "keep_link": "Y",
+      "full_text": "N"
+    }
+  ]
+}
+```
+
+也可以直接在浏览器中打开 `config-editor.html` 编辑配置。完整字段说明见 [docs/CONFIG.md](docs/CONFIG.md)。
+
+### 3. 设置环境变量
+
+本地运行至少需要 SMTP 和 Kindle 接收邮箱配置：
+
+```bash
+export SMTP_HOST="smtp.example.com"
+export SMTP_PORT="587"
+export SMTP_USERNAME="sender@example.com"
+export SMTP_PASSWORD="app-password"
+export KINDLE_EMAIL="name@kindle.com"
+```
+
+可选变量：
+
+| 变量 | 用途 |
+| --- | --- |
+| `CONFIG_JSON` | 完整 `config.json` 字符串；优先级高于本地 `config.json` |
+| `TESTMAIL_APP_API_KEY` | 读取 TestMail.app 邮件 |
+| `OPENROUTER_API_KEY` | 调用 LLM 生成热点分析 |
+| `OPENROUTER_API_ENDPOINT` | 自定义 OpenRouter 兼容接口，默认 `https://openrouter.ai/api/v1/chat/completions` |
+| `OPENROUTER_MODEL` | `trending` 源的全局默认模型；低于单个源的 `model` 字段 |
+
+Kindle 侧还需要把发送邮箱加入“已认可的发件人电子邮箱列表”。
+
+### 4. 运行
 
 ```bash
 python src/main.py
 ```
 
-### 测试
+有新内容时，程序会在 `output/` 下生成 EPUB，并尝试发送到 `KINDLE_EMAIL`。日志写入 `logs/`。
+
+## GitHub Actions
+
+工作流文件是 [.github/workflows/daily-gather.yml](.github/workflows/daily-gather.yml)。
+
+Fork 或部署到自己的仓库后，在 `Settings -> Secrets and variables -> Actions` 中配置：
+
+| Secret | 必需 | 说明 |
+| --- | --- | --- |
+| `SMTP_HOST` | 是 | SMTP 服务器地址 |
+| `SMTP_PORT` | 是 | SMTP 端口；`465` 使用 SSL，其他端口使用 STARTTLS |
+| `SMTP_USERNAME` | 是 | 发件邮箱账号 |
+| `SMTP_PASSWORD` | 是 | 发件邮箱密码或应用授权码 |
+| `KINDLE_EMAIL` | 是 | Kindle 接收邮箱 |
+| `CONFIG_JSON` | 否 | 完整配置；未设置时工作流读取仓库中的 `config.json` |
+| `TESTMAIL_APP_API_KEY` | 否 | `mail` 源所需 |
+| `OPENROUTER_API_KEY` | 否 | `trending` 源所需 |
+| `OPENROUTER_API_ENDPOINT` | 否 | OpenRouter 兼容接口地址 |
+| `OPENROUTER_MODEL` | 否 | `trending` 源默认模型 |
+
+工作流会把 `data/fetched_urls.txt` 提交回仓库，因此仓库 Actions 权限需要允许写入内容。
+
+### 修改运行时间
+
+定时触发由 [.github/workflows/daily-gather.yml](.github/workflows/daily-gather.yml) 的 `on.schedule` 控制：
+
+```yaml
+on:
+  schedule:
+    # 当前仓库实测约在北京时间 12:00 运行
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+```
+
+要修改自动运行时间，只需要改 `cron` 这一行。GitHub Actions 的 cron 使用 UTC，不使用北京时间；工作流里的 `TZ: Asia/Shanghai` 只影响程序运行时的日期、日志和内容生成，不影响触发时间。
+
+按 UTC 换算，`cron: '0 0 * * *'` 对应北京时间 08:00；但当前仓库的实际运行记录显示，这个配置约在北京时间 12:00 触发。也就是说，下面的表格是 cron 语义上的换算，实际触发时间仍应以 GitHub Actions 运行记录为准。
+
+如果你希望按当前仓库的实际表现调整时间，可以用现有配置作为参照：`'0 0 * * *'` 实测约为北京时间 12:00。比如想提前 1 小时到北京时间 11:00，可以改为：
+
+```yaml
+schedule:
+  - cron: '0 23 * * *'
+```
+
+也可以保留 `workflow_dispatch`，这样即使改了定时规则，仍能在 GitHub Actions 页面手动运行。
+
+## 配置要点
+
+>项目提供了一个可视化 HTML 配置编辑器，浏览器打开 `config-editor.html` 即可使用。
+
+顶层字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `title` | EPUB 标题和封面配置 |
+| `limit` | 每个内容源的默认抓取上限，默认 `15` |
+| `body` | 内容源数组 |
+
+内容源通用字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `type` | `rss`、`web`、`mail`、`trending` |
+| `src` | 内容源地址或主题；所有类型必填 |
+| `title` | EPUB 中显示的章节标题 |
+| `priority` | 章节排序值，数值越大越靠前 |
+| `keep_link` | `Y` 保留链接，`N` 移除链接标签但保留文字 |
+| `full_text` | RSS 是否抓取原文；`Y` 启用 |
+| `chop` | 使用 `"/[start:end]"` 形式裁剪纯文本 |
+| `exclude` | 按 `start`、`end`、`exact` 规则过滤 HTML 内容 |
+| `delete` | 标题包含指定关键词时跳过整篇文章 |
+| `goal` | `trending` 源的分析目标 |
+| `model` | `trending` 源使用的模型 |
+| `metadata` | 类型专属扩展配置，如邮件 tag、limit、时间范围 |
+
+## 测试
 
 ```bash
-# 运行所有测试
 python -m pytest tests/
-
-# 显示详细信息
 python -m pytest tests/ -v
+```
 
-# 只运行某个测试文件
+常用定向测试：
+
+```bash
 python -m pytest tests/test_config.py -v
-
-# 只运行某个测试类
-python -m pytest tests/test_config.py::TestTitleConfig -v
-
-# 运行EPUB合规性测试（验证EPUB生成符合规范）
+python -m pytest tests/test_fetchers.py -v
 python -m pytest tests/test_epub_compliance.py -v
 ```
 
-当前测试覆盖：
-- **配置加载**（`test_config.py`）
-- **工具函数**（`test_helpers.py`）
-- **内容处理**（`test_content_processor.py`）
-- **去重追踪**（`test_dedup_tracker.py`）
-- **数据抓取**（`test_fetchers.py`）
-- **图片处理**（`test_image_processor.py`）
-- **EPUB 合规性**（`test_epub_compliance.py`）— 21个测试验证EPUB生成符合规范（目录结构、OPF文件、nav document、spine顺序等）
-- **EPUB 标准验证**（`test_integration.py`）— 使用 [epubcheck](https://github.com/w3c/epubcheck) 验证生成的 EPUB 是否符合 EPUB 3 标准
+集成测试支持 [epubcheck](https://github.com/w3c/epubcheck) 。若要启用 W3C EPUB 校验，把 `epubcheck.jar` 放在：
 
-#### EPUB 合规验证
-
-集成测试中包含 epubcheck 验证，用于确保生成的 EPUB 符合 W3C EPUB 3 标准。此测试为可选功能，未配置时会自动跳过。
-
-**配置步骤**：
-
-1. 确保已安装 Java 运行时（`java -version` 检查）
-2. 从 [epubcheck releases](https://github.com/w3c/epubcheck/releases) 下载最新版 ZIP 并解压
-3. 将解压后的目录放到项目根目录，重命名为 `epubcheck`，确保结构为：
-   ```
-   ought-gather/
-   └── epubcheck/
-       └── epubcheck.jar
-   ```
-4. 运行测试：
-   ```bash
-   python -m pytest tests/test_integration.py::TestEpubcheckValidation -v
-   ```
-
-> 未配置 epubcheck 时，其他测试仍正常运行，EPUB 合规测试会被跳过并提示"⚠ EPUB 合规测试不存在"。
-
-详细测试指南见 [TESTING.md](docs/TESTING.md)。
-
-### 测试数据维护
-
-去重文件 `data/fetched_urls.txt` 超过 5000 条时会自动清理旧记录。如需在本地测试自动清理功能，可以手动缩减行数：
-
-```bash
-# 隔行删除（保留奇数行，删除偶数行），160 行 → 80 行
-awk 'NR % 2 == 1' data/fetched_urls.txt > /tmp/tmp_urls.txt && mv /tmp/tmp_urls.txt data/fetched_urls.txt
-
-# 反向：保留偶数行，删除奇数行
-awk 'NR % 2 == 0' data/fetched_urls.txt > /tmp/tmp_urls.txt && mv /tmp/tmp_urls.txt data/fetched_urls.txt
-
-# 查看当前行数
-wc -l data/fetched_urls.txt
+```text
+epubcheck/epubcheck.jar
 ```
 
-### 项目结构
+然后运行：
 
+```bash
+python -m pytest tests/test_integration.py::TestEpubcheckValidation -v
+```
+
+更多说明见 [docs/TESTING.md](docs/TESTING.md) 和 [docs/EPUB_COMPLIANCE.md](docs/EPUB_COMPLIANCE.md)。
+
+## 项目结构
 ```
 ought-gather/
 ├── config-editor.html          # 可视化配置编辑器（浏览器打开）
@@ -246,58 +350,6 @@ ought-gather/
 └── .github/workflows/          # GitHub Actions
     └── daily-gather.yml
 ```
-
-## 常见问题
-
-### Q: 如何测试配置是否正确？
-
-A: 在本地创建 `config.json`，运行 `python src/main.py`，检查 `output/` 目录生成的 EPUB 文件。
-
-### Q: Kindle 收不到邮件怎么办？
-
-A: 
-1. 检查发送邮箱是否已添加到 Kindle 的"已认可的发件人电子邮箱列表"
-2. 检查 SMTP 配置是否正确（特别是授权码）
-3. 查看 GitHub Actions 运行日志
-
-### Q: 如何修改运行时间？
-
-A: 编辑 `.github/workflows/daily-gather.yml`，修改 `cron` 表达式。
-
-### Q: 支持哪些邮箱服务？
-
-A: 支持所有提供 SMTP 服务的邮箱，如 Gmail、QQ 邮箱、163 箱等。注意需要使用授权码而非登录密码。
-
-### Q: 如何修改每个源的抓取条数上限？
-
-A: 在 `config.json` 中添加顶层 `limit` 字段即可修改全局上限（默认为 15 条）：
-
-```json
-{
-  "title": { ... },
-  "limit": 30,  // 每个数据源最多抓取 30 条
-  "body": [ ... ]
-}
-```
-
-**说明**：
-- 此参数为全局设置，应用到所有数据源（RSS/Web/Mail/Trending）
-- Mail 类型的 metadata 中也可以设置 `limit`（默认 50，最大 100），但这只针对单个 mail 源的 API 查询数量，优先级高于全局 limit
-- 如果某些源实际内容少于设置的上限，则按实际数量抓取
-
-## 技术栈
-
-- **Python 3.11+**
-- **feedparser**: RSS/Atom 解析
-- **trafilatura**: 网页正文提取
-- **ebooklib**: EPUB 生成
-- **Pillow**: 图片处理
-- **httpx**: HTTP 请求
-
 ## 许可证
 
-Apache 2.0
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
+Apache 2.0，见 [LICENSE](LICENSE)。
