@@ -2,7 +2,7 @@ name: Daily Gather
 
 on:
   schedule:
-    # 每天 UTC 00:00 运行（北京时间 08:00）
+    # 当前仓库实测约在北京时间 12:00 运行
     - cron: '0 0 * * *'
   workflow_dispatch:  # 支持手动触发
 
