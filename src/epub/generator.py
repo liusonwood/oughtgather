@@ -63,8 +63,9 @@ class EPUBGenerator:
         toc = self.toc_generator.generate(sections)
         book.toc = toc
 
-        # 初始化 spine (包含 cover)
-        book.spine = ['cover']
+        # 初始化 spine（不包含 cover，封面放在 manifest/guide 中作为辅助资源，
+        # 这样 Kindle 打开时会直接进入目录而非封面）
+        book.spine = []
 
         # 7. 添加章节 (必须在添加导航文件之前，因为需要其生成 chapter_id)
         # _add_chapters 会将章节追加到 book.spine
@@ -85,12 +86,12 @@ class EPUBGenerator:
         book.add_item(nav)
 
         # 10. 将 nav 插入到 spine 中。
-        # 我们希望首次打开电子书时直接进入目录 (nav.xhtml)，因此把 nav 排在最前面，
-        # 随后是封面 (cover) 以及各个章节。确保阅读顺序合理且首次打开即为目录。
+        # 我们希望首次打开电子书时直接进入目录 (nav.xhtml)，因此把 nav 排在最前面。
+        # 封面不加入 spine，仅通过 manifest + guide 引用，阅读器（含 Kindle）会跳过封面直接进入目录。
         if isinstance(book.spine, list):
             book.spine.insert(0, nav)
         else:
-            book.spine = [nav, 'cover']
+            book.spine = [nav]
 
         # 11. 添加样式
         self._add_style(book)
@@ -224,10 +225,11 @@ class EPUBGenerator:
         chapter_id = 0
         divider_id = 0
 
-        # 使用 book.spine 的当前值（ebooklib 会自动包含 cover 和 nav）
-        # 如果 book.spine 未初始化，先设置 cover
+        # 使用 book.spine 的当前值
+        # 不将 cover 加入 spine，封面仅通过 manifest + guide 引用，
+        # 确保打开电子书时直接进入目录 (nav.xhtml) 而非封面。
         if not book.spine:
-            book.spine = ['cover']
+            book.spine = []
         spine = book.spine
 
         for source, articles, source_title in sections:
