@@ -107,7 +107,13 @@ Settings -> Secrets and variables -> Actions -> New repository secret
 }
 ```
 
-确认能跑通后，可以下载 `config-editor.html` 在浏览器中打开，配置订阅源。
+确认能跑通后，可以使用在线配置编辑器生成配置：
+
+```text
+https://liusonwood.github.io/oughtgather/
+```
+
+也可以下载仓库里的 `config-editor.html`，在浏览器中本地打开使用。
 
 ### 6. 手动运行一次
 
@@ -172,7 +178,13 @@ cp config.template.json config.json
 }
 ```
 
-也可以直接在浏览器中打开 `config-editor.html` 编辑配置。完整字段说明见 [docs/CONFIG.md](docs/CONFIG.md)。
+也可以使用在线配置编辑器生成配置：
+
+```text
+https://liusonwood.github.io/oughtgather/
+```
+
+如果你 fork 了仓库并开启了 GitHub Pages，也可以访问自己仓库对应的 Pages 地址。离线使用时，直接在浏览器中打开仓库里的 `config-editor.html` 即可。完整字段说明见 [docs/CONFIG.md](docs/CONFIG.md)。
 
 ### 3. 设置环境变量
 
@@ -254,7 +266,7 @@ schedule:
 
 ## 配置要点
 
->项目提供了一个可视化 HTML 配置编辑器，浏览器打开 `config-editor.html` 即可使用。
+>项目提供了一个可视化 HTML 配置编辑器。推荐访问 `https://liusonwood.github.io/oughtgather/` 在线使用；也可以在浏览器中本地打开 `config-editor.html` 离线使用。
 
 顶层字段：
 
