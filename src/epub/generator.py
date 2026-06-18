@@ -566,9 +566,16 @@ class EPUBGenerator:
 <body>
     <h1 class="summary-title">推送汇总</h1>
     <p class="toc-link" style="text-align: left;"><a href="nav.xhtml#toc_summary">返回目录</a></p>
+
+
+    <div class="card">
+        <div class="card-title">ℹ️ 关于 Ought Gather</div>
+        <p class="intro-text">Ought Gather 是一款开源的自动化信息聚合与 Kindle 推送工具。它能够定时从 RSS、订阅邮件、网页、热门榜单等多种渠道抓取最新、最有价值的资讯，对内容进行清洗、排版、智能去重，自动生成符合 EPUB 3.0 标准的精美电子书，并一键推送到您的 Kindle 设备。让您告别碎片化阅读，在专注、无干扰的墨水屏体验中，重获深度思考的力量。</p>
+        <p class="intro-text">想要添加或修改订阅源、查看系统说明或贡献代码，请访问 GitHub 项目主页，或使用内置的配置编辑器 <code>config-editor.html</code> 进行可视化管理。</p>
+    </div>
     
     <div class="card">
-        <div class="card-title">📊 运行数据统计</div>
+        <div class="card-title">运行数据统计</div>
         <div class="stat-item"><span class="stat-label">推送时间：</span>{push_time}</div>
         <div class="stat-item"><span class="stat-label">数据源总数：</span>{total_sources} 个</div>
         <div class="stat-item"><span class="stat-label">成功抓取：</span><span class="tag-success">{success_sources}</span> 个</div>
@@ -588,11 +595,6 @@ class EPUBGenerator:
         {error_log_content}
     </div>
 
-    <div class="card">
-        <div class="card-title">ℹ️ 关于 Ought Gather</div>
-        <p class="intro-text">Ought Gather 是一款开源的自动化信息聚合与 Kindle 推送工具。它能够定时从 RSS、订阅邮件、网页、热门榜单等多种渠道抓取最新、最有价值的资讯，对内容进行清洗、排版、智能去重，自动生成符合 EPUB 3.0 标准的精美电子书，并一键推送到您的 Kindle 设备。让您告别碎片化阅读，在专注、无干扰的墨水屏体验中，重获深度思考的力量。</p>
-        <p class="intro-text">想要添加或修改订阅源、查看系统说明或贡献代码，请访问 GitHub 项目主页，或使用内置的配置编辑器 <code>config-editor.html</code> 进行可视化管理。</p>
-    </div>
 </body>
 </html>"""
 
