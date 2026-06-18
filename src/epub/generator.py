@@ -517,6 +517,7 @@ class EPUBGenerator:
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh" xml:lang="zh">
 <head>
     <title>{safe_title}</title>
+    <link rel="stylesheet" type="text/css" href="style/default.css"/>
     <style type="text/css">
         body {{ font-family: sans-serif; padding: 1em; }}
         h1 {{ text-align: center; font-size: 1.6em; margin-bottom: 1.2em; border-bottom: 2px solid #333; padding-bottom: 0.5em; }}
@@ -525,19 +526,21 @@ class EPUBGenerator:
         
         /* 大章节样式 (Section/Divider) */
         .section-link {{ 
-            font-weight: bold; 
-            font-size: 1.35em; 
-            color: #111; 
+            font-weight: bold !important; 
+            font-size: 1.35em !important; 
+            color: #111111 !important; 
             display: block;
             margin-top: 0.6em;
             margin-bottom: 0.4em;
+            text-decoration: none !important;
         }}
         
         /* 小章节/文章样式 (Article) */
         .article-link {{ 
-            font-weight: normal; 
-            font-size: 1.0em; 
-            color: #0066cc; 
+            font-weight: normal !important; 
+            font-size: 1.0em !important; 
+            color: #0066cc !important; 
+            text-decoration: none !important;
         }}
         
         nav li ol {{ 
@@ -640,6 +643,47 @@ nav ol {
 }
 nav li {
     margin: 0.3em 0;
+}
+
+/* 目录 (nav.xhtml) 专属样式，用于在不渲染/忽略 head style 的阅读器中也呈现明显的大小标题差异 */
+#toc h1 {
+    text-align: center;
+    font-size: 1.6em;
+    margin-bottom: 1.2em;
+    border-bottom: 2px solid #333;
+    padding-bottom: 0.5em;
+}
+#toc ol {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+#toc li {
+    margin: 0.8em 0;
+}
+#toc .section-link { 
+    font-weight: bold !important; 
+    font-size: 1.35em !important; 
+    color: #111111 !important; 
+    display: block;
+    margin-top: 0.6em;
+    margin-bottom: 0.4em;
+    text-decoration: none !important;
+}
+#toc .article-link { 
+    font-weight: normal !important; 
+    font-size: 1.0em !important; 
+    color: #0066cc !important; 
+    text-decoration: none !important;
+}
+#toc li ol { 
+    margin-left: 1.2em; 
+    list-style-type: none; 
+    border-left: 2px solid #eee;
+    padding-left: 0.8em;
+}
+#toc li ol li {
+    margin: 0.4em 0;
 }
 """
         )

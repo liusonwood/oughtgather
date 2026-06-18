@@ -247,6 +247,33 @@ class TestEpubContent:
 
         print(f"✓ HTML特殊字符正确转义")
 
+    def test_nav_linked_to_style_and_contains_important_rules(self, shared_epub):
+        """测试nav.xhtml正确链接到了外部样式表，并且其内置样式使用了!important规则以防止阅读器覆盖"""
+        nav_html = self._read_epub_xhtml(shared_epub, 'nav.xhtml')
+
+        # 验证引用了外部样式表
+        assert 'href="style/default.css"' in nav_html or "style/default.css" in nav_html, "nav.xhtml应该引入外部样式表"
+
+        # 验证内置样式使用了 !important 规则
+        assert '.section-link' in nav_html, "nav.xhtml应定义 .section-link 样式"
+        assert '.article-link' in nav_html, "nav.xhtml应定义 .article-link 样式"
+        assert 'font-weight: bold !important;' in nav_html or 'font-weight: bold !important' in nav_html, ".section-link应使用font-weight: bold !important"
+        assert 'font-weight: normal !important;' in nav_html or 'font-weight: normal !important' in nav_html, ".article-link应使用font-weight: normal !important"
+
+        print(f"✓ nav.xhtml正确链接了外部样式表并包含!important样式规则")
+
+    def test_default_css_contains_toc_styles(self, shared_epub):
+        """测试外部样式表default.css包含了目录/大章节/小章节的排版样式定义，支持样式被完全剥离的情况"""
+        css_content = self._read_epub_xhtml(shared_epub, 'style/default.css')
+
+        # 验证包含 #toc 和 section-link 等样式
+        assert '#toc' in css_content, "default.css应该定义目录专属样式 #toc"
+        assert '.section-link' in css_content, "default.css应该定义大章节样式 .section-link"
+        assert '.article-link' in css_content, "default.css应该定义文章链接样式 .article-link"
+        assert '!important' in css_content, "default.css中的TOC样式应使用!important提高特异性"
+
+        print(f"✓ default.css中成功包含了目录相关的强特异性排版规则")
+
 
 class TestEpubSpine:
     """测试EPUB spine（阅读顺序）是否符合规范"""
