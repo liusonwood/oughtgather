@@ -637,3 +637,137 @@ class TestEpubValidationFixes:
         # 无效属性应被移除
         assert 'width=' not in result.content or 'width=""' not in result.content
         assert 'height=' not in result.content or 'height=""' not in result.content
+
+
+# =========================================================================
+# 邮件布局表格与样式清洗测试
+# =========================================================================
+
+class TestLayoutTableCleaning:
+    """测试邮件布局表格与样式清洗行为"""
+
+    def test_unwrap_role_none_table(self):
+        """拆解显式标记为 role='none' 或 role='presentation' 的布局表格"""
+        source = ContentSource(type="mail", src="testmail")
+        processor = ContentProcessor(source)
+        html = (
+            '<table role="none" width="100%">'
+            '  <tr>'
+            '    <td align="center" style="padding: 10px;">'
+            '      <p>实际正文内容</p>'
+            '    </td>'
+            '  </tr>'
+            '</table>'
+        )
+        article = _make_article(html)
+        result = processor.process(article)
+        # 表格、行、单元格标签都应该被拆解（unwrap）
+        assert "<table" not in result.content
+        assert "<tr>" not in result.content
+        assert "<td>" not in result.content
+        assert "<p>实际正文内容</p>" in result.content
+
+    def test_unwrap_single_column_table(self):
+        """拆解每行最多只有一列（单列包装）的非显式标记布局表格"""
+        source = ContentSource(type="mail", src="testmail")
+        processor = ContentProcessor(source)
+        html = (
+            '<table>'
+            '  <tr>'
+            '    <td>第一行内容</td>'
+            '  </tr>'
+            '  <tr>'
+            '    <td>第二行内容</td>'
+            '  </tr>'
+            '</table>'
+        )
+        article = _make_article(html)
+        result = processor.process(article)
+        assert "<table" not in result.content
+        assert "<td>" not in result.content
+        assert "第一行内容" in result.content
+        assert "第二行内容" in result.content
+
+    def test_unwrap_nested_layout_tables(self):
+        """拆解多层嵌套的邮件布局模板表格"""
+        source = ContentSource(type="mail", src="testmail")
+        processor = ContentProcessor(source)
+        html = (
+            '<table class="outer">'
+            '  <tr>'
+            '    <td>'
+            '      <table class="inner">'
+            '        <tr>'
+            '          <td><p>嵌套正文</p></td>'
+            '        </tr>'
+            '      </table>'
+            '    </td>'
+            '  </tr>'
+            '</table>'
+        )
+        article = _make_article(html)
+        result = processor.process(article)
+        assert "<table" not in result.content
+        assert "嵌套正文" in result.content
+
+    def test_preserve_data_tables(self):
+        """保留真正的、具有多列的表格（若没有被指定为 role='none'）"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = (
+            '<table class="data-table">'
+            '  <tr>'
+            '    <th>学号</th>'
+            '    <th>姓名</th>'
+            '  </tr>'
+            '  <tr>'
+            '    <td>001</td>'
+            '    <td>张三</td>'
+            '  </tr>'
+            '</table>'
+        )
+        article = _make_article(html)
+        result = processor.process(article)
+        assert "<table>" in result.content or '<table class="data-table">' in result.content
+        assert "<tr>" in result.content
+        assert "<th>学号</th>" in result.content
+        assert "<td>001</td>" in result.content
+
+    def test_strip_layout_styles_from_non_img_tags(self):
+        """从非 img 标签中剥离尺寸/边距等限制排版的样式，但保留 font-weight 等内容格式化样式"""
+        source = ContentSource(type="mail", src="testmail")
+        processor = ContentProcessor(source)
+        html = (
+            '<div style="width: 670px; margin: 0px auto; padding: 15px; font-weight: bold; font-style: italic;">'
+            '  <p style="max-width: 100%; display: flex;">内容</p>'
+            '</div>'
+        )
+        article = _make_article(html)
+        result = processor.process(article)
+        assert 'width' not in result.content
+        assert 'margin' not in result.content
+        assert 'padding' not in result.content
+        assert 'display' not in result.content
+        # 应该保留内容格式样式
+        assert 'font-weight:bold' in result.content or 'font-weight: bold' in result.content
+        assert 'font-style:italic' in result.content or 'font-style: italic' in result.content
+
+    def test_preserve_img_width_and_height(self):
+        """对于 img 标签，保留其 style/attributes 中的 width 和 height 用于排版"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = (
+            '<div width="500" style="width: 500px;">'
+            '  <img src="test.jpg" width="300" height="200" style="width: 300px; height: 200px;" />'
+            '</div>'
+        )
+        article = _make_article(html)
+        result = processor.process(article)
+        # div 的 width 属性和 width 样式应被去除
+        assert 'width="500"' not in result.content
+        assert 'width:500' not in result.content
+        # img 的 width/height 属性和样式应该保留
+        assert 'width="300"' in result.content
+        assert 'height="200"' in result.content
+        assert 'width: 300px' in result.content
+        assert 'height: 200px' in result.content

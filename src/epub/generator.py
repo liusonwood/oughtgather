@@ -565,7 +565,7 @@ class EPUBGenerator:
 </head>
 <body>
     <h1 class="summary-title">推送汇总</h1>
-    <p class="toc-link" style="text-align: center;"><a href="nav.xhtml#toc_summary">返回目录</a></p>
+    <p class="toc-link" style="text-align: left;"><a href="nav.xhtml#toc_summary">返回目录</a></p>
     
     <div class="card">
         <div class="card-title">📊 运行数据统计</div>

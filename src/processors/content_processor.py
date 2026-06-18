@@ -322,6 +322,9 @@ class ContentProcessor:
         """
         soup = BeautifulSoup(html, 'lxml')
 
+        # === 布局清洗：将复杂的、嵌套的邮件/网页模版表格拆解为普通文本流 ===
+        self._unwrap_layout_tables(soup)
+
         # === EPUB 验证修复规则 ===
 
         # 1. 转换废弃/非法标签
@@ -354,13 +357,36 @@ class ContentProcessor:
             if style_parts:
                 font['style'] = ';'.join(style_parts)
 
-        # 清洗所有标签的 style 属性，移除颜色设置
+        # 清洗所有标签的 style 属性，移除颜色设置以及对非 img 标签的布局约束
+        layout_properties_to_remove = {
+            'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height',
+            'margin', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right',
+            'padding', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right',
+            'position', 'top', 'bottom', 'left', 'right', 'float', 'clear',
+            'display', 'flex', 'grid', 'border', 'background', 'background-image'
+        }
+
         for tag in soup.find_all(True):
             if 'style' in tag.attrs:
                 style_str = tag['style']
                 # 移除 color 和 background-color 属性
-                # 匹配 color: ...; 或 background-color: ...;
                 new_style = re.sub(r'(?i)\b(background-)?color\s*:[^;]+(;|$)', '', style_str)
+                
+                # 如果不是 img 标签，进一步移除布局和尺寸相关限制属性
+                if tag.name != 'img':
+                    parts = new_style.split(';')
+                    filtered_parts = []
+                    for part in parts:
+                        part_strip = part.strip()
+                        if not part_strip or ':' not in part_strip:
+                            continue
+                        prop, val = part_strip.split(':', 1)
+                        prop_name = prop.strip().lower()
+                        if prop_name in layout_properties_to_remove or 'background' in prop_name:
+                            continue
+                        filtered_parts.append(f"{prop_name}:{val.strip()}")
+                    new_style = ';'.join(filtered_parts)
+
                 # 移除多余的空格和分号
                 new_style = new_style.strip().strip(';')
                 if new_style:
@@ -427,11 +453,48 @@ class ContentProcessor:
             for attr in attrs:
                 if attr not in allowed_attrs:
                     del tag[attr]
+                # 限制 width/height 属性只能在 img 标签上保留，防止复杂的表格固定宽度导致挤压
+                elif attr in ('width', 'height') and tag.name != 'img':
+                    del tag[attr]
 
-        # 仅返回 body 内部的内容，避免产生嵌套的 html/body 标签
+        # 仅返回 body 内部的内容，避免产生嵌套 of html/body 标签
         if soup.body:
             return soup.body.decode_contents()
         return str(soup)
+
+    def _unwrap_layout_tables(self, soup: BeautifulSoup) -> None:
+        """
+        拆解用于定位、边距和邮件模版布局的表格标签。
+        若表格带有 role="presentation" 或 role="none"，或每行最多只有一个单元格（单列包装），
+        或包含嵌套的表格，则将其子项（tr/td/tbody等）以及 table 标签自身全部拆开，使其流式排版，
+        能自适应 Kindle 等电子书阅读器的屏幕尺寸。
+        """
+        # 采用自下而上的逆序遍历，确保嵌套表格能从小到大依次正确拆解
+        for table in reversed(soup.find_all('table')):
+            is_layout = False
+            
+            # 1. 显式指定的布局角色
+            role = table.get('role')
+            if role in ('presentation', 'none'):
+                is_layout = True
+            else:
+                # 2. 判断是否是单列包裹表格或多层嵌套包裹表格
+                max_cols = 0
+                for tr in table.find_all('tr', recursive=False):
+                    cells = tr.find_all(['td', 'th'], recursive=False)
+                    max_cols = max(max_cols, len(cells))
+                
+                has_nested_table = bool(table.find('table'))
+                
+                if max_cols <= 1 or has_nested_table:
+                    is_layout = True
+
+            if is_layout:
+                # 找到该 table 内的所有布局辅助标签（按深度倒序，防止父子标签拆解时影响树结构）
+                tags_to_unwrap = table.find_all(['tbody', 'thead', 'tfoot', 'tr', 'td', 'th'])
+                for tag in reversed(tags_to_unwrap):
+                    tag.unwrap()
+                table.unwrap()
 
     def _fix_nested_blocks(self, soup: BeautifulSoup) -> None:
         """
