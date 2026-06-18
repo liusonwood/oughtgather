@@ -100,7 +100,7 @@ class EPUBGenerator:
         book.guide = [
             {'href': 'nav.xhtml', 'title': 'Table of Contents', 'type': 'toc'},
             {'href': 'cover.xhtml', 'title': 'Cover', 'type': 'cover'},
-            {'href': 'divider_0.xhtml', 'title': 'Start Reading', 'type': 'text'}
+            {'href': 'nav.xhtml', 'title': 'Table of Contents', 'type': 'text'}
         ]
 
         # 13. 保存文件
@@ -703,7 +703,6 @@ class EPUBGenerator:
             media_type="text/css",
             content="""
 body {
-    font-family: serif;
     line-height: 1.6;
     margin: 1em;
 }
