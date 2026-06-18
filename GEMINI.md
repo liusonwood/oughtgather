@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Ought Gather is an automated content aggregation tool that fetches content from multiple sources (email newsletters, RSS feeds, web pages, AI trend analysis), generates EPUB ebooks with covers and tables of contents, and delivers them to Kindle devices via email. Runs daily via GitHub Actions.
+Ought Gather is an elegant, automated content curation and delivery pipeline designed for deep-reading and E-ink enthusiasts. It helps readers reclaim their reading autonomy in an era of fragmented algorithms by fetching high-quality content from trusted RSS feeds, newsletters, web pages, and AI trend digests. The tool cleanses layouts, compresses images, intelligently deduplicates entries, and packages them into beautiful, EPUB 3.0-compliant ebooks, automatically dispatched to Kindle devices daily via GitHub Actions.
 
 ## Common Commands
 
