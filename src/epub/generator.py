@@ -632,23 +632,23 @@ class EPUBGenerator:
         # 因此改用 inline style 属性，所有阅读器（含 Kindle）都能正确渲染，
         # 同时通过 nav.add_link() 注册的外部 CSS 为支持它的阅读器提供完整样式。
         STYLE_SECTION_LINK = (
-            "font-weight: bold; font-size: 1.35em; color: #111111; "
-            "display: block; margin-top: 0.6em; margin-bottom: 0.4em; text-decoration: none;"
+            "font-weight: bold; font-size: 1.2em; color: #111111; "
+            "display: block; margin-top: 0.2em; margin-bottom: 0.1em; text-decoration: none;"
         )
         STYLE_ARTICLE_LINK = (
             "font-weight: normal; font-size: 1.0em; color: #0066cc; text-decoration: none;"
         )
         STYLE_H1 = (
-            "text-align: center; font-size: 1.6em; margin-bottom: 1.2em; "
-            "border-bottom: 2px solid #333; padding-bottom: 0.5em;"
+            "text-align: center; font-size: 1.4em; margin-bottom: 0.5em; "
+            "border-bottom: 2px solid #333; padding-bottom: 0.3em;"
         )
         STYLE_OL = "list-style-type: none; margin: 0; padding: 0;"
-        STYLE_LI = "margin: 0.8em 0;"
+        STYLE_LI = "margin: 0.2em 0;"
         STYLE_NESTED_OL = (
-            "margin-left: 1.2em; list-style-type: none; "
-            "border-left: 2px solid #eee; padding-left: 0.8em;"
+            "margin-left: 1em; list-style-type: none; "
+            "border-left: 2px solid #eee; padding-left: 0.6em;"
         )
-        STYLE_NESTED_LI = "margin: 0.4em 0;"
+        STYLE_NESTED_LI = "margin: 0.1em 0;"
 
         content = f"""<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh" xml:lang="zh">
@@ -656,7 +656,7 @@ class EPUBGenerator:
     <title>{safe_title}</title>
     <link rel="stylesheet" type="text/css" href="style/default.css"/>
 </head>
-<body style="font-family: sans-serif; padding: 1em;">
+<body style="padding: 1em;">
     <nav epub:type="toc" id="toc">
         <h1 style="{STYLE_H1}">{safe_title}</h1>
         <ol style="{STYLE_OL}">
@@ -750,19 +750,19 @@ li {
     margin: 0.5em 0;
 }
 nav ol {
-    line-height: 2.2;
+    line-height: 1.4;
 }
 nav li {
-    margin: 0.3em 0;
+    margin: 0.2em 0;
 }
 
 /* 目录 (nav.xhtml) 专属样式，用于在不渲染/忽略 head style 的阅读器中也呈现明显的大小标题差异 */
 #toc h1 {
     text-align: center;
-    font-size: 1.6em;
-    margin-bottom: 1.2em;
+    font-size: 1.4em;
+    margin-bottom: 0.5em;
     border-bottom: 2px solid #333;
-    padding-bottom: 0.5em;
+    padding-bottom: 0.3em;
 }
 #toc ol {
     list-style-type: none;
@@ -770,15 +770,15 @@ nav li {
     padding: 0;
 }
 #toc li {
-    margin: 0.8em 0;
+    margin: 0.2em 0;
 }
 #toc .section-link { 
     font-weight: bold !important; 
-    font-size: 1.35em !important; 
+    font-size: 1.2em !important; 
     color: #111111 !important; 
     display: block;
-    margin-top: 0.6em;
-    margin-bottom: 0.4em;
+    margin-top: 0.2em;
+    margin-bottom: 0.1em;
     text-decoration: none !important;
 }
 #toc .article-link { 
@@ -788,13 +788,13 @@ nav li {
     text-decoration: none !important;
 }
 #toc li ol { 
-    margin-left: 1.2em; 
+    margin-left: 1em; 
     list-style-type: none; 
     border-left: 2px solid #eee;
-    padding-left: 0.8em;
+    padding-left: 0.6em;
 }
 #toc li ol li {
-    margin: 0.4em 0;
+    margin: 0.1em 0;
 }
 """
         )
