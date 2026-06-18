@@ -635,7 +635,7 @@ class EPUBGenerator:
         # 同时通过 nav.add_link() 注册的外部 CSS 为支持它的阅读器提供完整样式。
         STYLE_SECTION_LINK = (
             "font-weight: bold; font-size: 1.2em; color: #111111; "
-            "display: block; margin-top: 0.2em; margin-bottom: 0.1em; text-decoration: none;"
+            "display: block; margin-top: 0.4em; margin-bottom: 0.2em; text-decoration: none;"
         )
         STYLE_ARTICLE_LINK = (
             "font-weight: normal; font-size: 1.0em; color: #0066cc; text-decoration: none;"
@@ -645,12 +645,12 @@ class EPUBGenerator:
             "border-bottom: 2px solid #333; padding-bottom: 0.3em;"
         )
         STYLE_OL = "list-style-type: none; margin: 0; padding: 0;"
-        STYLE_LI = "margin: 0.2em 0;"
+        STYLE_LI = "margin: 0.8em 0;"
         STYLE_NESTED_OL = (
             "margin-left: 1em; list-style-type: none; "
-            "border-left: 2px solid #eee; padding-left: 0.6em;"
+            "border-left: 2px solid #eee; padding-left: 0.6em; margin-top: 0.4em; margin-bottom: 0.4em;"
         )
-        STYLE_NESTED_LI = "margin: 0.1em 0;"
+        STYLE_NESTED_LI = "margin: 0.4em 0;"
 
         content = f"""<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh" xml:lang="zh">
@@ -751,10 +751,10 @@ li {
     margin: 0.5em 0;
 }
 nav ol {
-    line-height: 1.4;
+    line-height: 1.5;
 }
 nav li {
-    margin: 0.2em 0;
+    margin: 0.8em 0;
 }
 
 /* 目录 (nav.xhtml) 专属样式，用于在不渲染/忽略 head style 的阅读器中也呈现明显的大小标题差异 */
@@ -771,15 +771,15 @@ nav li {
     padding: 0;
 }
 #toc li {
-    margin: 0.2em 0;
+    margin: 0.8em 0;
 }
 #toc .section-link { 
     font-weight: bold !important; 
     font-size: 1.2em !important; 
     color: #111111 !important; 
     display: block;
-    margin-top: 0.2em;
-    margin-bottom: 0.1em;
+    margin-top: 0.4em;
+    margin-bottom: 0.2em;
     text-decoration: none !important;
 }
 #toc .article-link { 
@@ -793,9 +793,11 @@ nav li {
     list-style-type: none; 
     border-left: 2px solid #eee;
     padding-left: 0.6em;
+    margin-top: 0.4em;
+    margin-bottom: 0.4em;
 }
 #toc li ol li {
-    margin: 0.1em 0;
+    margin: 0.4em 0;
 }
 """
         )
