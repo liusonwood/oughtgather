@@ -79,6 +79,9 @@ class EPUBGenerator:
         nav = epub.EpubHtml(title=book.title, file_name='nav.xhtml', uid='nav')
         nav.properties = ['nav']
         nav.content = self._generate_nav_content(book.title, book.toc)
+        # 通过 nav.links 注册外部样式表，ebooklib 的 get_content() 会在 <head> 中
+        # 自动生成对应的 <link href="style/default.css" rel="stylesheet" type="text/css"/>
+        nav.add_link(href='style/default.css', rel='stylesheet')
         book.add_item(nav)
 
         # 10. 将 nav 插入到 spine 中。
@@ -624,69 +627,66 @@ class EPUBGenerator:
         from ebooklib import epub as epub_lib
         safe_title = html.escape(book_title)
         
+        # 内联样式（作为 Kindle 兜底）：
+        # EPUB 3.3 规范禁止 <style> 出现在 nav 文档的 <body> 中（EPUBCheck RSC-005），
+        # 因此改用 inline style 属性，所有阅读器（含 Kindle）都能正确渲染，
+        # 同时通过 nav.add_link() 注册的外部 CSS 为支持它的阅读器提供完整样式。
+        STYLE_SECTION_LINK = (
+            "font-weight: bold; font-size: 1.35em; color: #111111; "
+            "display: block; margin-top: 0.6em; margin-bottom: 0.4em; text-decoration: none;"
+        )
+        STYLE_ARTICLE_LINK = (
+            "font-weight: normal; font-size: 1.0em; color: #0066cc; text-decoration: none;"
+        )
+        STYLE_H1 = (
+            "text-align: center; font-size: 1.6em; margin-bottom: 1.2em; "
+            "border-bottom: 2px solid #333; padding-bottom: 0.5em;"
+        )
+        STYLE_OL = "list-style-type: none; margin: 0; padding: 0;"
+        STYLE_LI = "margin: 0.8em 0;"
+        STYLE_NESTED_OL = (
+            "margin-left: 1.2em; list-style-type: none; "
+            "border-left: 2px solid #eee; padding-left: 0.8em;"
+        )
+        STYLE_NESTED_LI = "margin: 0.4em 0;"
+
         content = f"""<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh" xml:lang="zh">
 <head>
     <title>{safe_title}</title>
     <link rel="stylesheet" type="text/css" href="style/default.css"/>
-    <style type="text/css">
-        body {{ font-family: sans-serif; padding: 1em; }}
-        h1 {{ text-align: center; font-size: 1.6em; margin-bottom: 1.2em; border-bottom: 2px solid #333; padding-bottom: 0.5em; }}
-        nav ol {{ list-style-type: none; margin: 0; padding: 0; }}
-        nav li {{ margin: 0.8em 0; }}
-        
-        /* 大章节样式 (Section/Divider) */
-        .section-link {{ 
-            font-weight: bold !important; 
-            font-size: 1.35em !important; 
-            color: #111111 !important; 
-            display: block;
-            margin-top: 0.6em;
-            margin-bottom: 0.4em;
-            text-decoration: none !important;
-        }}
-        
-        /* 小章节/文章样式 (Article) */
-        .article-link {{ 
-            font-weight: normal !important; 
-            font-size: 1.0em !important; 
-            color: #0066cc !important; 
-            text-decoration: none !important;
-        }}
-        
-        nav li ol {{ 
-            margin-left: 1.2em; 
-            list-style-type: none; 
-            border-left: 2px solid #eee;
-            padding-left: 0.8em;
-        }}
-        
-        nav li ol li {{ margin: 0.4em 0; }}
-        
-        a {{ text-decoration: none; }}
-    </style>
 </head>
-<body>
+<body style="font-family: sans-serif; padding: 1em;">
     <nav epub:type="toc" id="toc">
-        <h1>{safe_title}</h1>
-        <ol>
+        <h1 style="{STYLE_H1}">{safe_title}</h1>
+        <ol style="{STYLE_OL}">
 """
         for item in toc:
             if isinstance(item, epub_lib.Link):
-                # 扁平链接（如 web/trending 或 summary）
-                # 这里的 web/trending 其实是该源的唯一入口，也使用大章节样式
-                content += f'            <li id="toc_{item.uid}"><a class="section-link" href="{item.href}">{html.escape(item.title)}</a></li>\n'
+                # 扁平链接（如 web/trending 或 summary），使用大章节样式
+                content += (
+                    f'            <li id="toc_{item.uid}" style="{STYLE_LI}">'
+                    f'<a class="section-link" href="{item.href}" style="{STYLE_SECTION_LINK}">'
+                    f'{html.escape(item.title)}</a></li>\n'
+                )
             elif isinstance(item, tuple) and len(item) == 2:
                 # 两级结构（如 mail/rss）
                 section_link, links = item
-                content += f'            <li id="toc_{section_link.uid}">\n'
-                content += f'                <a class="section-link" href="{section_link.href}">{html.escape(section_link.title)}</a>\n'
-                content += f'                <ol>\n'
+                content += f'            <li id="toc_{section_link.uid}" style="{STYLE_LI}">\n'
+                content += (
+                    f'                <a class="section-link" href="{section_link.href}" '
+                    f'style="{STYLE_SECTION_LINK}">{html.escape(section_link.title)}</a>\n'
+                )
+                content += f'                <ol style="{STYLE_NESTED_OL}">\n'
                 for link in links:
-                    content += f'                    <li id="toc_{link.uid}"><a class="article-link" href="{link.href}">{html.escape(link.title)}</a></li>\n'
+                    content += (
+                        f'                    <li id="toc_{link.uid}" style="{STYLE_NESTED_LI}">'
+                        f'<a class="article-link" href="{link.href}" style="{STYLE_ARTICLE_LINK}">'
+                        f'{html.escape(link.title)}</a></li>\n'
+                    )
                 content += f'                </ol>\n'
                 content += f'            </li>\n'
-        
+
         content += """        </ol>
     </nav>
 </body>
