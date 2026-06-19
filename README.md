@@ -322,6 +322,17 @@ python -m pytest tests/test_integration.py::TestEpubcheckValidation -v
 
 更多说明见 [docs/TESTING.md](docs/TESTING.md) 和 [docs/EPUB_COMPLIANCE.md](docs/EPUB_COMPLIANCE.md)。
 
+## 🗺️ 未来计划 (Roadmap)
+
+为了让 **Ought Gather** 更加易用且适配更多阅读终端，以下功能已列入后续开发计划：
+
+- [ ] **🧩 集成 Raindrop.io 稍后读支持**
+  - 允许拉取 Raindrop.io 账户中特定标签或收藏夹（如 `To Read`）的网页链接，实现真正的“手动剪藏 -> 定时自动打包推送”。
+- [ ] **📥 OPML 一键导入**
+  - 支持直接导入标准的 `.opml` 订阅文件，免去手动繁琐配置 JSON 链接的痛苦，实现快速从 NetNewsWire、Inoreader 等 RSS 阅读器迁移。
+- [ ] **🌐 支持 WebDAV 协议传输（适配更多设备）**
+  - 突破 Kindle 邮件推送限制。支持将生成的 EPUB 自动同步至坚果云、Nextcloud、本地 NAS 等 WebDAV 云端，无缝适配文石 (Boox)、Kobo (配合 KoboCloud)、KOReader 以及各类移动端阅读 App。
+
 ## 项目结构
 ```
 ought-gather/
