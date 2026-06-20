@@ -117,7 +117,9 @@ class BaseFetcher(ABC):
 
             # 如果不是最后一次尝试，等待后重试
             if attempt < self.max_retries - 1:
-                wait_time = 2 ** attempt  # 指数退避：1s, 2s, 4s
+                # 自定义重试间隔：第1次失败后1s，第2次失败后10s
+                retry_intervals = [1, 10]
+                wait_time = retry_intervals[attempt] if attempt < len(retry_intervals) else 10
                 self.logger.info(f"Waiting {wait_time}s before retry...")
                 time.sleep(wait_time)
 
