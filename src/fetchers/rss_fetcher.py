@@ -32,9 +32,18 @@ class RSSFetcher(BaseFetcher):
             feed = feedparser.parse(self.source.src)
 
             # 检查解析结果
-            if feed.bozo and not feed.entries:
+            # 改进：即使有格式错误，只要有条目就继续处理
+            if feed.bozo:
+                self.logger.warning(
+                    f"RSS feed has format issues (bozo): {feed.bozo_exception}"
+                )
+            
+            # 如果没有任何条目且有严重错误，则失败
+            if not feed.entries:
                 result.success = False
-                result.error = f"Failed to parse RSS feed: {feed.bozo_exception}"
+                error_msg = str(feed.bozo_exception) if feed.bozo else "No entries found"
+                result.error = f"Failed to parse RSS feed: {error_msg}"
+                self.logger.error(result.error)
                 return result
 
             # 提取 feed 标题作为章节显示名称
@@ -60,6 +69,10 @@ class RSSFetcher(BaseFetcher):
                     self.logger.error(f"Failed to parse entry: {e}")
                     result.add_error(f"Failed to parse entry: {e}")
 
+            # 只要成功解析了至少一些条目，就认为抓取成功
+            if result.articles:
+                result.success = True
+            
             return result
 
         except Exception as e:
