@@ -148,6 +148,11 @@ class TrendingFetcher(BaseFetcher):
                     headers=headers,
                     json=payload
                 )
+                
+                # 如果状态码不对，在抛出异常前把 OpenRouter 的原生错误明细打印到日志里
+                if resp.status_code >= 400:
+                    self.logger.error(f"OpenRouter 原始错误响应: {resp.text}")
+                
                 resp.raise_for_status()
                 data = resp.json()
 
