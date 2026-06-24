@@ -520,6 +520,7 @@ class TestTrendingFetcher:
     def test_fetch_analysis(self, mock_client_cls, trending_source):
         """测试 LLM 分析请求"""
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.json.return_value = {
             "choices": [
                 {
