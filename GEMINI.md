@@ -16,28 +16,28 @@ pip install -r requirements.txt
 ### Running
 ```bash
 # Main execution
-python src/main.py
+python3.11 src/main.py
 
 # With custom config path
-python src/main.py --config path/to/config.json
+python3.11 src/main.py --config path/to/config.json
 ```
 
 ### Testing
 ```bash
 # 运行所有测试（171 个测试，约 1 秒）
-python -m pytest tests/
+python3.113.11 -m pytest tests/
 
 # 详细输出
-python -m pytest tests/ -v
+python3.113.11 -m pytest tests/ -v
 
 # 只运行某个文件
-python -m pytest tests/test_config.py -v
+python3.113.11 -m pytest tests/test_config.py -v
 
 # 只运行某个测试类
-python -m pytest tests/test_config.py::TestTitleConfig -v
+python3.11 -m pytest tests/test_config.py::TestTitleConfig -v
 
 # 只显示失败测试的详细信息
-python -m pytest tests/ --tb=short
+python3.11 -m pytest tests/ --tb=short
 ```
 
 **测试覆盖**：配置加载、内容处理（exclude/chop/keep_link/delete）、去重追踪（含自动清理）、数据抓取（RSS/Web/Mail/Trending）、图片处理、工具函数。
@@ -84,7 +84,7 @@ config.json → Fetchers → Processors → Dedup → EPUB Generator → SMTP Se
    - **Directory Structure**: Must use standard `EPUB/` folder (default `FOLDER_NAME='EPUB'`). Setting `FOLDER_NAME=''` causes absolute paths like `/file.xhtml` which violate OCF spec (RSC-026 error).
    - **EPUB Version**: ebooklib 0.20 hardcodes `version="3.0"` in OPF. Cannot downgrade to EPUB 2.0 via `book.version='2.0'`. Must accept EPUB 3.0 format.
    - **Navigation**: EPUB 3.0 **requires** both `EpubNcx()` and `EpubNav()` items. Missing nav document causes RSC-005 error ("Exactly one manifest item must declare the 'nav' property").
-   - **CSS in f-string**: When writing CSS in Python f-string, must escape braces with `{{}}` (e.g., `body {{ margin: 0; }}`), otherwise Python interprets `{}` as expression placeholders.
+   - **CSS in f-string**: When writing CSS in python3.11 f-string, must escape braces with `{{}}` (e.g., `body {{ margin: 0; }}`), otherwise python3.11 interprets `{}` as expression placeholders.
    - **Cover HTML**: Cover XHTML must have proper content, not empty. Use simple `<img src="cover.jpg"/>` structure for compatibility.
    - **Guide Element**: Keep `book.guide` for backward compatibility (EPUB 2.0 feature, optional in EPUB 3.0).
    - **Validation**: Always run EPUBCheck validation: `java -jar epubcheck.jar <file.epub>`. EPUBCheck validates against EPUB 3.3 rules by default.
@@ -136,7 +136,7 @@ config.json → Fetchers → Processors → Dedup → EPUB Generator → SMTP Se
 
 ## Development Notes
 
-- **Python 3.11+** required (uses `zoneinfo` module for timezone support, available since Python 3.9)
+- **python 3.11+** required (uses `zoneinfo` module for timezone support, available since python3.11 3.9)
 - **Dependencies**: feedparser, trafilatura, ebooklib, Pillow, httpx, beautifulsoup4, lxml
 - **Test dependencies**: pytest, pytest-mock
 - **Logging**: Uses singleton logger (`src/utils/logger.py`). Logs to `logs/` directory.
