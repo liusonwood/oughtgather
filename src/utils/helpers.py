@@ -151,6 +151,7 @@ def format_date(date_str: str) -> str:
     - 任意字符串（原样返回）
 
     输出格式：YYYY-MM-DD HH:MM
+    输出时区：DEFAULT_TZ (Asia/Shanghai)
 
     Args:
         date_str: 日期字符串或数字时间戳
@@ -163,6 +164,14 @@ def format_date(date_str: str) -> str:
 
     from datetime import datetime
 
+    def _format_dt(dt: datetime) -> str:
+        """将 datetime 转换为目标时区并格式化"""
+        if dt.tzinfo is None:
+            # 不带时区的视为 UTC+0
+            dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+        dt = dt.astimezone(DEFAULT_TZ)
+        return dt.strftime("%Y-%m-%d %H:%M")
+
     # 处理数字类型（int/float）时间戳
     if isinstance(date_str, (int, float)):
         try:
@@ -170,7 +179,7 @@ def format_date(date_str: str) -> str:
             # 判断是秒还是毫秒（毫秒 > 1e12）
             if timestamp > 1_000_000_000_000:
                 timestamp = timestamp / 1000  # 毫秒转秒
-            dt = datetime.fromtimestamp(timestamp)
+            dt = datetime.fromtimestamp(timestamp, tz=DEFAULT_TZ)
             return dt.strftime("%Y-%m-%d %H:%M")
         except (ValueError, OSError, OverflowError):
             pass  # 继续尝试其他格式
@@ -184,7 +193,7 @@ def format_date(date_str: str) -> str:
                 # 判断是秒还是毫秒（毫秒 > 1e12）
                 if timestamp > 1_000_000_000_000:
                     timestamp = timestamp / 1000  # 毫秒转秒
-                dt = datetime.fromtimestamp(timestamp)
+                dt = datetime.fromtimestamp(timestamp, tz=DEFAULT_TZ)
                 return dt.strftime("%Y-%m-%d %H:%M")
             except (ValueError, OSError, OverflowError):
                 pass  # 继续尝试其他格式
@@ -204,7 +213,7 @@ def format_date(date_str: str) -> str:
     for fmt in formats:
         try:
             dt = datetime.strptime(date_str, fmt)
-            return dt.strftime("%Y-%m-%d %H:%M")
+            return _format_dt(dt)
         except (ValueError, TypeError):
             continue
 
@@ -212,7 +221,7 @@ def format_date(date_str: str) -> str:
     try:
         from dateutil import parser
         dt = parser.parse(date_str)
-        return dt.strftime("%Y-%m-%d %H:%M")
+        return _format_dt(dt)
     except (ImportError, ValueError, TypeError, OverflowError):
         # 最后手段：返回原始字符串
         return date_str

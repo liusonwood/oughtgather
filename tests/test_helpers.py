@@ -235,9 +235,9 @@ class TestFormatDate:
     """日期格式化测试"""
 
     def test_rfc_822_format_with_gmt(self):
-        """RFC 822 格式（带 GMT）"""
+        """RFC 822 格式（带 GMT，视为 UTC+0 转北京时间）"""
         result = format_date("Mon, 14 Jun 2026 10:30:00 GMT")
-        assert result == "2026-06-14 10:30"
+        assert result == "2026-06-14 18:30"
 
     def test_rfc_822_format_with_timezone_offset(self):
         """RFC 822 格式（带时区偏移）"""
@@ -245,14 +245,14 @@ class TestFormatDate:
         assert result == "2026-06-14 10:30"
 
     def test_iso_8601_basic(self):
-        """ISO 8601 基本格式"""
+        """ISO 8601 基本格式（视为 UTC+0 转北京时间）"""
         result = format_date("2026-06-14T10:30:00")
-        assert result == "2026-06-14 10:30"
+        assert result == "2026-06-14 18:30"
 
     def test_iso_8601_with_microseconds(self):
-        """ISO 8601 格式（带微秒）"""
+        """ISO 8601 格式（带微秒，视为 UTC+0 转北京时间）"""
         result = format_date("2026-06-14T10:30:00.123456")
-        assert result == "2026-06-14 10:30"
+        assert result == "2026-06-14 18:30"
 
     def test_iso_8601_with_timezone(self):
         """ISO 8601 格式（带时区）"""
@@ -260,14 +260,14 @@ class TestFormatDate:
         assert result == "2026-06-14 10:30"
 
     def test_standard_format(self):
-        """标准格式"""
+        """标准格式（视为 UTC+0 转北京时间）"""
         result = format_date("2026-06-14 10:30:00")
-        assert result == "2026-06-14 10:30"
+        assert result == "2026-06-14 18:30"
 
     def test_alternative_separator(self):
-        """替代分隔符格式"""
+        """替代分隔符格式（视为 UTC+0 转北京时间）"""
         result = format_date("2026/06/14 10:30:00")
-        assert result == "2026-06-14 10:30"
+        assert result == "2026-06-14 18:30"
 
     def test_empty_string(self):
         """空字符串"""
@@ -324,7 +324,12 @@ class TestFormatDate:
         result = format_date(0)
         assert result == "1970-01-01 08:00"
 
+    def test_rfc_822_utc_converted_to_beijing(self):
+        """UTC 时间自动转换到北京时间"""
+        result = format_date("Mon, 29 Jun 2026 23:51:57 +0000")
+        assert result == "2026-06-30 07:51"
+
     def test_date_only_format(self):
-        """仅日期格式"""
+        """仅日期格式（视为 UTC+0 转北京时间）"""
         result = format_date("2026-06-14")
-        assert result == "2026-06-14 00:00"
+        assert result == "2026-06-14 08:00"
