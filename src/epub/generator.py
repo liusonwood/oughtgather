@@ -565,11 +565,12 @@ class EPUBGenerator:
         # 添加到目录
         book.toc.append(epub.Link("summary.xhtml", "推送汇总", "summary"))
 
-        # 添加到 spine（阅读顺序）
-        # if isinstance(book.spine, list):
-        #     book.spine.append(chapter)
+        # 添加到 spine（阅读顺序），保持为线性 (linear="yes")
+        chapter.is_linear = True
+        if isinstance(book.spine, list):
+            book.spine.append(chapter)
 
-        self.logger.info("Summary chapter added to EPUB (skipped spine)")
+        self.logger.info("Summary chapter added to EPUB (linear spine)")
 
     def _generate_nav_content(
         self,
