@@ -17,6 +17,8 @@ _THIRD_PARTY_STUBS = [
     "feedparser",
     "trafilatura",
     "requests",
+    "httpx",
+    "markdown",
     "bs4",
     "bs4.element",
     "PIL",
