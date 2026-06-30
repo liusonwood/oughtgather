@@ -762,6 +762,10 @@ h1 {
     height: auto;
 }
 
+.weather-item {
+    margin: 0;
+}
+
 /* Emoji 字体样式 */
 @font-face {
     font-family: "MyEmojiFont";
