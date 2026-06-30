@@ -6,7 +6,7 @@ This guide provides compact developer instructions, architecture decisions, and 
 
 - **Install**: `pip install -r requirements.txt`
 - **Run**: `python3.11 src/main.py [--config path/to/config.json]`
-- **Test**: `python3.11 -m pytest tests/` (use `-v` for detail, `--tb=short` for brief failures, or target a specific file like `tests/test_config.py`)
+- **Test**: `python3.11 -m pytest tests/` (runs tests with coverage reporting enabled automatically; use `-v` for detail, `--tb=short` for brief failures)
 
 ## Tooling & Automation
 
