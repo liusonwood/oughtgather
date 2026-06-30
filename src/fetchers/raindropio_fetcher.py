@@ -10,8 +10,8 @@ from src.utils.logger import get_logger
 class RaindropFetcher(BaseFetcher):
     """Raindrop.io Fetcher"""
     
-    type_name = "raindrop"
-    src_placeholder = "Enter Raindrop collection ID (e.g., 1234567, or 0 for Unsorted)"
+    type_name = "raindropio"
+    src_placeholder = "Enter Raindropio collection ID (e.g., 1234567, or 0 for Unsorted)"
     config_schema = {
         "metadata.collection_id": {
             "type": "text",
@@ -22,10 +22,10 @@ class RaindropFetcher(BaseFetcher):
 
     def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):
         super().__init__(source, global_limit=global_limit, max_retries=max_retries)
-        api_key = os.environ.get("RAINDROP_API_KEY")
+        api_key = os.environ.get("RAINDROPIO_API_KEY")
         if not api_key:
             raise ValueError(
-                "Required secret 'RAINDROP_API_KEY' is not set. "
+                "Required secret 'RAINDROPIO_API_KEY' is not set. "
                 "Please add it to GitHub Secrets or environment variables."
             )
         self.api_key = api_key
@@ -55,7 +55,7 @@ class RaindropFetcher(BaseFetcher):
             data = response.json()
             
             if not data.get("result"):
-                raise Exception(f"Raindrop API error: {data.get('message', 'Unknown error')}")
+                raise Exception(f"Raindropio API error: {data.get('message', 'Unknown error')}")
                 
             raindrops = data.get("items", [])
             
@@ -88,7 +88,7 @@ class RaindropFetcher(BaseFetcher):
             return result
 
         except Exception as e:
-            self.logger.error(f"Raindrop fetch failed: {e}")
+            self.logger.error(f"Raindropio fetch failed: {e}")
             result.success = False
             result.error = str(e)
             return result

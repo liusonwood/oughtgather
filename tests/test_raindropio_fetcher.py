@@ -1,12 +1,12 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from src.config import ContentSource
-from src.fetchers.raindrop_fetcher import RaindropFetcher
+from src.fetchers.raindropio_fetcher import RaindropFetcher
 
 class TestRaindropFetcher:
-    """RaindropFetcher 测试"""
+    """RaindropioFetcher 测试"""
 
-    @patch.dict("os.environ", {"RAINDROP_API_KEY": "test_key_123"})
+    @patch.dict("os.environ", {"RAINDROPIO_API_KEY": "test_key_123"})
     @patch.object(RaindropFetcher, "_make_request")
     def test_fetch_bookmarks(self, mock_request):
         """测试书签抓取"""
@@ -27,7 +27,7 @@ class TestRaindropFetcher:
 
         # 配置源
         source = ContentSource(
-            type="raindrop", 
+            type="raindropio", 
             src="0", 
             metadata={"collection_id": "0"}
         )
@@ -42,7 +42,7 @@ class TestRaindropFetcher:
         assert "Excerpt 1" in result.articles[0].content
         assert result.articles[0].images == ["https://example.com/1.jpg"]
 
-    @patch.dict("os.environ", {"RAINDROP_API_KEY": "test_key_123"})
+    @patch.dict("os.environ", {"RAINDROPIO_API_KEY": "test_key_123"})
     @patch.object(RaindropFetcher, "_make_request")
     def test_api_error(self, mock_request):
         """测试 API 返回错误"""
@@ -53,7 +53,7 @@ class TestRaindropFetcher:
         }
         mock_request.return_value = mock_response
 
-        source = ContentSource(type="raindrop", src="0")
+        source = ContentSource(type="raindropio", src="0")
         fetcher = RaindropFetcher(source)
         result = fetcher.fetch()
 
