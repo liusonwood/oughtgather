@@ -258,7 +258,17 @@ on:
 
 ## 配置要点
 
->项目提供了一个可视化 HTML 配置编辑器。推荐访问 `https://liusonwood.github.io/oughtgather/` 在线使用；也可以在浏览器中本地打开 `config-editor.html` 离线使用。
+>项目提供了一个可视化 HTML 配置编辑器。推荐访问 `https://liusonwood.github.io/oughtgather/` 在线使用；也可以在浏览器中本地打开 `config-editor.html` 离线使用。编辑器支持对配置改动进行本地自动保存（`localStorage`），预览开启时实时更新 JSON，并支持动态加载全部抓取器插件的选项。
+
+### 抓取器参数同步与更新 (Fetcher Dynamic Sync)
+
+当您在 `src/fetchers/` 编写自定义的抓取器（即实现 `BaseFetcher` 派生类并定义 `src_placeholder` 和 `config_schema`）后，编辑器可以通过以下方式自动获取最新参数：
+
+- **自动运行**：运行主入口 `python src/main.py` 会自动扫描抓取器并更新 `config-editor.html`。
+- **手动运行**：单独执行以下脚本，即可手动更新 `config-editor.html` 中的抓取器选项与参数：
+  ```bash
+  python scripts/update_editor.py
+  ```
 
 顶层字段：
 
@@ -272,7 +282,7 @@ on:
 
 | 字段 | 说明 |
 | --- | --- |
-| `type` | `rss`、`web`、`mail`、`trending` |
+| `type` | `rss`、`web`、`mail`、`trending`、`weather` |
 | `src` | 内容源地址或主题；所有类型必填 |
 | `title` | EPUB 中显示的章节标题 |
 | `priority` | 章节排序值，数值越大越靠前 |
@@ -336,7 +346,8 @@ ought-gather/
 │   │   ├── mail_fetcher.py     # 邮件抓取
 │   │   ├── rss_fetcher.py      # RSS 抓取
 │   │   ├── web_fetcher.py      # 网页抓取
-│   │   └── trending_fetcher.py # 热点分析
+│   │   ├── trending_fetcher.py # 热点分析
+│   │   └── weather_fetcher.py  # 天气预报抓取
 │   ├── processors/             # 内容处理
 │   │   ├── content_processor.py
 │   │   └── image_processor.py

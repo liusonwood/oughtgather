@@ -73,8 +73,19 @@ from src.utils.logger import get_logger
 class CustomFetcher(BaseFetcher):
     """Your Custom Fetcher Description"""
     
-    # 1. Declare the plugin type name
+    # 1. Declare the plugin type name, source input placeholder, and config editor schema
     type_name = "custom_type"
+    src_placeholder = "placeholder text for the source field in config-editor"
+    config_schema = {
+        # Schema dictionary describing custom fields for config-editor.html.
+        # Supported input types: 'text', 'number', 'select', 'textarea'.
+        # Use dot notation (e.g. 'metadata.xyz') to place the field inside the metadata block.
+        "metadata.custom_param": {
+            "type": "text",
+            "label": "Custom Parameter",
+            "placeholder": "Enter value..."
+        }
+    }
 
     def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):
         super().__init__(source, global_limit=global_limit, max_retries=max_retries)
