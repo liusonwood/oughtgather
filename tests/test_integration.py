@@ -592,53 +592,8 @@ class TestEpubcheckValidation:
             "epubcheck", "epubcheck.jar"
         )
 
-    @staticmethod
-    def _generate_simple_epub(fetch_results):
-        """用给定的 FetchResult 列表生成 EPUB，返回路径"""
-        config_data = {
-            "title": {"text": "Epubcheck 合规测试", "img": ""},
-            "body": [
-                {"type": r.source.type, "src": r.source.src,
-                 "title": r.source.title, "priority": r.source.priority}
-                for r in fetch_results
-            ],
-        }
-        config = _parse_config(config_data)
-        generator = EPUBGenerator(config)
-        return generator.generate(fetch_results)
-
-    def test_epub_passes_epubcheck(self):
-        """生成的 EPUB 应通过 epubcheck 验证，无错误无警告"""
-        jar = self._epubcheck_jar()
-
-        source = ContentSource(
-            type="rss", src="https://example.com/rss",
-            title="测试源", priority=10
-        )
-        articles = [
-            Article(title="文章一", content="<p>第一段正文内容。</p>",
-                    url="https://example.com/1"),
-            Article(title="文章二", content="<p>第二段正文内容。</p>",
-                    url="https://example.com/2"),
-        ]
-        results = [FetchResult(source=source, articles=articles)]
-
-        epub_path = self._generate_simple_epub(results)
-        try:
-            result = subprocess.run(
-                ["java", "-jar", jar, epub_path],
-                capture_output=True, text=True, timeout=60
-            )
-            print(result.stderr)
-            assert result.returncode == 0, (
-                f"epubcheck 验证失败（exit={result.returncode}）：\n"
-                f"{result.stderr}"
-            )
-        finally:
-            os.remove(epub_path)
-
     def test_epub_with_failed_images_passes_epubcheck(self):
-        """即使含图片下载失败，生成的 EPUB 仍应通过 epubcheck 验证"""
+        """即使含图片下载失败，生成的 EPUB 仍应通过 epubcheck 验证（最复杂集成场景）"""
         jar = self._epubcheck_jar()
 
         source = ContentSource(
@@ -659,7 +614,18 @@ class TestEpubcheckValidation:
         with patch.object(
             ImageProcessor, 'download_and_process', return_value=None
         ):
-            epub_path = self._generate_simple_epub(results)
+            # 生成临时 EPUB
+            config_data = {
+                "title": {"text": "Epubcheck 合规测试", "img": ""},
+                "body": [
+                    {"type": r.source.type, "src": r.source.src,
+                     "title": r.source.title, "priority": r.source.priority}
+                    for r in results
+                ],
+            }
+            config = _parse_config(config_data)
+            generator = EPUBGenerator(config)
+            epub_path = generator.generate(results)
 
         try:
             result = subprocess.run(
