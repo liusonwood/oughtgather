@@ -211,7 +211,7 @@ https://liusonwood.github.io/oughtgather/
 **方式二**：手动触发同步
 
 ```bash
-python3.11 src/update_editor.py
+python3.11 scripts/update_editor.py
 ```
 
 ---
@@ -336,58 +336,59 @@ class MyFetcher(BaseFetcher):
         return result
 ```
 
-新增 fetcher 后，运行 `python3.11 src/update_editor.py` 同步到 `config-editor.html`。
+新增 fetcher 后，运行 `python3.11 scripts/update_editor.py` 同步到 `config-editor.html`。
 
 ---
 
 
 ## 项目结构
+
+```text
+.
+├── LICENSE
+├── README.md
+├── config-editor.html
+├── config.json
+├── config.template.json
+├── GEMINI.md
+├── requirements.txt
+├── data/               # 去重数据库
+│   └── fetched_urls.txt
+├── docs/               # 开发文档
+│   ├── CONFIG.md
+│   ├── EPUB_COMPLIANCE.md
+│   ├── TESTING.md
+│   ├── WORKFLOW.md
+│   ├── design.md
+│   ├── new_fetcher_prompt_template.md
+│   └── testmail-api.md
+├── epubcheck/          # EPUB 标准校验工具
+│   ├── epubcheck.jar
+│   └── lib/
+├── img/                # Kindle 效果图片
+├── Fonts/              # 字体文件 (NotoEmoji-Regular.ttf)
+├── scripts/            # 辅助脚本
+│   ├── update_editor.py
+│   └── update_readme_secrets.py
+├── src/                # 核心源代码
+│   ├── main.py
+│   ├── config.py
+│   ├── dedup/          # 去重逻辑
+│   ├── epub/           # EPUB 生成
+│   ├── fetchers/       # 数据源抓取器
+│   ├── mailer/         # 邮件发送
+│   ├── processors/     # 内容与图片处理
+│   ├── uploader/       # WebDAV 上传
+│   └── utils/          # 工具与日志
+└── tests/              # 测试套件
 ```
-ought-gather/
-├── config-editor.html          # 可视化配置编辑器（浏览器打开）
-├── src/
-│   ├── main.py                 # 主入口
-│   ├── config.py               # 配置管理
-│   ├── fetchers/               # 数据抓取模块
-│   │   ├── mail_fetcher.py     # 邮件抓取
-│   │   ├── rss_fetcher.py      # RSS 抓取
-│   │   ├── web_fetcher.py      # 网页抓取
-│   │   ├── trending_fetcher.py # 热点分析
-│   │   └── weather_fetcher.py  # 天气预报抓取
-│   ├── processors/             # 内容处理
-│   │   ├── content_processor.py
-│   │   └── image_processor.py
-│   ├── epub/                   # EPUB 生成
-│   │   ├── generator.py
-│   │   ├── cover.py
-│   │   └── toc.py
-│   ├── dedup/                  # 去重追踪
-│   │   └── tracker.py
-│   ├── mailer/                 # 邮件发送
-│   │   └── smtp_sender.py
-│   └── utils/                  # 工具模块
-│       ├── logger.py
-│       └── helpers.py
-├── tests/                      # 测试套件
-│   ├── conftest.py             # 共享 fixtures
-│   ├── test_config.py          # 配置测试
-│   ├── test_helpers.py         # 工具函数测试
-│   ├── test_content_processor.py # 内容处理测试
-│   ├── test_dedup_tracker.py   # 去重测试
-│   ├── test_fetchers.py        # 抓取器测试
-│   ├── test_image_processor.py # 图片处理测试
-│   ├── test_epub_compliance.py # EPUB合规性测试（21个测试）
-│   └── test_integration.py     # 集成测试（含epubcheck验证）
-├── config.template.json        # 配置模板
-├── docs/
-│   ├── CONFIG.md               # 配置指南（config.json 详细说明）
-│   ├── TESTING.md              # 测试指南
-│   ├── EPUB_COMPLIANCE.md      # EPUB合规指南（常见错误与解决方案）
-│   ├── design.md               # Ought Gather 项目设计文档
-│   └── testmail-api.md         # TestMail.app API 文档
-└── .github/workflows/          # GitHub Actions
-    └── daily-gather.yml
-```
+
+**目录说明：**
+- `src/`: 项目核心逻辑，包含各个功能模块的实现。
+- `docs/`: 详细的架构设计、开发指南及合规性文档。
+- `tests/`: 覆盖全功能的单元测试与集成测试，确保 EPUB 生成与抓取逻辑正确。
+- `epubcheck/`: 用于验证生成的 EPUB 3 文件是否严格符合国际标准。
+- `data/`: 自动维护的内容去重数据库。
 ## 许可证
 
 GNU AGPLv3.0，见 [LICENSE](LICENSE)。
