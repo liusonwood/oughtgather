@@ -111,7 +111,6 @@ class EPUBGenerator:
         # 12. 设置 Guide 元素，明确指定启动页面为目录 (增加老旧设备兼容性)
         book.guide = [
             {'href': 'start.xhtml', 'title': 'Table of Contents', 'type': 'toc'},
-            {'href': 'cover.xhtml', 'title': 'Cover', 'type': 'cover'},
             {'href': 'start.xhtml', 'title': 'Table of Contents', 'type': 'text'},
             {'href': 'start.xhtml', 'title': 'Start', 'type': 'start'},
         ]
@@ -137,62 +136,12 @@ class EPUBGenerator:
         try:
             cover_filename, cover_data = self.cover_generator.generate()
 
-            # 1. 设置封面图片 (使用 set_cover 确保 properties="cover-image" 被正确设置)
+            # 设置封面图片 (使用 set_cover 确保 properties="cover-image" 被正确设置)
             # ebooklib 会自动处理 manifest 中的 properties
-            # 设置 create_page=False，因为我们要手动创建自定义样式的封面页
-            book.set_cover(cover_filename, cover_data, create_page=False)
+            # 设置 create_page=True 让 ebooklib 处理封面，这是最标准兼容性最好的做法
+            book.set_cover(cover_filename, cover_data, create_page=True)
 
-            # 2. 创建封面 XHTML 页面 (EPUB 3.0 使用 HTML5)
-            # 使用更好的 CSS 确保图片在 Kindle 等设备上充满屏幕，背景为黑色避免白边
-            cover_html = f"""<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh" xml:lang="zh">
-<head>
-    <title>Cover</title>
-    <style type="text/css">
-        @page {{ margin: 0; padding: 0; }}
-        html, body {{ 
-            margin: 0; 
-            padding: 0; 
-            width: 100%; 
-            height: 100%; 
-        }}
-        body {{ 
-            display: table; 
-            text-align: center; 
-            background-color: #000000; 
-        }}
-        .cover {{ 
-            display: table-cell; 
-            vertical-align: middle; 
-            width: 100%; 
-            height: 100%; 
-        }}
-        img {{ 
-            max-width: 100%; 
-            max-height: 100%; 
-            display: block; 
-            margin: 0 auto;
-            object-fit: contain;
-        }}
-    </style>
-</head>
-<body>
-    <div class="cover">
-        <img src="{cover_filename}" alt="Cover"/>
-    </div>
-</body>
-</html>"""
-
-            cover_page = epub.EpubHtml(
-                title='Cover',
-                file_name='cover.xhtml',
-                uid='cover'
-            )
-            cover_page.is_linear = False
-            cover_page.content = cover_html
-            book.add_item(cover_page)
-
-            self.logger.info("Cover added to EPUB")
+            self.logger.info("Cover image set in EPUB")
         except Exception as e:
             self.logger.error(f"Failed to add cover: {e}")
 

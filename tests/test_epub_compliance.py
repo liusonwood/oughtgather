@@ -368,9 +368,10 @@ class TestEpubMetadata:
             assert toc_ref.get('href') == 'start.xhtml', f"目录引用href应为'start.xhtml'，实际为'{toc_ref.get('href')}'"
 
             # 查找封面引用 (cover)
-            cover_ref = guide.find('.//{*}reference[@type="cover"]')
-            assert cover_ref is not None, "guide应包含type='cover'的引用"
-            assert cover_ref.get('href') == 'cover.xhtml', f"封面引用href应为'cover.xhtml'，实际为'{cover_ref.get('href')}'"
+            # 方案A中不再使用独立的封面 XHTML，Kindle 依靠 metadata/manifest 中的 cover-image 属性识别
+            # cover_ref = guide.find('.//{*}reference[@type="cover"]')
+            # assert cover_ref is not None, "guide应包含type='cover'的引用"
+            # assert cover_ref.get('href') == 'cover.xhtml', f"封面引用href应为'cover.xhtml'，实际为'{cover_ref.get('href')}'"
 
             # 查找正文起始引用 (text)
             text_ref = guide.find('.//{*}reference[@type="text"]')
@@ -382,7 +383,7 @@ class TestEpubMetadata:
             assert start_ref.get('href') == 'start.xhtml', \
                 f"start引用href应为'start.xhtml'，实际为'{start_ref.get('href')}'"
 
-            print(f"✓ OPF包含完整的guide(toc/cover/text/start)元素，start指向start.xhtml")
+            print(f"✓ OPF包含完整的guide(toc/text/start)元素，start指向start.xhtml")
 
     def test_language_is_zh(self, shared_epub):
         """测试语言设置为中文"""
