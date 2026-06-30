@@ -5,7 +5,7 @@ on:
     paths:
       - 'src/fetchers/*.py'
       - 'scripts/update_readme_secrets.py'
-      - 'src/update_editor.py'
+      - 'scripts/update_editor.py'
       - 'README.md'
   workflow_dispatch:
 
@@ -24,7 +24,7 @@ jobs:
       - name: Run sync scripts
         run: |
           python scripts/update_readme_secrets.py
-          python src/update_editor.py
+          python scripts/update_editor.py
       - name: Commit changes
         run: |
           git config user.name "github-actions[bot]"
