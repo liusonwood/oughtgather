@@ -26,10 +26,12 @@ This guide provides compact developer instructions, architecture decisions, and 
   - `content_processor`: Applies `keep_link`, `exclude`, and `delete` rules.
   - `image_processor`: Downloads/compresses images (≤250KB, max 640×960, JPEG Q75). Filters out small decorative assets (< 120×120).
 - **Dedup Tracker (`src/dedup/tracker.py`)**: File-based tracker (`data/fetched_urls.txt`) storing URL/title hashes. Automatically prunes old records when exceeding `MAX_RECORDS = 5000`.
-- **EPUB Generator (`src/epub/`)**:
+- EPUB Generator (`src/epub/`):
   - Cover: Custom (`title.img`) or Bing Daily wallpaper with text/date overlays.
   - TOC: Flat layout (source → articles).
+  - Emoji Support: Automatically wraps emojis in `<span class="emoji">`. To ensure they display as black-and-white glyphs on Kindle, place `NotoEmoji-Regular.ttf` in `Fonts/` and ensure the reader selects "Publisher Font".
   - Compliance: Standard `FOLDER_NAME='EPUB'` must be used (avoids OCF RSC-026). OPF version must be `3.0`. EPUB 3.0 requires both EpubNcx and EpubNav items (avoids RSC-005). XHTML covers must not be empty. Escape f-string CSS curly braces as `{{}}`. EPUBCheck validates against EPUB 3.3 rules (`java -jar epubcheck.jar <file.epub>`).
+
 - **Uploader (`src/uploader/`)**:
   - `WebDavUploader`: Uploads generated EPUBs to WebDAV endpoints if configured (`WEBDAV_ENABLED`=true).
 

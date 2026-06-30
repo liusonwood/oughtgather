@@ -49,7 +49,47 @@ class ContentProcessor:
         # 4. 确保 HTML 格式正确
         article.content = self._ensure_valid_html(article.content)
 
+        # 5. 包裹 Emoji
+        article.content = self.wrap_emojis(article.content)
+
         return article
+
+    @staticmethod
+    def wrap_emojis(html: str) -> str:
+        """
+        使用正则表达式找出文本中的常见表情符号，并用 <span class="emoji"> 包裹。
+        """
+        # 匹配常见 Emoji 的 Unicode 范围（包含杂项符号、表情、交通、补充符号等）
+        # 注意：对于超过 4 位的 Unicode 码点，必须使用 \U0001Fxxx 格式
+        emoji_pattern = re.compile(
+            r'('
+            r'[\u2600-\u27BF]|'      # 杂项符号、装饰符号、丁坝符
+            r'[\U0001F300-\U0001F5FF]|'    # 杂项符号和象形文字
+            r'[\U0001F600-\U0001F64F]|'    # 表情 (Emoticons)
+            r'[\U0001F680-\U0001F6FF]|'    # 交通和地图符号
+            r'[\U0001F900-\U0001F9FF]|'    # 补充符号和象形文字
+            r'[\U0001F1E6-\U0001F1FF]+'    # 国家/地区旗帜符号
+            r')'
+        )
+        
+        # 使用 BeautifulSoup 避免破坏标签结构
+        soup = BeautifulSoup(html, 'lxml')
+        
+        # 只处理文本节点
+        for text_node in soup.find_all(string=True):
+            # 跳过已经在 span.emoji 中的节点
+            if text_node.parent.name == 'span' and text_node.parent.get('class') == ['emoji']:
+                continue
+                
+            if emoji_pattern.search(text_node):
+                new_text = emoji_pattern.sub(r'<span class="emoji">\1</span>', str(text_node))
+                # 重新解析含有 span 的字符串片段
+                new_node = BeautifulSoup(new_text, 'lxml').body.contents[0]
+                text_node.replace_with(new_node)
+                
+        if soup.body:
+            return soup.body.decode_contents()
+        return str(soup)
 
     def _apply_exclude(self, html: str) -> str:
         """

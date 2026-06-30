@@ -96,6 +96,7 @@ class EPUBGenerator:
 
         # 11. 添加样式
         self._add_style(book)
+        self._add_emoji_font(book)
 
         # 12. 设置 Guide 元素，明确指定启动页面为目录 (增加老旧设备兼容性)
         book.guide = [
@@ -693,6 +694,24 @@ class EPUBGenerator:
 </html>"""
         return content
 
+    def _add_emoji_font(self, book: epub.EpubBook):
+        """添加 Emoji 字体"""
+        font_path = "Fonts/NotoEmoji-Regular.ttf"
+        if os.path.exists(font_path):
+            with open(font_path, "rb") as f:
+                font_data = f.read()
+            
+            epub_font = epub.EpubItem(
+                uid="emojifont",
+                file_name="Fonts/NotoEmoji-Regular.ttf",
+                media_type="font/ttf",
+                content=font_data
+            )
+            book.add_item(epub_font)
+            self.logger.info("Emoji font added to EPUB")
+        else:
+            self.logger.warning(f"Emoji font not found at {font_path}, emoji might not display correctly.")
+
     def _add_style(self, book: epub.EpubBook):
         """添加样式"""
         css = epub.EpubItem(
@@ -723,6 +742,16 @@ h1 {
     max-width: 100%;
     height: auto;
 }
+
+/* Emoji 字体样式 */
+@font-face {
+    font-family: "MyEmojiFont";
+    src: url("../Fonts/NotoEmoji-Regular.ttf");
+}
+.emoji {
+    font-family: "MyEmojiFont", sans-serif;
+}
+
 .link {
     margin-top: 2em;
     font-size: 0.8em;
