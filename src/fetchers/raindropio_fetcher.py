@@ -12,7 +12,14 @@ class RaindropFetcher(BaseFetcher):
     
     type_name = "raindropio"
     src_placeholder = "Enter Raindropio collection ID (e.g., 1234567, or 0 for Unsorted)"
-    config_schema = {}
+    config_schema = {
+        "full_text": {
+            "type": "select",
+            "label": "全文提取",
+            "options": ["", "N", "Y"],
+            "hint": "Raindropio 有效"
+        }
+    }
     required_secrets = {
         "RAINDROPIO_API_KEY": "Raindrop.io 的 API 访问密钥。"
     }
@@ -61,10 +68,14 @@ class RaindropFetcher(BaseFetcher):
                 url = item.get("link")
                 excerpt = item.get("excerpt", "")
                 
-                # Raindrop items might not have full HTML content, 
-                # might need to rely on the URL for full text if needed (e.g. using trafilatura)
-                # For now, let's use the excerpt as content.
-                content = f"<p>{excerpt}</p>"
+                # Check for full text if requested
+                content = None
+                if self.source.full_text == "Y":
+                    content, _ = self._fetch_full_text(url)
+                
+                if not content:
+                    # Fallback to excerpt
+                    content = f"<p>{excerpt}</p>"
                 
                 # Check for images
                 images = []

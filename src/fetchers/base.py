@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 import httpx
+import trafilatura
 
 from src.config import ContentSource
 from src.utils.logger import get_logger
@@ -344,6 +345,50 @@ class BaseFetcher(ABC):
             graphic.name = 'img'
         body = soup.body if soup.body else soup
         return body.decode_contents()
+
+    def _fetch_full_text(self, url: str) -> tuple:
+        """
+        抓取完整正文
+
+        Args:
+            url: 文章 URL
+
+        Returns:
+            tuple: (正文 HTML, 原始页面 HTML)。trafilatura 失败时正文为空字符串。
+        """
+        if not url:
+            return "", ""
+
+        try:
+            # 下载网页
+            response = self._make_request(url)
+            raw_html = response.text
+
+            # 使用 trafilatura 提取正文
+            content = trafilatura.extract(
+                raw_html,
+                include_comments=False,
+                include_tables=True,
+                include_images=True,
+                include_links=True,
+                output_format="html"
+            )
+
+            if content:
+                # trafilatura 在 output_format="html" 时会将 <img> 转换为
+                # <graphic>（HTML5 元素），导致下游的 ContentProcessor 和
+                # EPUBGenerator 找不到 <img> 标签而丢失所有图片。
+                # 这里将 <graphic src="..."> 转换回 <img src="...">。
+                content = self._restore_img_tags(content)
+
+            if not content:
+                self.logger.warning(f"trafilatura failed to extract content from {url}")
+
+            return content or "", raw_html
+
+        except Exception as e:
+            self.logger.error(f"Failed to fetch full text from {url}: {e}")
+            return "", ""
 
     def _should_delete(self, title: str) -> bool:
         """

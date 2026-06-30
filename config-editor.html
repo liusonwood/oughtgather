@@ -901,7 +901,18 @@
   },
   "raindropio": {
     "src_placeholder": "Enter Raindropio collection ID (e.g., 1234567, or 0 for Unsorted)",
-    "schema": {},
+    "schema": {
+      "full_text": {
+        "type": "select",
+        "label": "全文提取",
+        "options": [
+          "",
+          "N",
+          "Y"
+        ],
+        "hint": "Raindropio 有效"
+      }
+    },
     "required_secrets": {
       "RAINDROPIO_API_KEY": "Raindrop.io 的 API 访问密钥。"
     }
