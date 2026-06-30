@@ -550,6 +550,13 @@ class TestTrendingFetcher:
         result = fetcher.fetch()
 
         assert result.success is True
+        
+        # 验证发送给 LLM 的 payload 包含搜索结果
+        llm_call = mock_client.post.call_args_list[1]
+        payload = llm_call.kwargs["json"]
+        user_message = payload["messages"][1]["content"]
+        assert "Search content 1" in user_message
+        
         assert len(result.articles) == 1
         assert "has_search_context" in result.articles[0].metadata
         assert result.articles[0].metadata["has_search_context"] is True

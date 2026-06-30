@@ -35,6 +35,28 @@ class ContentProcessor:
         Returns:
             Article: 处理后的文章
         """
+        # 0. 如果提取的图片列表中有首图（通常是封面图），且正文中没有包含该图片，
+        # 则在正文最前方插入它，以便能够在电子书中下载并展示。
+        if article.images and article.content:
+            lead_image = article.images[0]
+            soup = BeautifulSoup(article.content, 'lxml')
+            has_lead_image = False
+            for img in soup.find_all('img'):
+                src = img.get('src') or img.get('data-src')
+                if src and (src == lead_image or lead_image in src or src in lead_image):
+                    has_lead_image = True
+                    break
+            
+            if not has_lead_image:
+                lead_img_tag = soup.new_tag('img', src=lead_image, alt="Lead Image")
+                wrapper = soup.new_tag('p')
+                wrapper.append(lead_img_tag)
+                if soup.body:
+                    soup.body.insert(0, wrapper)
+                else:
+                    soup.insert(0, wrapper)
+                article.content = soup.body.decode_contents() if soup.body else str(soup)
+
         # 1. 应用 exclude 规则
         if self.source.exclude:
             article.content = self._apply_exclude(article.content)
