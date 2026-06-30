@@ -896,20 +896,14 @@
       }
     },
     "required_secrets": {
-      "TESTMAIL_APP_API_KEY*": "从 testmail.app 获取的 API Key，用于邮件抓取。"
+      "TESTMAIL_APP_API_KEY": "从 testmail.app 获取的 API Key，用于邮件抓取。"
     }
   },
   "raindropio": {
     "src_placeholder": "Enter Raindropio collection ID (e.g., 1234567, or 0 for Unsorted)",
-    "schema": {
-      "metadata.collection_id": {
-        "type": "text",
-        "label": "Collection ID",
-        "placeholder": "0"
-      }
-    },
+    "schema": {},
     "required_secrets": {
-      "RAINDROPIO_API_KEY*": "Raindrop.io 的 API 访问密钥。"
+      "RAINDROPIO_API_KEY": "Raindrop.io 的 API 访问密钥。"
     }
   },
   "rss": {
@@ -943,10 +937,10 @@
       }
     },
     "required_secrets": {
-      "OPENROUTER_API_KEY*": "OpenRouter API 密钥，用于调用 LLM 生成热点分析。",
+      "OPENROUTER_API_KEY": "OpenRouter API 密钥，用于调用 LLM 生成热点分析。",
       "OPENROUTER_API_ENDPOINT": "自定义 OpenRouter 兼容接口，默认 `https://openrouter.ai/api/v1/chat/completions`。",
-      "OPENROUTER_MODEL*": "使用的 LLM 模型名称。",
-      "TAVILY_API_KEY*": "Tavily API 密钥，用于搜索热点信息。"
+      "OPENROUTER_MODEL": "使用的 LLM 模型名称。",
+      "TAVILY_API_KEY": "Tavily API 密钥，用于搜索热点信息。"
     }
   },
   "weather": {
@@ -959,8 +953,8 @@
       }
     },
     "required_secrets": {
-      "QWEATHER_KEY*": "和风天气 API 密钥，用于获取天气数据。",
-      "QWEATHER_HOST*": "和风天气 API 主机地址。"
+      "QWEATHER_KEY": "和风天气 API 密钥，用于获取天气数据。",
+      "QWEATHER_HOST": "和风天气 API 主机地址。"
     }
   },
   "web": {

@@ -12,13 +12,7 @@ class RaindropFetcher(BaseFetcher):
     
     type_name = "raindropio"
     src_placeholder = "Enter Raindropio collection ID (e.g., 1234567, or 0 for Unsorted)"
-    config_schema = {
-        "metadata.collection_id": {
-            "type": "text",
-            "label": "Collection ID",
-            "placeholder": "0"
-        }
-    }
+    config_schema = {}
     required_secrets = {
         "RAINDROPIO_API_KEY": "Raindrop.io 的 API 访问密钥。"
     }
@@ -40,9 +34,8 @@ class RaindropFetcher(BaseFetcher):
         result = FetchResult(source=self.source, articles=[])
         
         try:
-            # Get collection ID
-            metadata = self.source.metadata or {}
-            collection_id = metadata.get("collection_id", "0")
+            # Use source.src as collection ID
+            collection_id = self.source.src
             
             # Raindrop API URL
             url = f"https://api.raindrop.io/rest/v1/raindrops/{collection_id}"
