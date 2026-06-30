@@ -569,8 +569,30 @@ class TestEpubValidationFixes:
 
 
 # =========================================================================
-# 邮件布局表格与样式清洗测试
+# Emoji 处理测试
 # =========================================================================
+
+class TestEmojiProcessing:
+    """Emoji 处理测试"""
+
+    def test_wrap_multiple_emojis(self):
+        """测试单个文本节点中存在多个 Emoji 时均被包裹"""
+        source = ContentSource(type="rss", src="https://example.com/rss")
+        processor = ContentProcessor(source)
+        html = "<p>Hello 😀 World 😂</p>"
+        article = _make_article(html)
+        result = processor.process(article)
+        
+        # 验证是否包含两个 span
+        soup = BeautifulSoup(result.content, 'lxml')
+        emojis = soup.find_all('span', class_='emoji')
+        assert len(emojis) == 2
+        assert emojis[0].get_text() == '😀'
+        assert emojis[1].get_text() == '😂'
+        
+        # 验证文本内容是否正确
+        assert "Hello" in result.content
+        assert "World" in result.content
 
 class TestLayoutTableCleaning:
     """测试邮件布局表格与样式清洗行为"""

@@ -85,6 +85,8 @@ class EPUBGenerator:
         book.add_item(nav)
 
         # 9.5. 生成并添加 visual start.xhtml
+        # 在页面底部嵌入一个不可见的链接，指向 nav.xhtml，
+        # 以满足 EPUB OPF-096 规范：非线性内容必须从某个线性内容可达。
         toc_page = epub.EpubHtml(title=book.title, file_name='start.xhtml', uid='toc_page')
         toc_page.content = self._generate_nav_content(book.title, book.toc, is_nav=False)
         toc_page.add_link(href='style/default.css', rel='stylesheet')
@@ -93,7 +95,9 @@ class EPUBGenerator:
         # 10. 将 toc_page 插入到 spine 中。
         # 我们希望首次打开电子书时直接进入目录 (start.xhtml)，因此把 toc_page 排在最前面。
         # 封面不加入 spine，仅通过 manifest + guide 引用，阅读器（含 Kindle）会跳过封面直接进入目录。
-        # 同时，将 nav.xhtml (logical navigation) 作为线性元素追加到 spine 的末尾。
+        # nav.xhtml 标记为非线性 (linear="no")，这样阅读器翻页时不会碰到它，
+        # 但仍需将其放入 spine 并从 start.xhtml 提供可达链接（OPF-096 要求）。
+        nav.is_linear = False
         if isinstance(book.spine, list):
             book.spine.insert(0, toc_page)
             book.spine.append(nav)
@@ -107,7 +111,6 @@ class EPUBGenerator:
         # 12. 设置 Guide 元素，明确指定启动页面为目录 (增加老旧设备兼容性)
         book.guide = [
             {'href': 'start.xhtml', 'title': 'Table of Contents', 'type': 'toc'},
-            {'href': 'cover.xhtml', 'title': 'Cover', 'type': 'cover'},
             {'href': 'start.xhtml', 'title': 'Table of Contents', 'type': 'text'},
             {'href': 'start.xhtml', 'title': 'Start', 'type': 'start'},
         ]
@@ -708,6 +711,11 @@ class EPUBGenerator:
         </ol>
     </nav>
 """
+
+        if not is_nav:
+            # OPF-096 要求：非线性的 nav.xhtml 必须从某个线性内容可达。
+            # 在 start.xhtml 底部加一个隐藏链接，display:none 使读者不可见。
+            content += '\n    <p style="display:none;"><a href="nav.xhtml">Navigation</a></p>\n'
 
         content += """</body>
 </html>"""

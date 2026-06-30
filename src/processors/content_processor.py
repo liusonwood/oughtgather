@@ -105,9 +105,9 @@ class ContentProcessor:
                 
             if emoji_pattern.search(text_node):
                 new_text = emoji_pattern.sub(r'<span class="emoji">\1</span>', str(text_node))
-                # 重新解析含有 span 的字符串片段
-                new_node = BeautifulSoup(new_text, 'lxml').body.contents[0]
-                text_node.replace_with(new_node)
+                # 重新解析含有 span 的字符串片段，并将所有内容替换回文本节点
+                parsed_new = BeautifulSoup(new_text, 'lxml').body
+                text_node.replace_with(*parsed_new.contents)
                 
         if soup.body:
             return soup.body.decode_contents()
