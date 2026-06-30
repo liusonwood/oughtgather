@@ -24,7 +24,7 @@ class MailFetcher(BaseFetcher):
         "metadata.offset": {"type": "number", "label": "offset"}
     }
     required_secrets = {
-        "TESTMAIL_APP_API_KEY*": "从 testmail.app 获取的 API Key，用于邮件抓取。"
+        "TESTMAIL_APP_API_KEY": "从 testmail.app 获取的 API Key，用于邮件抓取。"
     }
 
     def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):

@@ -28,10 +28,10 @@ class TrendingFetcher(BaseFetcher):
         }
     }
     required_secrets = {
-        "OPENROUTER_API_KEY*": "OpenRouter API 密钥，用于调用 LLM 生成热点分析。",
+        "OPENROUTER_API_KEY": "OpenRouter API 密钥，用于调用 LLM 生成热点分析。",
         "OPENROUTER_API_ENDPOINT": "自定义 OpenRouter 兼容接口，默认 `https://openrouter.ai/api/v1/chat/completions`。",
-        "OPENROUTER_MODEL*": "使用的 LLM 模型名称。",
-        "TAVILY_API_KEY*": "Tavily API 密钥，用于搜索热点信息。"
+        "OPENROUTER_MODEL": "使用的 LLM 模型名称。",
+        "TAVILY_API_KEY": "Tavily API 密钥，用于搜索热点信息。"
     }
 
     def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):
