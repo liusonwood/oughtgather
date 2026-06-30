@@ -279,6 +279,56 @@ class BaseFetcher(ABC):
 
         return images
 
+    def _extract_og_image(self, html: str, base_url: Optional[str] = None) -> List[str]:
+        """
+        从 HTML 的 <head> meta 标签中提取封面图 URL。
+
+        适用于现代 SPA/新闻网站（如 Scientific American），这类网站的文章
+        主图往往只存在于 og:image/twitter:image/<link rel="image_src"> 等
+        meta 标签中，而不会出现在 trafilatura 提取的正文 HTML 里。
+
+        Args:
+            html: 原始完整 HTML
+            base_url: 基础 URL（用于解析相对路径）
+
+        Returns:
+            List[str]: 封面图 URL 列表（去重），顺序：og:image > twitter:image > image_src
+        """
+        if not html:
+            return []
+
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html, 'lxml')
+        seen: set = set()
+        result: List[str] = []
+
+        def _add(url: str):
+            if not url or url.startswith('data:'):
+                return
+            full = self._resolve_url(url, base_url)
+            if full not in seen:
+                seen.add(full)
+                result.append(full)
+
+        # og:image
+        og = soup.find('meta', property='og:image')
+        if og:
+            _add(og.get('content', ''))
+
+        # twitter:image
+        tw = soup.find('meta', attrs={'name': 'twitter:image'})
+        if tw:
+            _add(tw.get('content', ''))
+
+        # <link rel="image_src">
+        link = soup.find('link', rel=lambda v: v and 'image_src' in v)
+        if link:
+            _add(link.get('href', '') or link.get('src', ''))
+
+        if result:
+            self.logger.debug(f"Extracted og:image candidates: {result}")
+        return result
+
     @staticmethod
     def _restore_img_tags(html: str) -> str:
         """

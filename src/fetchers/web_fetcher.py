@@ -42,9 +42,12 @@ class WebFetcher(BaseFetcher):
                 result.error = "Failed to extract content from webpage"
                 return result
 
-            # 从原始 HTML 提取图片 URL（trafilatura 会将 <img> 转换为 <graphic>，
-            # 所以直接从下载到的原始页面提取，避免图片丢失）
-            images = self._extract_images(html)
+            # 从原始 HTML 提取图片：先从 og:image/twitter:image 等 meta 标签获取封面图，
+            # 再从正文 <img> 标签补充（避免 trafilatura 丢失 lead image）
+            og_images = self._extract_og_image(html, base_url=self.source.src)
+            body_images = self._extract_images(html, base_url=self.source.src)
+            seen = set(og_images)
+            images = og_images + [u for u in body_images if u not in seen]
 
             # 创建文章对象
             article = Article(
