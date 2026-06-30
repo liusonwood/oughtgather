@@ -76,7 +76,7 @@ def update_readme(table_content):
 
     # Replace the existing table with the new one, followed by two newlines.
     # The regex already consumed the trailing whitespace/blank lines from the old table.
-    formatted_table = table_content.rstrip('\n') + '\n\n'
+    formatted_table = table_content.rstrip('\n') + '\n\n\n'
 
     new_content = re.sub(table_pattern, formatted_table, content, flags=re.MULTILINE)
     

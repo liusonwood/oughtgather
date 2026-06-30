@@ -120,8 +120,10 @@ on:
 | `QWEATHER_KEY` | 和风天气 API 密钥，用于获取天气数据。 |
 | `QWEATHER_HOST` | 和风天气 API 主机地址。 |
 
-**SEND TO KINDLE**：Kindle 侧需要在亚马逊账号设置里，把发件邮箱加入「已认可的发件人电子邮箱列表」，否则推送不会被接收。
-**WEBDAV**：生成的 EPUB 自动同步至 WebDAV 云端（如坚果云、Nextcloud、本地 NAS 等）。
+
+两种推送方式：
+- **SEND TO KINDLE**：Kindle 侧需要在亚马逊账号设置里，把发件邮箱加入「已认可的发件人电子邮箱列表」，否则推送不会被接收。
+- **WEBDAV**：生成的 EPUB 自动同步至 WebDAV 云端（如坚果云、Nextcloud、本地 NAS 等）。
 
 ---
 ## config.json 说明
@@ -388,6 +390,10 @@ class MyFetcher(BaseFetcher):
 - `tests/`: 覆盖全功能的单元测试与集成测试，确保 EPUB 生成与抓取逻辑正确。
 - `epubcheck/`: 用于验证生成的 EPUB 3 文件是否严格符合国际标准。
 - `data/`: 自动维护的内容去重数据库。
+
+---
+
+
 ## 许可证
 
 GNU AGPLv3.0，见 [LICENSE](LICENSE)。
