@@ -988,7 +988,6 @@
         title: '',
         priority: '',
         keep_link: '',
-        chop: '',
         exclude: [],
         delete: ''
       };
@@ -1155,13 +1154,6 @@
               <option value="Y" ${s.keep_link === 'Y' ? 'selected' : ''}>Y</option>
               <option value="N" ${s.keep_link === 'N' ? 'selected' : ''}>N</option>
             </select>
-          </div>
-
-          <div class="form-row">
-            <label>裁剪 (chop)</label>
-            <input type="text" value="${escapeHtml(s.chop)}" oninput="updateField(${s._id}, 'chop', this.value)"
-              placeholder="例如: /[0:1500]">
-            <span class="hint">格式: /[start:end]</span>
           </div>
 
           <div class="form-row">
@@ -1445,8 +1437,6 @@
             priority: s.priority,
             keep_link: s.keep_link
           };
-
-          if (s.chop) item.chop = s.chop;
 
           const validExclude = s.exclude.filter(e => e.value.trim() !== '');
           if (validExclude.length > 0) {

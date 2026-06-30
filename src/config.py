@@ -56,7 +56,6 @@ class ContentSource:
     title: Optional[str] = None
     keep_link: str = "Y"
     full_text: str = "N"
-    chop: Optional[str] = None
     exclude: Optional[List[Dict[str, str]]] = None
     delete: Optional[str] = None
     goal: Optional[str] = None
@@ -151,7 +150,6 @@ def _parse_config(data: Dict[str, Any]) -> Config:
                 title=source_data.get("title"),
                 keep_link=source_data.get("keep_link", "Y"),
                 full_text=source_data.get("full_text", "N"),
-                chop=source_data.get("chop"),
                 exclude=source_data.get("exclude"),
                 delete=source_data.get("delete"),
                 goal=source_data.get("goal"),

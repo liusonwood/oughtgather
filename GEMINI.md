@@ -23,7 +23,7 @@ This guide provides compact developer instructions, architecture decisions, and 
   - `WebFetcher`: Trafilatura with BeautifulSoup fallback.
   - `TrendingFetcher`: LLM generation via OpenRouter API.
 - **Processors (`src/processors/`)**:
-  - `content_processor`: Applies `keep_link`, `chop`, `exclude`, and `delete` rules.
+  - `content_processor`: Applies `keep_link`, `exclude`, and `delete` rules.
   - `image_processor`: Downloads/compresses images (≤250KB, max 640×960, JPEG Q75). Filters out small decorative assets (< 120×120).
 - **Dedup Tracker (`src/dedup/tracker.py`)**: File-based tracker (`data/fetched_urls.txt`) storing URL/title hashes. Automatically prunes old records when exceeding `MAX_RECORDS = 5000`.
 - **EPUB Generator (`src/epub/`)**:
@@ -50,7 +50,6 @@ Optional variables: `CONFIG_JSON` (overrides file), `TESTMAIL_APP_API_KEY`, `OPE
       "priority": 10, // Higher priority items appear earlier in book (stable sorted)
       "keep_link": "Y|N",
       "full_text": "Y|N", // RSS only
-      "chop": "/[start:end]",
       "exclude": [{"type": "start|end|exact", "value": "keyword"}],
       "delete": "keyword1,keyword2",
       "metadata": {} // Fetcher-specific options

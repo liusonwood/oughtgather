@@ -114,7 +114,6 @@ class TestContentSource:
         assert source.title is None
         assert source.keep_link == "Y"
         assert source.full_text == "N"
-        assert source.chop is None
         assert source.exclude is None
         assert source.delete is None
         assert source.goal is None
@@ -140,7 +139,6 @@ class TestContentSource:
             title="测试源",
             keep_link="N",
             full_text="Y",
-            chop="/[0:100]",
             exclude=[{"type": "start", "value": "test"}],
             delete="广告,推广",
             goal="分析目标",
@@ -151,7 +149,6 @@ class TestContentSource:
         assert source.title == "测试源"
         assert source.keep_link == "N"
         assert source.full_text == "Y"
-        assert source.chop == "/[0:100]"
         assert len(source.exclude) == 1
         assert source.delete == "广告,推广"
         assert source.goal == "分析目标"
@@ -225,7 +222,6 @@ class TestParseConfig:
         # 检查 RSS 源详细字段
         rss = config.body[0]
         assert rss.full_text == "Y"
-        assert rss.chop == "/[0:2000]"
         assert len(rss.exclude) == 2
         assert rss.delete == "广告,推广"
 

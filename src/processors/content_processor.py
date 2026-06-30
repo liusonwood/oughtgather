@@ -35,64 +35,21 @@ class ContentProcessor:
         Returns:
             Article: 处理后的文章
         """
-        # 1. 应用 exclude 规则（先于 chop，避免 chop 将 HTML 压扁为纯文本）
+        # 1. 应用 exclude 规则
         if self.source.exclude:
             article.content = self._apply_exclude(article.content)
 
-        # 2. 应用 chop 规则
-        if self.source.chop:
-            article.content = self._apply_chop(article.content)
-
-        # 3. 应用 keep_link 规则
+        # 2. 应用 keep_link 规则
         if self.source.keep_link == "N":
             article.content = self._remove_links(article.content)
 
-        # 4. 清洗 HTML
+        # 3. 清洗 HTML
         article.content = self._clean_html(article.content)
 
-        # 5. 确保 HTML 格式正确
+        # 4. 确保 HTML 格式正确
         article.content = self._ensure_valid_html(article.content)
 
         return article
-
-    def _apply_chop(self, html: str) -> str:
-        """
-        应用 chop 规则
-        支持 Python 切片语法，如 "/[0:100]" 表示只保留前 100 个字符
-        支持负数索引，如 "/[:-200]" 表示删除最后 200 个字符
-
-        Args:
-            html: HTML 内容
-
-        Returns:
-            str: 处理后的 HTML
-        """
-        if not self.source.chop:
-            return html
-
-        try:
-            # 解析切片语法（支持负数索引，如 /[:-200]、/[-50:]）
-            chop_pattern = r'/\[(-?\d*):(-?\d*)\]'
-            match = re.match(chop_pattern, self.source.chop)
-
-            if match:
-                start = int(match.group(1)) if match.group(1) else None
-                end = int(match.group(2)) if match.group(2) else None
-
-                # 提取纯文本进行切片
-                soup = BeautifulSoup(html, 'lxml')
-                text = soup.get_text()
-
-                # 应用切片
-                sliced_text = text[start:end]
-
-                # 重新构建 HTML（简化处理）
-                return f"<p>{sliced_text}</p>"
-
-        except Exception as e:
-            self.logger.error(f"Failed to apply chop rule: {e}")
-
-        return html
 
     def _apply_exclude(self, html: str) -> str:
         """

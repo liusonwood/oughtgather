@@ -12,7 +12,6 @@
       "priority": 15,
       "keep_link": "Y",
       "full_text": "N",
-      "chop": "/[0:1500]",
       "exclude": [
         { "type": "start", "value": "Comments" }
       ],
@@ -24,8 +23,7 @@
       "title": "阮一峰的网络日志",
       "priority": 12,
       "keep_link": "Y",
-      "full_text": "N",
-      "chop": "/[0:2000]"
+      "full_text": "N"
     },
     {
       "type": "rss",

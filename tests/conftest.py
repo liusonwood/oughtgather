@@ -97,17 +97,6 @@ def source_with_exclude():
 
 
 @pytest.fixture
-def source_with_chop():
-    """带 chop 规则的内容源"""
-    return ContentSource(
-        type="rss",
-        src="https://example.com/rss",
-        priority=5,
-        chop="/[0:100]",
-    )
-
-
-@pytest.fixture
 def source_with_delete():
     """带 delete 关键词的内容源"""
     return ContentSource(
@@ -151,7 +140,6 @@ def full_config_data():
                 "priority": 10,
                 "keep_link": "Y",
                 "full_text": "Y",
-                "chop": "/[0:2000]",
                 "exclude": [
                     {"type": "start", "value": "阅读更多"},
                     {"type": "end", "value": "— 完 —"},
