@@ -221,21 +221,6 @@ def get_testmail_config() -> Optional[Dict[str, str]]:
     return None
 
 
-def get_openrouter_config() -> Optional[Dict[str, str]]:
-    """获取 OpenRouter 配置（可选）"""
-    api_key = get_secret("OPENROUTER_API_KEY", required=False)
-    endpoint = get_secret("OPENROUTER_API_ENDPOINT", required=False)
-    model = get_secret("OPENROUTER_MODEL", required=False)
-
-    if api_key:
-        return {
-            "api_key": api_key,
-            "endpoint": endpoint or "https://openrouter.ai/api/v1/chat/completions",
-            "model": model,  # None if not set; caller falls back to its own default
-        }
-    return None
-
-
 def get_webdav_config() -> Optional[WebDavConfig]:
     """获取 WebDAV 配置（可选）"""
     enabled = os.getenv("WEBDAV_ENABLED", "false").lower() == "true"

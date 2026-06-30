@@ -515,25 +515,35 @@ class TestMailFetcher:
 class TestTrendingFetcher:
     """TrendingFetcher 测试（mock httpx + API key）"""
 
-    @patch.dict("os.environ", {"OPENROUTER_API_KEY": "test_key_456"})
+    @patch.dict("os.environ", {"OPENROUTER_API_KEY": "test_key_456", "TAVILY_API_KEY": "tavily_key_123"})
     @patch("httpx.Client")
     def test_fetch_analysis(self, mock_client_cls, trending_source):
-        """测试 LLM 分析请求"""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
+        """测试 LLM 分析请求（带搜索）"""
+        mock_client = MagicMock()
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=False)
+        
+        # 定义按顺序的响应：第一个是 Tavily 搜索，第二个是 OpenRouter LLM
+        mock_search_response = MagicMock()
+        mock_search_response.status_code = 200
+        mock_search_response.json.return_value = {
+            "results": [{"title": "Search 1", "content": "Search content 1"}]
+        }
+        
+        mock_llm_response = MagicMock()
+        mock_llm_response.status_code = 200
+        mock_llm_response.json.return_value = {
             "choices": [
                 {
                     "message": {
-                        "content": "# AI 趋势\n\n最新发展概述\n\n- 要点1\n- 要点2"
+                        "content": "# AI 趋势\n\n根据搜索内容: Search content 1"
                     }
                 }
             ]
         }
-        mock_client = MagicMock()
-        mock_client.post.return_value = mock_response
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
+        
+        # 按调用顺序配置 side_effect
+        mock_client.post.side_effect = [mock_search_response, mock_llm_response]
         mock_client_cls.return_value = mock_client
 
         fetcher = TrendingFetcher(trending_source)
@@ -541,9 +551,10 @@ class TestTrendingFetcher:
 
         assert result.success is True
         assert len(result.articles) == 1
-        assert result.articles[0].title == "AI 热点"
-        assert result.articles[0].author == "AI Analysis"
-        assert "<h1>" in result.articles[0].content or "<p>" in result.articles[0].content
+        assert "has_search_context" in result.articles[0].metadata
+        assert result.articles[0].metadata["has_search_context"] is True
+        assert "Search content 1" in result.articles[0].content
+
 
     @patch.dict("os.environ", {}, clear=True)
     def test_no_api_key(self, trending_source, monkeypatch):

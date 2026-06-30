@@ -5,14 +5,15 @@
 
 import json
 import markdown
+import re
 from datetime import datetime
 from typing import Optional, Dict, Any
 
-from src.config import ContentSource, get_openrouter_config
+from src.config import ContentSource, get_secret
 from src.fetchers.base import BaseFetcher, FetchResult, Article
 from src.utils.logger import get_logger
 from src.utils.helpers import generate_content_id, get_now
-
+import re
 
 class TrendingFetcher(BaseFetcher):
     """热点分析抓取器"""
@@ -37,12 +38,25 @@ class TrendingFetcher(BaseFetcher):
             max_retries: 最大重试次数
         """
         super().__init__(source, global_limit=global_limit, max_retries=max_retries)
-        self.config = get_openrouter_config()
 
-        if not self.config:
+        # 内部获取 OpenRouter 配置
+        api_key = get_secret("OPENROUTER_API_KEY", required=False)
+        if api_key:
+            self.config = {
+                "api_key": api_key,
+                "endpoint": get_secret("OPENROUTER_API_ENDPOINT", required=False) or "https://openrouter.ai/api/v1/chat/completions",
+                "model": get_secret("OPENROUTER_MODEL", required=False),
+            }
+        else:
+            self.config = None
             self.logger.warning(
                 "OPENROUTER_API_KEY not configured. Trending analysis will be skipped."
             )
+
+        # 内部获取 Tavily 配置
+        tavily_key = get_secret("TAVILY_API_KEY", required=False)
+        self.tavily_api_key = tavily_key
+
 
     def fetch(self) -> FetchResult:
         """
@@ -66,8 +80,11 @@ class TrendingFetcher(BaseFetcher):
             return result
 
         try:
-            # 调用 LLM API
-            analysis = self._call_llm_api()
+            # 1. 搜索实时信息
+            search_results = self._search_web(self.source.src) if self.tavily_api_key else []
+
+            # 2. 调用 LLM API
+            analysis = self._call_llm_api(search_results)
 
             if not analysis:
                 result.success = False
@@ -85,7 +102,8 @@ class TrendingFetcher(BaseFetcher):
                 published_date=today,
                 metadata={
                     "goal": self.source.goal,
-                    "model": self.source.model or "default"
+                    "model": self.source.model or "default",
+                    "has_search_context": len(search_results) > 0
                 }
             )
 
@@ -102,7 +120,32 @@ class TrendingFetcher(BaseFetcher):
             result.error = str(e)
             return result
 
-    def _call_llm_api(self) -> Optional[str]:
+    def _search_web(self, query: str) -> list:
+        """调用 Tavily API 获取实时信息"""
+        import httpx
+        try:
+            with httpx.Client(timeout=10) as client:
+                headers = {
+                    "Authorization": f"Bearer {self.tavily_api_key}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "query": query,
+                    "max_results": 3,
+                    "search_depth": "basic"
+                }
+                resp = client.post(
+                    "https://api.tavily.com/search",
+                    headers=headers,
+                    json=payload
+                )
+                resp.raise_for_status()
+                return resp.json().get("results", [])
+        except Exception as e:
+            self.logger.error(f"Search failed: {e}")
+            return []
+
+    def _call_llm_api(self, search_results: list) -> Optional[str]:
         """
         调用 LLM API
 
@@ -110,7 +153,7 @@ class TrendingFetcher(BaseFetcher):
             Optional[str]: 分析结果 HTML
         """
         # 构造 prompt
-        prompt = self._build_prompt()
+        prompt = self._build_prompt(search_results)
 
         # 构造请求
         headers = {
@@ -137,7 +180,7 @@ class TrendingFetcher(BaseFetcher):
                         "- 严格使用 Markdown 格式，层级清晰（H2/H3/列表/加粗）\n"
                         "- 每个要点须包含具体事实或数据，禁止空洞描述\n"
                         "- 若涉及不确定信息，明确标注「待验证」\n"
-                        "- 不要输出 ```markdown``` 代码块包裹符"
+                        "- 不要输出 markdown 代码块包裹符"
                     )
                 },
                 {
@@ -167,8 +210,8 @@ class TrendingFetcher(BaseFetcher):
                 data = resp.json()
 
             # 提取响应内容
-            if "choices" in data and len(data["choices"]) > 0:
-                content = data["choices"][0]["message"]["content"]
+            content = data.get("choices", [{}])[0].get("message", {}).get("content")
+            if content:
                 return self._format_as_html(content)
 
             self.logger.error(f"Unexpected API response: {data}")
@@ -178,7 +221,7 @@ class TrendingFetcher(BaseFetcher):
             self.logger.error(f"LLM API call failed: {e}")
             return None
 
-    def _build_prompt(self) -> str:
+    def _build_prompt(self, search_results: list) -> str:
         """
         构造 prompt
 
@@ -186,11 +229,19 @@ class TrendingFetcher(BaseFetcher):
             str: prompt 文本
         """
         today = get_now().strftime("%Y年%m月%d日")
+        
+        search_context = ""
+        if search_results:
+            search_context = "\n## 实时联网搜索结果（参考用）\n"
+            for i, res in enumerate(search_results, 1):
+                search_context += f"[{i}] {res.get('title')}: {res.get('content')}\n"
+        
         return f"""## 分析任务
 
 **当前日期**: {today}
 **分析主题**: {self.source.src}
 **核心目标**: {self.source.goal}
+{search_context}
 
 ## 输出要求
 
@@ -211,7 +262,7 @@ class TrendingFetcher(BaseFetcher):
 ## 质量标准
 - 内容基于事实，避免猜测；不确定信息标注「待验证」
 - 语言精炼，每条要点不超过 60 字
-- 避免陈词滥调，突出差异化视角
+- 引用联网信息时，标注 [1], [2] 等来源
 """
 
     def _format_as_html(self, text: str) -> str:
@@ -224,7 +275,7 @@ class TrendingFetcher(BaseFetcher):
         Returns:
             str: HTML 格式文本
         """
-        # 清理 LLM 可能返回的代码块标记（如 ```markdown...``` 或 '''markdown...'''）
+        # 清理 LLM 可能返回的代码块标记
         text = self._remove_code_block_markers(text)
 
         # 使用 markdown 库转换为 HTML
@@ -232,7 +283,7 @@ class TrendingFetcher(BaseFetcher):
             text,
             extensions=[
                 'extra',  # 支持表格、代码块等扩展
-                'codehilite',  # 代码高亮（虽然这里不用，但保持完整）
+                'codehilite',  # 代码高亮
                 'tables',  # 表格支持
                 'fenced_code',  # 围栏代码块
             ],
@@ -244,7 +295,7 @@ class TrendingFetcher(BaseFetcher):
     @staticmethod
     def _remove_code_block_markers(text: str) -> str:
         """
-        移除代码块标记（如 ```html...``` 或 '''html...'''）
+        移除文本中可能出现的任何 Markdown 代码块标记。
 
         Args:
             text: 原始文本
@@ -252,26 +303,5 @@ class TrendingFetcher(BaseFetcher):
         Returns:
             str: 清理后的文本
         """
-        # 处理 ```html ... ``` 格式
-        if text.strip().startswith('```'):
-            lines = text.split('\n')
-            # 移除第一行的 ```html 或 ```
-            if lines[0].strip().startswith('```'):
-                lines = lines[1:]
-            # 移除最后一行的 ```
-            if lines and lines[-1].strip() == '```':
-                lines = lines[:-1]
-            text = '\n'.join(lines)
-
-        # 处理 '''html ... ''' 格式
-        if text.strip().startswith("'''"):
-            lines = text.split('\n')
-            # 移除第一行的 '''html 或 '''
-            if lines[0].strip().startswith("'''"):
-                lines = lines[1:]
-            # 移除最后一行的 '''
-            if lines and lines[-1].strip() == "'''":
-                lines = lines[:-1]
-            text = '\n'.join(lines)
-
-        return text.strip()
+        # 使用正则表达式匹配并移除 ``` 或 ''' 代码块及其可选语言标识
+        return re.sub(r"```[a-zA-Z]*\n?|'''[a-zA-Z]*\n?", "", text).strip()
