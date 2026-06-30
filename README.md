@@ -120,7 +120,6 @@ on:
 | `QWEATHER_KEY` | 和风天气 API 密钥，用于获取天气数据。 |
 | `QWEATHER_HOST` | 和风天气 API 主机地址。 |
 
-
 **SEND TO KINDLE**：Kindle 侧需要在亚马逊账号设置里，把发件邮箱加入「已认可的发件人电子邮箱列表」，否则推送不会被接收。
 **WEBDAV**：生成的 EPUB 自动同步至 WebDAV 云端（如坚果云、Nextcloud、本地 NAS 等）。
 

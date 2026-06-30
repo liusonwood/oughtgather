@@ -57,33 +57,31 @@ def generate_markdown_table(secrets):
 def update_readme(table_content):
     readme_path = 'README.md'
     with open(readme_path, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
+        content = f.read()
         
-    new_lines = []
-    in_table_section = False
-    table_replaced = False
+    # The table section: starts with | Secret / 环境变量 | 说明 |
+    # and ends before the next section (which starts with a new heading like ## or ---)
+    # or the text that follows the table.
+    # A robust way is to look for the header and then everything that looks like a table row until a line not starting with |
     
-    for line in lines:
-        if line.startswith('## Secrets 配置'):
-            new_lines.append(line)
-            new_lines.append('\n')
-            new_lines.append('在 GitHub 仓库的 `Settings -> Secrets and variables -> Actions` 中配置，本地开发时通过环境变量设置。\n\n')
-            new_lines.append(table_content)
-            in_table_section = True
-            table_replaced = True
-            continue
-            
-        if in_table_section:
-            if line.startswith('|') or line.strip() == '':
-                continue
-            else:
-                in_table_section = False
-                new_lines.append(line)
-        else:
-            new_lines.append(line)
-            
+    import re
+    
+    # Define the pattern to match the table
+    # It starts with the header and continues with rows until a non-table line
+    # The new section starts after '## Secrets 配置' and some text
+    
+    # The regex matches the header, rows, AND any immediately following blank lines/whitespace
+    # until the next content starts.
+    table_pattern = r'\| Secret / 环境变量 \| 说明 \|\n\| --- \| --- \|\n(?:\|.*?\|\n)+\s*'
+
+    # Replace the existing table with the new one, followed by two newlines.
+    # The regex already consumed the trailing whitespace/blank lines from the old table.
+    formatted_table = table_content.rstrip('\n') + '\n\n'
+
+    new_content = re.sub(table_pattern, formatted_table, content, flags=re.MULTILINE)
+    
     with open(readme_path, 'w', encoding='utf-8') as f:
-        f.writelines(new_lines)
+        f.write(new_content)
 
 if __name__ == '__main__':
     secrets = get_all_required_secrets()
