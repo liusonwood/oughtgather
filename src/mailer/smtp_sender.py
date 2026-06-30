@@ -51,8 +51,17 @@ class SMTPSender:
             msg['Subject'] = subject
 
             # 添加邮件正文
-            body = "Please find the attached EPUB file."
-            msg.attach(MIMEText(body, 'plain'))
+            body = (
+                "你好，\n\n"
+                "这是一份为您自动整理的每日新闻汇编 EPUB 电子书，"
+                "涵盖了今日的重要资讯和精选内容。\n\n"
+                "您可以将此文件同步至 Kindle 设备，随时随地离线阅读。\n"
+                "希望这份汇编能为您的阅读时光增添一份便利与乐趣。\n\n"
+                "本项目开源在 GitHub：https://github.com/liusonwood/oughtgather\n"
+                "欢迎 Star、Issue 或贡献代码！\n\n"
+                "祝您阅读愉快！"
+            )
+            msg.attach(MIMEText(body, 'plain', 'utf-8'))
 
             # 添加附件
             self._attach_file(msg, epub_path)
