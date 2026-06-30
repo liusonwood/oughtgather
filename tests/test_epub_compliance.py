@@ -203,13 +203,13 @@ class TestEpubContent:
         assert 'hidden=""' in nav_html or 'hidden' in nav_html, "landmarks应设置为hidden以在目录中隐藏"
         assert '<h2>Landmarks</h2>' not in nav_html, "nav.xhtml不应该包含Landmarks标题（地标区域无可见标题）"
 
-        # 验证 landmarks 内部包含 toc 和 bodymatter 条目，均指向 nav.xhtml
-        assert 'epub:type="toc" href="nav.xhtml"' in nav_html or 'epub:type="toc" href="nav.xhtml"' in nav_html, \
-            "landmarks应包含epub:type='toc'指向nav.xhtml"
-        assert 'epub:type="bodymatter" href="nav.xhtml"' in nav_html, \
-            "landmarks应包含epub:type='bodymatter'指向nav.xhtml（Kindle打开时落在目录页）"
+        # 验证 landmarks 内部包含 toc 和 bodymatter 条目，均指向 toc.xhtml
+        assert 'epub:type="toc" href="toc.xhtml"' in nav_html or 'epub:type="toc" href="toc.xhtml"' in nav_html, \
+            "landmarks应包含epub:type='toc'指向toc.xhtml"
+        assert 'epub:type="bodymatter" href="toc.xhtml"' in nav_html, \
+            "landmarks应包含epub:type='bodymatter'指向toc.xhtml（Kindle打开时落在目录页）"
 
-        print(f"✓ nav.xhtml包含hidden的landmarks地标导航（toc+bodymatter均指向nav.xhtml，Kindle兼容）")
+        print(f"✓ nav.xhtml包含hidden的landmarks地标导航（toc+bodymatter均指向toc.xhtml，Kindle兼容）")
 
     def test_chapter_has_doctype(self, shared_epub):
         """测试章节XHTML包含DOCTYPE声明"""
@@ -291,9 +291,9 @@ class TestEpubSpine:
             return spine_items
 
     def test_spine_starts_with_nav(self, shared_epub):
-        """测试spine以目录开始（确保首次打开直接进入目录）"""
+        """测试spine以视觉目录 (toc.xhtml) 开始（确保首次打开直接进入目录）"""
         spine = self._get_spine_order(shared_epub)
-        assert spine[0] == 'nav.xhtml', f"spine应以nav.xhtml开始，实际为{spine[0]}"
+        assert spine[0] == 'toc.xhtml', f"spine应以toc.xhtml开始，实际为{spine[0]}"
 
         print(f"✓ spine以目录开始")
 
@@ -305,11 +305,11 @@ class TestEpubSpine:
         print(f"✓ spine不包含cover.xhtml（打开书直接进入目录）")
 
     def test_spine_order_correct(self, shared_epub):
-        """测试spine顺序正确：nav → chapters（封面不在 spine 中）"""
+        """测试spine顺序正确：toc → chapters (nav 在末尾)"""
         spine = self._get_spine_order(shared_epub)
 
         # 验证顺序
-        assert spine[0] == 'nav.xhtml', "第一位应为导航/目录"
+        assert spine[0] == 'toc.xhtml', "第一位应为视觉目录"
 
         # 后续应为章节（包括divider）
         chapters_in_spine = [f for f in spine if f.startswith('chapter_')]
@@ -365,7 +365,7 @@ class TestEpubMetadata:
             # 查找目录引用 (toc)
             toc_ref = guide.find('.//{*}reference[@type="toc"]')
             assert toc_ref is not None, "guide应包含type='toc'的引用"
-            assert toc_ref.get('href') == 'nav.xhtml', f"目录引用href应为'nav.xhtml'，实际为'{toc_ref.get('href')}'"
+            assert toc_ref.get('href') == 'toc.xhtml', f"目录引用href应为'toc.xhtml'，实际为'{toc_ref.get('href')}'"
 
             # 查找封面引用 (cover)
             cover_ref = guide.find('.//{*}reference[@type="cover"]')
@@ -379,10 +379,10 @@ class TestEpubMetadata:
             # 查找起始页引用 (start) — 老旧 Kindle 固件据此决定"打开时跳转到哪里"
             start_ref = guide.find('.//{*}reference[@type="start"]')
             assert start_ref is not None, "guide应包含type='start'的引用（老旧Kindle固件兼容）"
-            assert start_ref.get('href') == 'nav.xhtml', \
-                f"start引用href应为'nav.xhtml'，实际为'{start_ref.get('href')}'"
+            assert start_ref.get('href') == 'toc.xhtml', \
+                f"start引用href应为'toc.xhtml'，实际为'{start_ref.get('href')}'"
 
-            print(f"✓ OPF包含完整的guide(toc/cover/text/start)元素，start指向nav.xhtml")
+            print(f"✓ OPF包含完整的guide(toc/cover/text/start)元素，start指向toc.xhtml")
 
     def test_language_is_zh(self, shared_epub):
         """测试语言设置为中文"""

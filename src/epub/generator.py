@@ -80,19 +80,25 @@ class EPUBGenerator:
         # 这样可以防止 ebooklib 在 write_epub 时用其默认生成的模板覆盖我们的自定义内容。
         nav = epub.EpubHtml(title=book.title, file_name='nav.xhtml', uid='nav')
         nav.properties = ['nav']
-        nav.content = self._generate_nav_content(book.title, book.toc)
-        # 通过 nav.links 注册外部样式表，ebooklib 的 get_content() 会在 <head> 中
-        # 自动生成对应的 <link href="style/default.css" rel="stylesheet" type="text/css"/>
+        nav.content = self._generate_nav_content(book.title, book.toc, is_nav=True)
         nav.add_link(href='style/default.css', rel='stylesheet')
         book.add_item(nav)
 
-        # 10. 将 nav 插入到 spine 中。
-        # 我们希望首次打开电子书时直接进入目录 (nav.xhtml)，因此把 nav 排在最前面。
+        # 9.5. 生成并添加 visual toc.xhtml
+        toc_page = epub.EpubHtml(title=book.title, file_name='toc.xhtml', uid='toc_page')
+        toc_page.content = self._generate_nav_content(book.title, book.toc, is_nav=False)
+        toc_page.add_link(href='style/default.css', rel='stylesheet')
+        book.add_item(toc_page)
+
+        # 10. 将 toc_page 插入到 spine 中。
+        # 我们希望首次打开电子书时直接进入目录 (toc.xhtml)，因此把 toc_page 排在最前面。
         # 封面不加入 spine，仅通过 manifest + guide 引用，阅读器（含 Kindle）会跳过封面直接进入目录。
+        # 同时，将 nav.xhtml (logical navigation) 作为线性元素追加到 spine 的末尾。
         if isinstance(book.spine, list):
-            book.spine.insert(0, nav)
+            book.spine.insert(0, toc_page)
+            book.spine.append(nav)
         else:
-            book.spine = [nav]
+            book.spine = [toc_page, nav]
 
         # 11. 添加样式
         self._add_style(book)
@@ -100,10 +106,10 @@ class EPUBGenerator:
 
         # 12. 设置 Guide 元素，明确指定启动页面为目录 (增加老旧设备兼容性)
         book.guide = [
-            {'href': 'nav.xhtml', 'title': 'Table of Contents', 'type': 'toc'},
+            {'href': 'toc.xhtml', 'title': 'Table of Contents', 'type': 'toc'},
             {'href': 'cover.xhtml', 'title': 'Cover', 'type': 'cover'},
-            {'href': 'nav.xhtml', 'title': 'Table of Contents', 'type': 'text'},
-            {'href': 'nav.xhtml', 'title': 'Start', 'type': 'start'},
+            {'href': 'toc.xhtml', 'title': 'Table of Contents', 'type': 'text'},
+            {'href': 'toc.xhtml', 'title': 'Start', 'type': 'start'},
         ]
 
         # 13. 保存文件
@@ -610,9 +616,14 @@ class EPUBGenerator:
 
         self.logger.info("Summary chapter added to EPUB")
 
-    def _generate_nav_content(self, book_title: str, toc: List[Union[epub.Link, Tuple[epub.Link, List[epub.Link]]]]) -> str:
+    def _generate_nav_content(
+        self,
+        book_title: str,
+        toc: List[Union[epub.Link, Tuple[epub.Link, List[epub.Link]]]],
+        is_nav: bool = True
+    ) -> str:
         """
-        手动生成 EPUB 3.0 的 nav.xhtml 内容，只包含目录（不包含 landmarks）。
+        手动生成 EPUB 3.0 的 nav.xhtml 内容或 toc.xhtml 内容。
         为每个条目添加 ID 以便回跳。
         """
         import html
@@ -642,6 +653,9 @@ class EPUBGenerator:
         )
         STYLE_NESTED_LI = "margin: 0.4em 0;"
 
+        nav_tag_start = f'<nav epub:type="toc" id="toc">' if is_nav else '<div id="toc">'
+        nav_tag_end = '</nav>' if is_nav else '</div>'
+
         content = f"""<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh" xml:lang="zh">
 <head>
@@ -649,7 +663,7 @@ class EPUBGenerator:
     <link rel="stylesheet" type="text/css" href="style/default.css"/>
 </head>
 <body style="padding: 1em;">
-    <nav epub:type="toc" id="toc">
+    {nav_tag_start}
         <h1 style="{STYLE_H1}">{safe_title}</h1>
         <ol style="{STYLE_OL}">
 """
@@ -662,7 +676,7 @@ class EPUBGenerator:
                     f'{html.escape(item.title)}</a></li>\n'
                 )
             elif isinstance(item, tuple) and len(item) == 2:
-                # 两级结构（如 mail/rss）
+                # 两级 structure（如 mail/rss）
                 section_link, links = item
                 content += f'            <li id="toc_{section_link.uid}" style="{STYLE_LI}">\n'
                 content += (
@@ -679,18 +693,23 @@ class EPUBGenerator:
                 content += f'                </ol>\n'
                 content += f'            </li>\n'
 
-        content += """        </ol>
-    </nav>
+        content += f"""        </ol>
+    {nav_tag_end}
+"""
 
-    <!-- EPUB 3.0 landmarks: toc + bodymatter 均指向 nav.xhtml -->
+        if is_nav:
+            content += """
+    <!-- EPUB 3.0 landmarks: toc + bodymatter 均指向 toc.xhtml -->
     <!-- Kindle 根据此块决定"打开时跳转到哪里"，hidden 使其不在阅读器目录中显示 -->
     <nav epub:type="landmarks" id="landmarks" hidden="">
         <ol>
-            <li><a epub:type="toc" href="nav.xhtml">Table of Contents</a></li>
-            <li><a epub:type="bodymatter" href="nav.xhtml">Start of Content</a></li>
+            <li><a epub:type="toc" href="toc.xhtml">Table of Contents</a></li>
+            <li><a epub:type="bodymatter" href="toc.xhtml">Start of Content</a></li>
         </ol>
     </nav>
-</body>
+"""
+
+        content += """</body>
 </html>"""
         return content
 

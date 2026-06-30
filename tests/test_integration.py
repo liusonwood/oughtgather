@@ -466,12 +466,12 @@ class TestSectionDividers:
         try:
             spine = self._get_spine_order(epub_path)
 
-            # 验证分隔页顺序：nav → divider_0 → chapter_0 → divider_1 → chapter_1 → summary
+            # 验证分隔页顺序：toc → divider_0 → chapter_0 → divider_1 → chapter_1 → summary → nav
             expected_order = [
-                'nav.xhtml',
+                'toc.xhtml',
                 'divider_0.xhtml', 'chapter_0.xhtml',
                 'divider_1.xhtml', 'chapter_1.xhtml',
-                'summary.xhtml',
+                'summary.xhtml', 'nav.xhtml',
             ]
             assert spine == expected_order, (
                 f"spine 顺序错误，期望：{expected_order}，实际：{spine}"
@@ -500,11 +500,11 @@ class TestSectionDividers:
             chapter_files = [f for f in spine if f.startswith('chapter_')]
             assert len(chapter_files) == 3, f"应有 3 个文章章节，实际：{chapter_files}"
 
-            # spine 顺序：nav → divider_0 → chapter_0 → chapter_1 → chapter_2 → summary
+            # spine 顺序：toc → divider_0 → chapter_0 → chapter_1 → chapter_2 → summary → nav
             expected = [
-                'nav.xhtml', 'divider_0.xhtml',
+                'toc.xhtml', 'divider_0.xhtml',
                 'chapter_0.xhtml', 'chapter_1.xhtml', 'chapter_2.xhtml',
-                'summary.xhtml',
+                'summary.xhtml', 'nav.xhtml',
             ]
             assert spine == expected, f"spine 顺序错误：{spine}"
             print(f"✓ 单个 source：1 个分隔页 + 3 个文章章节，顺序正确")
@@ -533,13 +533,13 @@ class TestSectionDividers:
         epub_path = self._generate_epub(results)
         try:
             divider_html = self._read_epub_xhtml(epub_path, "divider_0.xhtml")
-            assert "nav.xhtml" in divider_html, "分隔页应包含返回目录的链接"
+            assert "toc.xhtml" in divider_html, "分隔页应包含返回目录的链接"
             print(f"✓ 分隔页包含返回目录的链接")
         finally:
             os.remove(epub_path)
 
     def test_divider_link_back_to_toc_matches_nav_ids(self, tmp_path):
-        """测试不同类型（rss/web）的分隔页返回目录的链接ID在nav.xhtml中确实存在且匹配"""
+        """测试不同类型（rss/web）的分隔页返回目录的链接ID在toc.xhtml中确实存在且匹配"""
         source_rss = ContentSource(type="rss", src="https://rss.com", title="RSS源", priority=10)
         source_web = ContentSource(type="web", src="https://web.com", title="Web源", priority=5)
 
@@ -549,22 +549,22 @@ class TestSectionDividers:
         ]
         epub_path = self._generate_epub(results)
         try:
-            # 读取 nav.xhtml
-            nav_html = self._read_epub_xhtml(epub_path, "nav.xhtml")
+            # 读取 toc.xhtml
+            toc_html = self._read_epub_xhtml(epub_path, "toc.xhtml")
 
             # RSS 分隔页为第一个：divider_0.xhtml
             divider_rss_html = self._read_epub_xhtml(epub_path, "divider_0.xhtml")
             # 应该链接到 toc_section_0
-            assert 'href="nav.xhtml#toc_section_0"' in divider_rss_html, "RSS分隔页链接错误"
-            assert 'id="toc_section_0"' in nav_html, "nav.xhtml中应该有id='toc_section_0'"
+            assert 'href="toc.xhtml#toc_section_0"' in divider_rss_html, "RSS分隔页链接错误"
+            assert 'id="toc_section_0"' in toc_html, "toc.xhtml中应该有id='toc_section_0'"
 
             # Web 分隔页为第二个：divider_1.xhtml
             divider_web_html = self._read_epub_xhtml(epub_path, "divider_1.xhtml")
             # 应该链接到第3个章节 (前面有2个rss章节，所以是 chapter_2)
-            assert 'href="nav.xhtml#toc_chapter_2"' in divider_web_html, "Web分隔页链接错误"
-            assert 'id="toc_chapter_2"' in nav_html, "nav.xhtml中应该有id='toc_chapter_2'"
+            assert 'href="toc.xhtml#toc_chapter_2"' in divider_web_html, "Web分隔页链接错误"
+            assert 'id="toc_chapter_2"' in toc_html, "toc.xhtml中应该有id='toc_chapter_2'"
 
-            print(f"✓ 分隔页返回目录的链接完全匹配 nav.xhtml 中的 ID")
+            print(f"✓ 分隔页返回目录的链接完全匹配 toc.xhtml 中的 ID")
         finally:
             os.remove(epub_path)
 
