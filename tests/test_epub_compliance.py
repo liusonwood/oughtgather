@@ -193,15 +193,23 @@ class TestEpubContent:
 
         print(f"✓ 封面XHTML包含正确的img标签")
 
-    def test_nav_does_not_have_landmarks(self, shared_epub):
-        """测试nav.xhtml不包含landmarks部分（确保目录干净，不带landmarks）"""
+    def test_nav_has_landmarks_hidden(self, shared_epub):
+        """测试nav.xhtml包含landmarks且设置为hidden（EPUB 3标准地标导航，仅供阅读器内部跳转使用）"""
         nav_html = self._read_epub_xhtml(shared_epub, 'nav.xhtml')
 
-        # 确保landmarks命名空间或属性不存在于目录中
-        assert 'epub:type="landmarks"' not in nav_html, "nav.xhtml不应该包含landmarks导航"
-        assert '<h2>Landmarks</h2>' not in nav_html, "nav.xhtml不应该包含Landmarks标题"
+        # landmarks 是 EPUB 3 导航文档的标准组成部分，hidden 属性使其不在阅读器目录中显示
+        # Kindle 根据 landmarks 中的 bodymatter 条目决定"打开时跳转到哪里"
+        assert 'epub:type="landmarks"' in nav_html, "nav.xhtml应包含landmarks地标导航（EPUB 3标准）"
+        assert 'hidden=""' in nav_html or 'hidden' in nav_html, "landmarks应设置为hidden以在目录中隐藏"
+        assert '<h2>Landmarks</h2>' not in nav_html, "nav.xhtml不应该包含Landmarks标题（地标区域无可见标题）"
 
-        print(f"✓ nav.xhtml不包含landmarks地标导航")
+        # 验证 landmarks 内部包含 toc 和 bodymatter 条目，均指向 nav.xhtml
+        assert 'epub:type="toc" href="nav.xhtml"' in nav_html or 'epub:type="toc" href="nav.xhtml"' in nav_html, \
+            "landmarks应包含epub:type='toc'指向nav.xhtml"
+        assert 'epub:type="bodymatter" href="nav.xhtml"' in nav_html, \
+            "landmarks应包含epub:type='bodymatter'指向nav.xhtml（Kindle打开时落在目录页）"
+
+        print(f"✓ nav.xhtml包含hidden的landmarks地标导航（toc+bodymatter均指向nav.xhtml，Kindle兼容）")
 
     def test_chapter_has_doctype(self, shared_epub):
         """测试章节XHTML包含DOCTYPE声明"""
@@ -368,7 +376,13 @@ class TestEpubMetadata:
             text_ref = guide.find('.//{*}reference[@type="text"]')
             assert text_ref is not None, "guide应包含type='text'的引用"
 
-            print(f"✓ OPF包含正确的guide(toc/cover/text)元素")
+            # 查找起始页引用 (start) — 老旧 Kindle 固件据此决定"打开时跳转到哪里"
+            start_ref = guide.find('.//{*}reference[@type="start"]')
+            assert start_ref is not None, "guide应包含type='start'的引用（老旧Kindle固件兼容）"
+            assert start_ref.get('href') == 'nav.xhtml', \
+                f"start引用href应为'nav.xhtml'，实际为'{start_ref.get('href')}'"
+
+            print(f"✓ OPF包含完整的guide(toc/cover/text/start)元素，start指向nav.xhtml")
 
     def test_language_is_zh(self, shared_epub):
         """测试语言设置为中文"""
