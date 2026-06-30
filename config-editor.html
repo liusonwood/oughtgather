@@ -856,6 +856,7 @@
       <button class="btn btn-outline" onclick="downloadJSON()">下载 config.json</button>
       <button class="btn btn-outline" onclick="copyJSON()">复制到剪贴板</button>
       <button class="btn btn-outline" onclick="importJSON()">从 JSON 导入</button>
+      <button class="btn btn-outline" onclick="importOPML()">导入 OPML</button>
     </div>
 
     <pre class="preview-area" id="preview"></pre>
@@ -1548,6 +1549,40 @@
             showToast(`已导入 ${sources.length} 个内容源`, 'success');
           } catch (err) {
             showToast('JSON 解析失败: ' + err.message, 'error');
+          }
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    }
+
+    function importOPML() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.opml,.xml';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(ev.target.result, "text/xml");
+            const outlines = xmlDoc.querySelectorAll('outline[xmlUrl]');
+            let importedCount = 0;
+            outlines.forEach(outline => {
+              const s = createEmptySource();
+              s.type = 'rss';
+              s.src = outline.getAttribute('xmlUrl');
+              s.title = outline.getAttribute('title') || outline.getAttribute('text') || '';
+              s.keep_link = 'Y';
+              s.priority = 10;
+              addSource(s);
+              importedCount++;
+            });
+            showToast(`已从 OPML 导入 ${importedCount} 个 RSS 源`, 'success');
+          } catch (err) {
+            showToast('OPML 解析失败: ' + err.message, 'error');
           }
         };
         reader.readAsText(file);

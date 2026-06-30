@@ -328,8 +328,6 @@ python -m pytest tests/test_integration.py::TestEpubcheckValidation -v
 
 为了让 **Ought Gather** 更加易用且适配更多阅读终端，以下功能已列入后续开发计划：
 
-- [ ] **📥 OPML 一键导入**
-  - 支持直接导入标准的 `.opml` 订阅文件，免去手动繁琐配置 JSON 链接的痛苦，实现快速从 NetNewsWire、Inoreader 等 RSS 阅读器迁移。
 - [ ] **🌐 支持 WebDAV 协议传输（适配更多设备）**
   - 突破 Kindle 邮件推送限制。支持将生成的 EPUB 自动同步至坚果云、Nextcloud、本地 NAS 等 WebDAV 云端，无缝适配文石 (Boox)、Kobo (配合 KoboCloud)、KOReader 以及各类移动端阅读 App。
 
