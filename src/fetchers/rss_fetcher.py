@@ -16,6 +16,7 @@ from src.utils.helpers import format_date
 class RSSFetcher(BaseFetcher):
     """RSS 抓取器"""
 
+    type_name = "rss"
     MAX_ENTRIES = 50  # 每个 RSS 源最多抓取的条目数，可通过 metadata.limit 覆盖
 
     def fetch(self) -> FetchResult:

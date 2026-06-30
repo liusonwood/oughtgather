@@ -56,8 +56,32 @@ class FetchResult:
         self.error_count += 1
 
 
+_registry = {}
+
+
+def get_fetcher_class(type_name: str) -> Optional[Any]:
+    """
+    根据类型名称获取注册的抓取器类
+
+    Args:
+        type_name: 抓取器类型名称
+
+    Returns:
+        Type[BaseFetcher] | None: 对应的抓取器类，如果未找到则返回 None
+    """
+    return _registry.get(type_name)
+
+
 class BaseFetcher(ABC):
     """基础抓取器抽象类"""
+
+    type_name: str = ""
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if hasattr(cls, "type_name") and cls.type_name:
+            _registry[cls.type_name] = cls
+
 
     def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):
         """

@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 from urllib.parse import quote
 
 from src.config import ContentSource
-from src.fetchers.base import BaseFetcher, FetchResult, Article
+from src.fetchers.base import BaseFetcher, FetchResult, Article, get_fetcher_class
 from src.fetchers.rss_fetcher import RSSFetcher
 from src.fetchers.web_fetcher import WebFetcher
 from src.fetchers.mail_fetcher import MailFetcher
@@ -597,3 +597,35 @@ class TestTrendingFetcher:
         assert "<li>项目一</li>" in html
         assert "<li>项目二</li>" in html
         assert "</ul>" in html
+
+
+# =========================================================================
+# Plugin Registry / Dynamic Loading Tests
+# =========================================================================
+
+class TestFetcherPlugins:
+    """测试抓取器插件机制"""
+
+    def test_built_in_fetchers_registered(self):
+        """测试内置抓取器是否成功注册"""
+        assert get_fetcher_class("mail") is MailFetcher
+        assert get_fetcher_class("rss") is RSSFetcher
+        assert get_fetcher_class("web") is WebFetcher
+        assert get_fetcher_class("trending") is TrendingFetcher
+        assert get_fetcher_class("nonexistent") is None
+
+    def test_custom_fetcher_auto_registration(self):
+        """测试自定义抓取器是否能通过 subclass 自动注册"""
+        class DummyCustomFetcher(BaseFetcher):
+            type_name = "dummy_custom"
+
+            def fetch(self):
+                return FetchResult(source=self.source, articles=[])
+
+        assert get_fetcher_class("dummy_custom") is DummyCustomFetcher
+
+        # 清理注册表，避免影响其他测试
+        from src.fetchers.base import _registry
+        if "dummy_custom" in _registry:
+            del _registry["dummy_custom"]
+

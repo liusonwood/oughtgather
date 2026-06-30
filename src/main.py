@@ -12,11 +12,7 @@ from typing import List
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.config import load_config, Config, ContentSource
-from src.fetchers.base import BaseFetcher, FetchResult
-from src.fetchers.mail_fetcher import MailFetcher
-from src.fetchers.rss_fetcher import RSSFetcher
-from src.fetchers.web_fetcher import WebFetcher
-from src.fetchers.trending_fetcher import TrendingFetcher
+from src.fetchers import BaseFetcher, FetchResult, get_fetcher_class
 from src.processors.content_processor import ContentProcessor
 from src.dedup.tracker import DedupTracker
 from src.epub.generator import EPUBGenerator
@@ -35,18 +31,12 @@ def get_fetcher(source: ContentSource, global_limit: int = 15) -> BaseFetcher:
     Returns:
         BaseFetcher: 抓取器实例
     """
-    fetcher_map = {
-        "mail": MailFetcher,
-        "rss": RSSFetcher,
-        "web": WebFetcher,
-        "trending": TrendingFetcher
-    }
-
-    fetcher_class = fetcher_map.get(source.type)
+    fetcher_class = get_fetcher_class(source.type)
     if not fetcher_class:
         raise ValueError(f"Unknown source type: {source.type}")
 
     return fetcher_class(source, global_limit=global_limit)
+
 
 
 def process_results(results: List[FetchResult], tracker: DedupTracker) -> List[FetchResult]:

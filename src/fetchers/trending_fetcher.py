@@ -17,6 +17,8 @@ from src.utils.helpers import generate_content_id, get_now
 class TrendingFetcher(BaseFetcher):
     """热点分析抓取器"""
 
+    type_name = "trending"
+
     def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):
         """
         初始化热点分析抓取器

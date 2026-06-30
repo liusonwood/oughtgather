@@ -13,6 +13,8 @@ from src.utils.logger import get_logger
 class WebFetcher(BaseFetcher):
     """网页抓取器"""
 
+    type_name = "web"
+
     def fetch(self) -> FetchResult:
         """
         执行网页抓取

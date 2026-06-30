@@ -17,6 +17,8 @@ from src.utils.helpers import format_date
 class MailFetcher(BaseFetcher):
     """邮件抓取器"""
 
+    type_name = "mail"
+
     def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):
         """
         初始化邮件抓取器
