@@ -16,10 +16,10 @@ from src.utils.logger import get_logger
 class ImageProcessor:
     """图片处理器"""
 
-    MAX_SIZE_KB = 250  # 单张图片最大大小（KB）
-    MAX_WIDTH = 640  # 最大宽度（EPUB 阅读器屏幕通常 600px 宽）
-    MAX_HEIGHT = 960  # 最大高度
-    JPEG_QUALITY = 75  # JPEG 质量
+    MAX_SIZE_KB = 600  # 单张图片最大大小（KB）- 提高以保留更多细节
+    MAX_WIDTH = 1200  # 最大宽度 - 适配现代 Kindle (300 ppi) 和大屏阅读器
+    MAX_HEIGHT = 1800  # 最大高度 - 适配常见阅读器视口
+    JPEG_QUALITY = 88  # JPEG 质量 - 提高以获得更清晰的图片
     MIN_WIDTH = 120  # 最小宽度（过滤头像、图标、表情等装饰性小图）
     MIN_HEIGHT = 120  # 最小高度
 
