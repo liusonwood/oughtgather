@@ -3,39 +3,9 @@ import os
 import importlib.util
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock
 
 # Add project root to path so we can import src.config etc.
 sys.path.append(os.getcwd())
-
-# ---------------------------------------------------------------------------
-# Stub out third-party packages that may not be installed in the CI
-# environment running this lightweight script.  We only need to inspect class
-# attributes (required_secrets), so real implementations are not needed.
-# ---------------------------------------------------------------------------
-_THIRD_PARTY_STUBS = [
-    "feedparser",
-    "trafilatura",
-    "requests",
-    "httpx",
-    "markdown",
-    "bs4",
-    "bs4.element",
-    "PIL",
-    "PIL.Image",
-    "openai",
-    "ebooklib",
-    "ebooklib.epub",
-    "lxml",
-    "lxml.etree",
-    "webdav3",
-    "webdav3.client",
-    "webdav3.exceptions",
-]
-
-for _mod in _THIRD_PARTY_STUBS:
-    if _mod not in sys.modules:
-        sys.modules[_mod] = MagicMock()
 
 def get_all_required_secrets():
     secrets = {}
