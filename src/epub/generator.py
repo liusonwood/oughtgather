@@ -84,14 +84,14 @@ class EPUBGenerator:
         nav.add_link(href='style/default.css', rel='stylesheet')
         book.add_item(nav)
 
-        # 9.5. 生成并添加 visual toc.xhtml
-        toc_page = epub.EpubHtml(title=book.title, file_name='toc.xhtml', uid='toc_page')
+        # 9.5. 生成并添加 visual start.xhtml
+        toc_page = epub.EpubHtml(title=book.title, file_name='start.xhtml', uid='toc_page')
         toc_page.content = self._generate_nav_content(book.title, book.toc, is_nav=False)
         toc_page.add_link(href='style/default.css', rel='stylesheet')
         book.add_item(toc_page)
 
         # 10. 将 toc_page 插入到 spine 中。
-        # 我们希望首次打开电子书时直接进入目录 (toc.xhtml)，因此把 toc_page 排在最前面。
+        # 我们希望首次打开电子书时直接进入目录 (start.xhtml)，因此把 toc_page 排在最前面。
         # 封面不加入 spine，仅通过 manifest + guide 引用，阅读器（含 Kindle）会跳过封面直接进入目录。
         # 同时，将 nav.xhtml (logical navigation) 作为线性元素追加到 spine 的末尾。
         if isinstance(book.spine, list):
@@ -106,10 +106,10 @@ class EPUBGenerator:
 
         # 12. 设置 Guide 元素，明确指定启动页面为目录 (增加老旧设备兼容性)
         book.guide = [
-            {'href': 'toc.xhtml', 'title': 'Table of Contents', 'type': 'toc'},
+            {'href': 'start.xhtml', 'title': 'Table of Contents', 'type': 'toc'},
             {'href': 'cover.xhtml', 'title': 'Cover', 'type': 'cover'},
-            {'href': 'toc.xhtml', 'title': 'Table of Contents', 'type': 'text'},
-            {'href': 'toc.xhtml', 'title': 'Start', 'type': 'start'},
+            {'href': 'start.xhtml', 'title': 'Table of Contents', 'type': 'text'},
+            {'href': 'start.xhtml', 'title': 'Start', 'type': 'start'},
         ]
 
         # 13. 保存文件
@@ -699,12 +699,12 @@ class EPUBGenerator:
 
         if is_nav:
             content += """
-    <!-- EPUB 3.0 landmarks: toc + bodymatter 均指向 toc.xhtml -->
+    <!-- EPUB 3.0 landmarks: toc + bodymatter 均指向 start.xhtml -->
     <!-- Kindle 根据此块决定"打开时跳转到哪里"，hidden 使其不在阅读器目录中显示 -->
     <nav epub:type="landmarks" id="landmarks" hidden="">
         <ol>
-            <li><a epub:type="toc" href="toc.xhtml">Table of Contents</a></li>
-            <li><a epub:type="bodymatter" href="toc.xhtml">Start of Content</a></li>
+            <li><a epub:type="toc" href="start.xhtml">Table of Contents</a></li>
+            <li><a epub:type="bodymatter" href="start.xhtml">Start of Content</a></li>
         </ol>
     </nav>
 """

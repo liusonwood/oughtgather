@@ -44,6 +44,43 @@ class TestRaindropFetcher:
 
     @patch.dict("os.environ", {"RAINDROPIO_API_KEY": "test_key_123"})
     @patch.object(RaindropFetcher, "_make_request")
+    @patch.object(RaindropFetcher, "_fetch_full_text")
+    def test_fetch_full_text(self, mock_fetch_full_text, mock_request):
+        """测试全文抓取"""
+        # 模拟 Raindrop API 响应
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "result": True,
+            "items": [
+                {
+                    "title": "Bookmark Full",
+                    "link": "https://example.com/full",
+                    "excerpt": "Excerpt Full"
+                }
+            ]
+        }
+        mock_request.return_value = mock_response
+        
+        # 模拟全文提取
+        mock_fetch_full_text.return_value = ("<h1>Full Content</h1>", "raw html")
+
+        # 配置源 (设置全文)
+        source = ContentSource(
+            type="raindropio",
+            src="0",
+            full_text="Y"
+        )
+
+        fetcher = RaindropFetcher(source)
+        result = fetcher.fetch()
+
+        assert result.success is True
+        assert len(result.articles) == 1
+        assert result.articles[0].content == "<h1>Full Content</h1>"
+        mock_fetch_full_text.assert_called_once_with("https://example.com/full")
+
+    @patch.dict("os.environ", {"RAINDROPIO_API_KEY": "test_key_123"})
+    @patch.object(RaindropFetcher, "_make_request")
     def test_api_error(self, mock_request):
         """测试 API 返回错误"""
         mock_response = MagicMock()
