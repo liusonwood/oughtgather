@@ -246,7 +246,6 @@ Fork 或部署到自己的仓库后，在 `Settings -> Secrets and variables -> 
 ```yaml
 on:
   schedule:
-    # 当前仓库实测约在北京时间 12:00 运行
     - cron: '0 0 * * *'
   workflow_dispatch:
 ```
@@ -254,13 +253,6 @@ on:
 要修改自动运行时间，只需要改 `cron` 这一行。GitHub Actions 的 cron 使用 UTC，不使用北京时间；工作流里的 `TZ: Asia/Shanghai` 只影响程序运行时的日期、日志和内容生成，不影响触发时间。
 
 按 UTC 换算，`cron: '0 0 * * *'` 对应北京时间 08:00；但当前仓库的实际运行记录显示，这个配置约在北京时间 12:00 触发。也就是说，下面的表格是 cron 语义上的换算，实际触发时间仍应以 GitHub Actions 运行记录为准。
-
-如果你希望按当前仓库的实际表现调整时间，可以用现有配置作为参照：`'0 0 * * *'` 实测约为北京时间 12:00。比如想提前 1 小时到北京时间 11:00，可以改为：
-
-```yaml
-schedule:
-  - cron: '0 23 * * *'
-```
 
 也可以保留 `workflow_dispatch`，这样即使改了定时规则，仍能在 GitHub Actions 页面手动运行。
 
