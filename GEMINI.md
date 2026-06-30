@@ -25,7 +25,7 @@ This guide provides compact developer instructions, architecture decisions, and 
 - **Processors (`src/processors/`)**:
   - `content_processor`: Applies `keep_link`, `exclude`, and `delete` rules.
   - `image_processor`: Downloads/compresses images (≤250KB, max 640×960, JPEG Q75). Filters out small decorative assets (< 120×120).
-- **Dedup Tracker (`src/dedup/tracker.py`)**: File-based tracker (`data/fetched_urls.txt`) storing URL/title hashes. Automatically prunes old records when exceeding `MAX_RECORDS = 5000`.
+- **Dedup Tracker (`src/dedup/tracker.py`)**: File-based tracker (`data/fetched_urls.txt`) storing URL/title hashes. Automatically prunes old records when exceeding `MAX_RECORDS = 50000`. GitHub Actions CI automatically persists this file using `actions/cache` to avoid committing logs to the repository history.
 - EPUB Generator (`src/epub/`):
   - Cover: Custom (`title.img`) or Bing Daily wallpaper with text/date overlays.
   - TOC: Flat layout (source → articles).

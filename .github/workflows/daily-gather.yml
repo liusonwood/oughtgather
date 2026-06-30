@@ -63,6 +63,14 @@ jobs:
             || { echo "::error::config.json contains invalid JSON. Validate at https://jsonlint.com"; exit 1; }
           echo "✓ config.json is valid"
 
+      - name: Cache dedup records
+        uses: actions/cache@v4
+        with:
+          path: data/fetched_urls.txt
+          key: ${{ runner.os }}-dedup-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-dedup-
+
       - name: Run Ought Gather
         env:
           # 时区设置：使用北京时间 UTC+8
@@ -82,15 +90,6 @@ jobs:
           OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL }}
         run: |
           python src/main.py
-
-      - name: Commit dedup file updates
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          mkdir -p data
-          git add -f data/fetched_urls.txt
-          git diff --staged --quiet || git commit -m "Update dedup records [skip ci]"
-          git push || echo "No changes to push"
 
       - name: Upload EPUB artifact
         if: always()
