@@ -101,7 +101,8 @@ class EPUBGenerator:
         book.guide = [
             {'href': 'nav.xhtml', 'title': 'Table of Contents', 'type': 'toc'},
             {'href': 'cover.xhtml', 'title': 'Cover', 'type': 'cover'},
-            {'href': 'nav.xhtml', 'title': 'Table of Contents', 'type': 'text'}
+            {'href': 'nav.xhtml', 'title': 'Table of Contents', 'type': 'text'},
+            {'href': 'nav.xhtml', 'title': 'Start', 'type': 'start'},
         ]
 
         # 13. 保存文件
@@ -678,6 +679,15 @@ class EPUBGenerator:
                 content += f'            </li>\n'
 
         content += """        </ol>
+    </nav>
+
+    <!-- EPUB 3.0 landmarks: toc + bodymatter 均指向 nav.xhtml -->
+    <!-- Kindle 根据此块决定"打开时跳转到哪里"，hidden 使其不在阅读器目录中显示 -->
+    <nav epub:type="landmarks" id="landmarks" hidden="">
+        <ol>
+            <li><a epub:type="toc" href="nav.xhtml">Table of Contents</a></li>
+            <li><a epub:type="bodymatter" href="nav.xhtml">Start of Content</a></li>
+        </ol>
     </nav>
 </body>
 </html>"""

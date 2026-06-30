@@ -6,6 +6,7 @@
 
 - [EPUB版本与规范](#epub版本与规范)
 - [常见错误与解决方案](#常见错误与解决方案)
+- [Kindle落点问题 - 打开时随机进入正文而非目录](#kindle落点问题---打开时随机进入正文而非目录)
 - [验证工具](#验证工具)
 - [最佳实践](#最佳实践)
 
@@ -358,6 +359,106 @@ book.guide = [
 
 ---
 
+## Kindle落点问题 - 打开时随机进入正文而非目录
+
+**现象**：EPUB 发送到 Kindle 后，打开时有时落在目录页（nav.xhtml），有时直接跳入第一篇正文，行为不稳定。
+
+**根本原因**：Kindle 判断"首次打开落点"依赖**两套独立机制**，缺少其中任一都会导致随机行为：
+
+| 机制 | 格式版本 | 作用范围 |
+|------|---------|----------|
+| OPF `<guide>` 里的 `type="start"` | EPUB 2.0 兼容 | 老旧 Kindle 固件 |
+| `nav.xhtml` 里的 `epub:type="landmarks"` | EPUB 3.0 标准 | 新版固件 / Kindle App |
+
+两者都缺失时，Kindle 会根据 `<spine>` 第一个条目自行决定落点，结果不可预期。
+
+---
+
+### 修复1：OPF Guide 新增 `type="start"`
+
+**问题**：之前 `book.guide` 只有 `type="toc"` 和 `type="text"`，缺少 `type="start"`。老版 Kindle 固件读取 `guide` 里的 `start` 条目来决定"打开时跳到哪"。
+
+```python
+# 错误配置：缺少 type="start"
+book.guide = [
+    {'href': 'nav.xhtml', 'title': 'Table of Contents', 'type': 'toc'},
+    {'href': 'cover.xhtml', 'title': 'Cover', 'type': 'cover'},
+    {'href': 'nav.xhtml', 'title': 'Table of Contents', 'type': 'text'},
+]
+
+# 修复后的配置：新增 type="start" 指向目录页
+book.guide = [
+    {'href': 'nav.xhtml', 'title': 'Table of Contents', 'type': 'toc'},
+    {'href': 'cover.xhtml', 'title': 'Cover', 'type': 'cover'},
+    {'href': 'nav.xhtml', 'title': 'Table of Contents', 'type': 'text'},
+    {'href': 'nav.xhtml', 'title': 'Start', 'type': 'start'},  # 新增
+]
+```
+
+---
+
+### 修复2：`nav.xhtml` 新增 `epub:type="landmarks"` 导航块
+
+**问题**：EPUB 3.0 规范规定，`nav.xhtml` 应包含 `epub:type="landmarks"` 导航块来声明书籍各部分的语义起始位置。Kindle 新固件和 App 优先读取此块来决定"正文从哪里开始"。之前的实现只有 `epub:type="toc"` 块，缺少 landmarks。
+
+```xml
+<!-- 错误：只有 toc nav，无 landmarks -->
+<nav epub:type="toc" id="toc">
+    ...
+</nav>
+</body>
+
+<!-- 修复后：toc nav 后面追加 landmarks nav -->
+<nav epub:type="toc" id="toc">
+    ...
+</nav>
+
+<!-- EPUB 3.0 landmarks: toc + bodymatter 均指向 nav.xhtml -->
+<!-- Kindle 根据此块决定"打开时跳转到哪里"，hidden 使其不在阅读器目录中显示 -->
+<nav epub:type="landmarks" id="landmarks" hidden="">
+    <ol>
+        <li><a epub:type="toc" href="nav.xhtml">Table of Contents</a></li>
+        <li><a epub:type="bodymatter" href="nav.xhtml">Start of Content</a></li>
+    </ol>
+</nav>
+```
+
+**关键设计决策**：
+- `epub:type="bodymatter"` 指向 `nav.xhtml`（而非第一篇正文），这样 Kindle 认为"正文起始 = 目录页"。
+- `hidden=""` 是 EPUB 3.0 规范要求的属性，表示此导航块不在阅读器 UI 的目录列表中展示，但仍被解析器读取生效。
+- 两个 landmark 都指向同一个文件，确保无论 Kindle 读哪个 landmark 都落在目录。
+
+---
+
+### 验证方法
+
+```bash
+# 解压并检查 nav.xhtml 是否包含 landmarks 块
+unzip -p your_epub.epub EPUB/nav.xhtml | grep -A 8 'landmarks'
+
+# 检查 OPF 中的 guide 是否包含 type="start"
+unzip -p your_epub.epub EPUB/content.opf | grep 'type="start"'
+```
+
+预期输出（nav.xhtml）：
+
+```xml
+<nav epub:type="landmarks" id="landmarks" hidden="">
+    <ol>
+        <li><a epub:type="toc" href="nav.xhtml">Table of Contents</a></li>
+        <li><a epub:type="bodymatter" href="nav.xhtml">Start of Content</a></li>
+    </ol>
+</nav>
+```
+
+预期输出（content.opf）：
+
+```xml
+<reference href="nav.xhtml" title="Start" type="start"/>
+```
+
+---
+
 ## 验证工具
 
 ### EPUBCheck
@@ -467,9 +568,13 @@ book.add_author('Author Name')
 book.add_item(epub.EpubNcx())  # NCX导航
 book.add_item(epub.EpubNav())  # Nav Document（必需）
 
-# Guide元素（兼容性）
+# Guide元素（兼容性 + Kindle落点控制）
 book.guide = [
-    {'href': 'cover.xhtml', 'title': 'Cover', 'type': 'cover'}
+    {'href': 'nav.xhtml', 'title': 'Table of Contents', 'type': 'toc'},
+    {'href': 'cover.xhtml', 'title': 'Cover', 'type': 'cover'},
+    {'href': 'nav.xhtml', 'title': 'Table of Contents', 'type': 'text'},
+    # type="start"：Kindle 专认的"打开时跳转到"标志
+    {'href': 'nav.xhtml', 'title': 'Start', 'type': 'start'},
 ]
 
 # 不修改FOLDER_NAME，保留默认 'EPUB'
@@ -609,6 +714,7 @@ cat report.json
 7. ✅ **取整图片属性** - `width` 和 `height` 必须是整数
 8. ✅ **修复嵌套结构** - `<p>` 内不能有块级元素
 9. ✅ **验证EPUB文件** - 使用EPUBCheck确保合规
+10. ✅ **Kindle落点控制** - OPF guide 加 `type="start"` + nav.xhtml 加 `epub:type="landmarks"` 块，确保打开时总是进入目录
 
 ### 验证成功的标志
 
