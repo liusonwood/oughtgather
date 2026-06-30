@@ -16,7 +16,8 @@ def generate_fetcher_schema():
     for type_name, cls in _registry.items():
         schema[type_name] = {
             "src_placeholder": getattr(cls, "src_placeholder", ""),
-            "schema": getattr(cls, "config_schema", {})
+            "schema": getattr(cls, "config_schema", {}),
+            "required_secrets": getattr(cls, "required_secrets", [])
         }
     return schema
 

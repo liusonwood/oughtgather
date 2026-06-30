@@ -111,10 +111,14 @@ on:
 | `WEBDAV_PASSWORD` | WebDAV 密码 |
 | `WEBDAV_REMOTE_PATH` | 远程存储路径，默认 `/` |
 | `CONFIG_JSON` | 完整的 `config.json` 字符串；优先级高于项目根目录的 `config.json` 文件。推荐在 GitHub Actions 中使用，可避免将私有订阅源写入仓库 |
-| `TESTMAIL_APP_API_KEY` | `mail` 类型内容源所需，从 [testmail.app](https://testmail.app/) 获取 |
-| `OPENROUTER_API_KEY` | `trending` 类型内容源所需，调用 LLM 生成热点分析 |
-| `OPENROUTER_API_ENDPOINT` | 自定义 OpenRouter 兼容接口，默认 `https://openrouter.ai/api/v1/chat/completions` |
-| `OPENROUTER_MODEL` | `trending` 源的全局默认模型，优先级低于单个源的 `model` 字段 |
+| `TESTMAIL_APP_API_KEY` | 从 testmail.app 获取的 API Key，用于邮件抓取。 |
+| `OPENROUTER_API_KEY` | OpenRouter API 密钥，用于调用 LLM 生成热点分析。 |
+| `OPENROUTER_API_ENDPOINT` | 自定义 OpenRouter 兼容接口，默认 `https://openrouter.ai/api/v1/chat/completions`。 |
+| `OPENROUTER_MODEL` | 使用的 LLM 模型名称。 |
+| `TAVILY_API_KEY` | Tavily API 密钥，用于搜索热点信息。 |
+| `RAINDROPIO_API_KEY` | Raindrop.io 的 API 访问密钥。 |
+| `QWEATHER_KEY` | 和风天气 API 密钥，用于获取天气数据。 |
+| `QWEATHER_HOST` | 和风天气 API 主机地址。 |
 
 
 **SEND TO KINDLE**：Kindle 侧需要在亚马逊账号设置里，把发件邮箱加入「已认可的发件人电子邮箱列表」，否则推送不会被接收。
@@ -202,11 +206,11 @@ https://liusonwood.github.io/oughtgather/
 
 在 `src/fetchers/` 新增自定义抓取器后，编辑器需要同步更新才能显示新插件的参数字段：
 
-```bash
-# 方式一：运行主入口时自动同步
-python3.11 src/main.py
+**方式一**：Actions自动同步
 
-# 方式二：手动触发同步
+**方式二**：手动触发同步
+
+```bash
 python3.11 src/update_editor.py
 ```
 

@@ -112,13 +112,6 @@ def main():
     logger.info("Ought Gather - Starting")
     logger.info("=" * 60)
 
-    # 0. 自动更新 config-editor.html 中的抓取器选项
-    try:
-        from src.update_editor import update_html_editor
-        update_html_editor()
-    except Exception as e:
-        logger.warning(f"Failed to auto-update config-editor.html: {e}")
-
     try:
         # 1. 加载配置
         logger.info("Loading configuration...")

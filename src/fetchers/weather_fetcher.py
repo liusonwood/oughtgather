@@ -19,6 +19,10 @@ class WeatherFetcher(BaseFetcher):
             "placeholder": "today, tomorrow, 2, 或具体日期 YYYY-MM-DD"
         }
     }
+    required_secrets = {
+        "QWEATHER_KEY*": "和风天气 API 密钥，用于获取天气数据。",
+        "QWEATHER_HOST*": "和风天气 API 主机地址。"
+    }
 
     def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):
         super().__init__(source, global_limit=global_limit, max_retries=max_retries)
@@ -30,7 +34,14 @@ class WeatherFetcher(BaseFetcher):
                 "Please add it to GitHub Secrets or environment variables."
             )
         self.api_key = api_key
-        self.api_host = os.environ.get("QWEATHER_HOST") or "devapi.qweather.com"
+        
+        api_host = os.environ.get("QWEATHER_HOST")
+        if not api_host:
+            raise ValueError(
+                "Required secret 'QWEATHER_HOST' is not set. "
+                "Please add it to GitHub Secrets or environment variables."
+            )
+        self.api_host = api_host
 
     def _request_json(self, path: str, params: dict, what: str) -> dict:
         """Sends HTTP request and returns parsed JSON data."""

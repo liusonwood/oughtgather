@@ -19,6 +19,9 @@ class RaindropFetcher(BaseFetcher):
             "placeholder": "0"
         }
     }
+    required_secrets = {
+        "RAINDROPIO_API_KEY*": "Raindrop.io 的 API 访问密钥。"
+    }
 
     def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):
         super().__init__(source, global_limit=global_limit, max_retries=max_retries)

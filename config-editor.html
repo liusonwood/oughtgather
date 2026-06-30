@@ -840,7 +840,7 @@
       
       <div class="drag-drop-settings">
         <button class="btn btn-outline btn-sm" onclick="recalculatePrioritiesFromDrag()" style="border-color: var(--primary); color: var(--primary); background: #fff; font-size: 0.82em; display: flex; align-items: center; gap: 4px;">
-          ⚡️ 重新分配优先级 (从 
+          ⚡️ 自动分配优先级 (从 
           <input type="number" id="priority-start" value="10" style="width: 55px; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; text-align: center;" onclick="event.stopPropagation()" onchange="saveDragSettings()"> 
           开始，每项递增 
           <input type="number" id="priority-step" value="10" style="width: 45px; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; text-align: center;" onclick="event.stopPropagation()" onchange="saveDragSettings()">)
@@ -894,16 +894,22 @@
         "type": "number",
         "label": "offset"
       }
+    },
+    "required_secrets": {
+      "TESTMAIL_APP_API_KEY*": "从 testmail.app 获取的 API Key，用于邮件抓取。"
     }
   },
   "raindropio": {
-    "src_placeholder": "Enter Raindrop collection ID (e.g., 1234567, or 0 for Unsorted)",
+    "src_placeholder": "Enter Raindropio collection ID (e.g., 1234567, or 0 for Unsorted)",
     "schema": {
       "metadata.collection_id": {
         "type": "text",
         "label": "Collection ID",
         "placeholder": "0"
       }
+    },
+    "required_secrets": {
+      "RAINDROPIO_API_KEY*": "Raindrop.io 的 API 访问密钥。"
     }
   },
   "rss": {
@@ -924,7 +930,8 @@
         "label": "限制条目数 (limit)",
         "placeholder": "留空使用全局限制"
       }
-    }
+    },
+    "required_secrets": {}
   },
   "trending": {
     "src_placeholder": "关键词, 例如: 人工智能最新发展趋势",
@@ -934,6 +941,12 @@
         "label": "目标 (goal)",
         "placeholder": "LLM 分析目标，例如: 分析最新的 AI 技术突破..."
       }
+    },
+    "required_secrets": {
+      "OPENROUTER_API_KEY*": "OpenRouter API 密钥，用于调用 LLM 生成热点分析。",
+      "OPENROUTER_API_ENDPOINT": "自定义 OpenRouter 兼容接口，默认 `https://openrouter.ai/api/v1/chat/completions`。",
+      "OPENROUTER_MODEL*": "使用的 LLM 模型名称。",
+      "TAVILY_API_KEY*": "Tavily API 密钥，用于搜索热点信息。"
     }
   },
   "weather": {
@@ -944,11 +957,16 @@
         "label": "预报日期 (date)",
         "placeholder": "today, tomorrow, 2, 或具体日期 YYYY-MM-DD"
       }
+    },
+    "required_secrets": {
+      "QWEATHER_KEY*": "和风天气 API 密钥，用于获取天气数据。",
+      "QWEATHER_HOST*": "和风天气 API 主机地址。"
     }
   },
   "web": {
     "src_placeholder": "网页 URL",
-    "schema": {}
+    "schema": {},
+    "required_secrets": {}
   }
 };
     // DYNAMIC_FETCHERS_DATA_END
@@ -1197,6 +1215,9 @@
 
           <!-- Render dynamic fetcher-specific inputs -->
           ${renderDynamicFields(s)}
+          
+          <!-- Render required secrets -->
+          ${renderSecrets(s)}
         </div>`;
       }).join('');
 
@@ -1217,6 +1238,30 @@
       if (renderDrag) {
         renderDragDropList();
       }
+    }
+    
+    function renderSecrets(s) {
+      const fetcher = FETCHERS_SCHEMA[s.type];
+      if (!fetcher || !fetcher.required_secrets || Object.keys(fetcher.required_secrets).length === 0) {
+        return '';
+      }
+      
+      const secretsHtml = Object.entries(fetcher.required_secrets).map(([key, desc]) => {
+        const isRequired = key.endsWith('*');
+        const cleanKey = isRequired ? key.slice(0, -1) : key;
+        const requiredAsterisk = isRequired ? '<span class="required-asterisk">*</span>' : '';
+        
+        return `<li style="margin-bottom: 2px;">
+                  <code style="background: #f0f0f0; padding: 1px 3px; border-radius: 3px; font-family: monospace;">${cleanKey}</code>${requiredAsterisk}: ${desc}
+                </li>`;
+      }).join('');
+      
+      return `
+        <div style="margin-top: 15px; font-size: 0.8rem; color: var(--text-muted); border-top: 1px dashed var(--border); padding-top: 8px;">
+          <strong>需要环境变量:</strong>
+          <ul style="list-style: none; padding-left: 10px; margin-top: 4px;">${secretsHtml}</ul>
+        </div>
+      `;
     }
 
     function getSrcPlaceholder(type) {

@@ -59,21 +59,24 @@ class FetchResult:
 
 ### 3. Fetcher Configuration & Secrets
 - **Custom Config**: Access user configuration from `config.json` via `self.source.metadata` (e.g. `self.source.metadata.get("param_name")`).
-- **Secrets**: If your fetcher needs API keys or secret tokens, import `get_secret` from `src.config` and fetch them using `get_secret("SECRET_NAME", required=True/False)`.
+- **Secrets**: If your fetcher needs API keys or secret tokens:
+  1. Define a class-level variable `required_secrets = ["MY_API_KEY_1", "MY_API_KEY_2"]` in your fetcher class.
+  2. Access them within your class using `os.environ.get("MY_API_KEY_1")`.
 
 ### 4. Fetcher Boilerplate Template
 ```python
 from typing import List, Optional
+import os
 from bs4 import BeautifulSoup
 
-from src.config import ContentSource, get_secret
+from src.config import ContentSource
 from src.fetchers.base import BaseFetcher, FetchResult, Article
 from src.utils.logger import get_logger
 
 class CustomFetcher(BaseFetcher):
     """Your Custom Fetcher Description"""
     
-    # 1. Declare the plugin type name, source input placeholder, and config editor schema
+    # 1. Declare the plugin type name, source input placeholder, config editor schema, and required secrets
     type_name = "custom_type"
     src_placeholder = "placeholder text for the source field in config-editor"
     config_schema = {
@@ -86,11 +89,11 @@ class CustomFetcher(BaseFetcher):
             "placeholder": "Enter value..."
         }
     }
+    required_secrets = ["CUSTOM_API_KEY"]
 
     def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):
         super().__init__(source, global_limit=global_limit, max_retries=max_retries)
-        # Optional: Load any secrets if needed
-        # self.api_key = get_secret("CUSTOM_API_KEY", required=False)
+        self.api_key = os.environ.get("CUSTOM_API_KEY")
 
     def fetch(self) -> FetchResult:
         """
@@ -105,6 +108,7 @@ class CustomFetcher(BaseFetcher):
 
             # 3. Call API or fetch page
             url = self.source.src
+            # Use self.api_key for authentication if required
             response = self._make_request(url)
             html = response.text
 
