@@ -246,10 +246,21 @@ class EPUBGenerator:
             else:
                 target_toc_id = f"toc_section_{divider_id}"
 
+            # 构造栏目下所有文章的信息，用于在分隔页展示子目录
+            articles_info = []
+            curr_chapter_id = chapter_id
+            for article in articles:
+                articles_info.append({
+                    "title": article.title,
+                    "file_name": f"chapter_{curr_chapter_id}.xhtml"
+                })
+                curr_chapter_id += 1
+
             divider = create_section_divider_page(
                 section_title=section_title,
                 file_name=f"divider_{divider_id}.xhtml",
-                target_toc_id=target_toc_id
+                target_toc_id=target_toc_id,
+                articles_info=articles_info
             )
             book.add_item(divider)
             spine.append(divider)

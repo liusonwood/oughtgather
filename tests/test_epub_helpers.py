@@ -21,10 +21,15 @@ class TestEPUBHelpers:
 
     def test_create_section_divider_page(self):
         """测试生成章节分隔页"""
+        articles_info = [
+            {"title": "文章标题 1 & 测试", "file_name": "chapter_0.xhtml"},
+            {"title": "文章标题 2", "file_name": "chapter_1.xhtml"}
+        ]
         divider = create_section_divider_page(
             section_title="测试大栏目 & 频道",
             file_name="divider_99.xhtml",
-            target_toc_id="toc_section_99"
+            target_toc_id="toc_section_99",
+            articles_info=articles_info
         )
         assert isinstance(divider, epub.EpubHtml)
         assert divider.title == "测试大栏目 & 频道"
@@ -37,3 +42,12 @@ class TestEPUBHelpers:
         assert 'href="nav.xhtml#toc_section_99"' in content
         assert "返回目录" in content
         assert 'class="toc-link"' in content
+
+        # 检查是否包含子目录列表及其样式与转义
+        assert 'id="toc"' in content
+        assert 'class="article-link"' in content
+        assert 'href="chapter_0.xhtml"' in content
+        assert '文章标题 1 &amp; 测试' in content
+        assert 'href="chapter_1.xhtml"' in content
+        assert '文章标题 2' in content
+
