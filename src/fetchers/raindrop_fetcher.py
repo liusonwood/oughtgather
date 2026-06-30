@@ -1,0 +1,87 @@
+from typing import List, Optional
+from bs4 import BeautifulSoup
+import httpx
+
+from src.config import ContentSource, get_secret
+from src.fetchers.base import BaseFetcher, FetchResult, Article
+from src.utils.logger import get_logger
+
+class RaindropFetcher(BaseFetcher):
+    """Raindrop.io Fetcher"""
+    
+    type_name = "raindrop"
+    src_placeholder = "Enter Raindrop collection ID (e.g., 1234567, or 0 for Unsorted)"
+    config_schema = {
+        "metadata.collection_id": {
+            "type": "text",
+            "label": "Collection ID",
+            "placeholder": "0"
+        }
+    }
+
+    def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):
+        super().__init__(source, global_limit=global_limit, max_retries=max_retries)
+        self.api_key = get_secret("RAINDROP_API_KEY", required=True)
+
+    def fetch(self) -> FetchResult:
+        """
+        Execute fetch operation from Raindrop.io.
+        """
+        result = FetchResult(source=self.source, articles=[])
+        
+        try:
+            # Get collection ID
+            metadata = self.source.metadata or {}
+            collection_id = metadata.get("collection_id", "0")
+            
+            # Raindrop API URL
+            url = f"https://api.raindrop.io/rest/v1/raindrops/{collection_id}"
+            
+            # API Request
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            # Using base fetcher's request method
+            response = self._make_request(url, headers=headers)
+            data = response.json()
+            
+            if not data.get("result"):
+                raise Exception(f"Raindrop API error: {data.get('message', 'Unknown error')}")
+                
+            raindrops = data.get("items", [])
+            
+            # Process articles
+            for item in raindrops[:self.global_limit]:
+                title = item.get("title")
+                url = item.get("link")
+                excerpt = item.get("excerpt", "")
+                
+                # Raindrop items might not have full HTML content, 
+                # might need to rely on the URL for full text if needed (e.g. using trafilatura)
+                # For now, let's use the excerpt as content.
+                content = f"<p>{excerpt}</p>"
+                
+                # Check for images
+                images = []
+                if item.get("cover"):
+                    images.append(item.get("cover"))
+                    
+                article = Article(
+                    title=title,
+                    content=content,
+                    url=url,
+                    images=images
+                )
+                
+                if not self._should_delete(article.title):
+                    result.articles.append(article)
+
+            return result
+
+        except Exception as e:
+            self.logger.error(f"Raindrop fetch failed: {e}")
+            result.success = False
+            result.error = str(e)
+            return result
