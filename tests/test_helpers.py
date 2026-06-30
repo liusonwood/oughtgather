@@ -304,6 +304,26 @@ class TestFormatDate:
         result = format_date("1718343000000")
         assert result == "2024-06-14 13:30"
 
+    def test_numeric_timestamp_seconds(self):
+        """数字类型时间戳（秒）"""
+        result = format_date(1718343000)
+        assert result == "2024-06-14 13:30"
+
+    def test_numeric_timestamp_milliseconds(self):
+        """数字类型时间戳（毫秒）"""
+        result = format_date(1718343000000)
+        assert result == "2024-06-14 13:30"
+
+    def test_numeric_timestamp_float(self):
+        """数字类型时间戳（浮点数秒）"""
+        result = format_date(1718343000.0)
+        assert result == "2024-06-14 13:30"
+
+    def test_numeric_timestamp_zero(self):
+        """数字时间戳 0"""
+        result = format_date(0)
+        assert result == "1970-01-01 08:00"
+
     def test_date_only_format(self):
         """仅日期格式"""
         result = format_date("2026-06-14")

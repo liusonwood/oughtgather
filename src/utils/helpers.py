@@ -153,21 +153,20 @@ def format_date(date_str: str) -> str:
     输出格式：YYYY-MM-DD HH:MM
 
     Args:
-        date_str: 日期字符串
+        date_str: 日期字符串或数字时间戳
 
     Returns:
         str: 格式化后的日期
     """
-    if not date_str:
+    if not date_str and date_str != 0:
         return ""
 
-    # 尝试解析为 datetime 对象
     from datetime import datetime
 
-    # 首先检查是否是纯数字（时间戳）
-    if isinstance(date_str, str) and date_str.isdigit():
+    # 处理数字类型（int/float）时间戳
+    if isinstance(date_str, (int, float)):
         try:
-            timestamp = int(date_str)
+            timestamp = date_str
             # 判断是秒还是毫秒（毫秒 > 1e12）
             if timestamp > 1_000_000_000_000:
                 timestamp = timestamp / 1000  # 毫秒转秒
@@ -175,6 +174,20 @@ def format_date(date_str: str) -> str:
             return dt.strftime("%Y-%m-%d %H:%M")
         except (ValueError, OSError, OverflowError):
             pass  # 继续尝试其他格式
+
+    # 处理字符串类型
+    if isinstance(date_str, str):
+        # 首先检查是否是纯数字（时间戳）
+        if date_str.isdigit():
+            try:
+                timestamp = int(date_str)
+                # 判断是秒还是毫秒（毫秒 > 1e12）
+                if timestamp > 1_000_000_000_000:
+                    timestamp = timestamp / 1000  # 毫秒转秒
+                dt = datetime.fromtimestamp(timestamp)
+                return dt.strftime("%Y-%m-%d %H:%M")
+            except (ValueError, OSError, OverflowError):
+                pass  # 继续尝试其他格式
 
     # 尝试常见的日期格式
     formats = [
