@@ -1833,7 +1833,19 @@
 
     // ---- Init ----
     loadDragSettings();
-    renderSources();
+    // Check for saved config
+    const savedConfig = localStorage.getItem('og_config_draft');
+    if (savedConfig) {
+      try {
+        const config = JSON.parse(savedConfig);
+        loadConfig(config);
+      } catch (e) {
+        console.error("Failed to load saved config from localStorage", e);
+        renderSources(); // Fallback
+      }
+    } else {
+      renderSources();
+    }
     initDragAndDrop();
   </script>
 </body>
