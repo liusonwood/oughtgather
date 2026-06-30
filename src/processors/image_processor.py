@@ -134,8 +134,19 @@ class ImageProcessor:
                 self.logger.debug(f"Skipping small image ({width}x{height}): {original_url}")
                 return None
 
-            # 转换为 RGB（如果是 RGBA 或其他模式）
-            if img.mode != 'RGB':
+            # 转换为 RGB：对透明/半透明像素，先以白色背景合成
+            if img.mode in ('RGBA', 'LA', 'PA') or 'A' in img.mode:
+                # 创建白色背景
+                white_bg = Image.new('RGB', img.size, (255, 255, 255))
+                if img.mode == 'RGBA':
+                    # 使用 alpha 通道作为蒙版将图片合成到白色背景上
+                    white_bg.paste(img, mask=img.split()[3])
+                else:
+                    # 其他带 alpha 的模式，先转 RGBA 再处理
+                    img = img.convert('RGBA')
+                    white_bg.paste(img, mask=img.split()[3])
+                img = white_bg
+            elif img.mode != 'RGB':
                 img = img.convert('RGB')
 
             # 调整尺寸
