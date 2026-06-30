@@ -160,7 +160,7 @@ class CoverGenerator:
             Image.Image: 带文字的封面
         """
         # 添加浅白色的半透明蒙版以提升文字可读性
-        overlay = Image.new('RGBA', (self.WIDTH, self.HEIGHT), (255, 255, 255, 178))  # 约 30% 透明度
+        overlay = Image.new('RGBA', (self.WIDTH, self.HEIGHT), (255, 255, 255, 33))  # 约 30% 透明度
         background = background.convert('RGBA')
         background = Image.alpha_composite(background, overlay)
         background = background.convert('RGB')
