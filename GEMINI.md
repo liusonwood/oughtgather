@@ -15,7 +15,7 @@ This guide provides compact developer instructions, architecture decisions, and 
 
 ## Architecture & Core Rules
 
-- **Flow**: `config.json` → `Fetchers` → `Processors` → `Dedup` → `EPUB Generator` → `SMTP Sender`
+- **Flow**: `config.json` → `Fetchers` → `Processors` → `Dedup` → `EPUB Generator` → `SMTP Sender` & `WebDAV Uploader`
 - **Timezone**: All timestamping and datetime calculations must use Beijing Time (UTC+8) via `src/utils/helpers.py:get_now()`.
 - **Fetchers (`src/fetchers/`)**:
   - `MailFetcher`: Uses testmail.app API. `src` supports `"namespace"` or `"namespace.tag"` (dot-split). `metadata` enables tags, limits, and date range filters.
@@ -30,11 +30,13 @@ This guide provides compact developer instructions, architecture decisions, and 
   - Cover: Custom (`title.img`) or Bing Daily wallpaper with text/date overlays.
   - TOC: Flat layout (source → articles).
   - Compliance: Standard `FOLDER_NAME='EPUB'` must be used (avoids OCF RSC-026). OPF version must be `3.0`. EPUB 3.0 requires both EpubNcx and EpubNav items (avoids RSC-005). XHTML covers must not be empty. Escape f-string CSS curly braces as `{{}}`. EPUBCheck validates against EPUB 3.3 rules (`java -jar epubcheck.jar <file.epub>`).
+- **Uploader (`src/uploader/`)**:
+  - `WebDavUploader`: Uploads generated EPUBs to WebDAV endpoints if configured (`WEBDAV_ENABLED`=true).
 
 ## Configuration
 
 Required credentials (environment or GitHub Secrets): `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `KINDLE_EMAIL`.
-Optional variables: `CONFIG_JSON` (overrides file), `TESTMAIL_APP_API_KEY`, `OPENROUTER_API_KEY`, `OPENROUTER_API_ENDPOINT`.
+Optional variables: `CONFIG_JSON` (overrides file), `TESTMAIL_APP_API_KEY`, `OPENROUTER_API_KEY`, `OPENROUTER_API_ENDPOINT`, `WEBDAV_ENABLED`, `WEBDAV_URL`, `WEBDAV_USERNAME`, `WEBDAV_PASSWORD`, `WEBDAV_REMOTE_PATH`.
 
 ### config.json Schema
 ```json

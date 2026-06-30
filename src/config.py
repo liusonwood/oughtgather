@@ -81,11 +81,21 @@ class ContentSource:
 
 
 @dataclass
+class WebDavConfig:
+    """WebDAV 配置"""
+    enabled: bool = False
+    url: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    remote_path: str = "/"
+
+@dataclass
 class Config:
     """全局配置"""
     title: TitleConfig
     body: List[ContentSource]
     limit: int = 15  # 全局每源抓取上限
+    webdav: Optional[WebDavConfig] = None
 
     def get_sorted_sources(self) -> List[ContentSource]:
         """获取按优先级排序的内容源（降序，稳定排序）"""
@@ -224,3 +234,18 @@ def get_openrouter_config() -> Optional[Dict[str, str]]:
             "model": model,  # None if not set; caller falls back to its own default
         }
     return None
+
+
+def get_webdav_config() -> Optional[WebDavConfig]:
+    """获取 WebDAV 配置（可选）"""
+    enabled = os.getenv("WEBDAV_ENABLED", "false").lower() == "true"
+    if not enabled:
+        return None
+
+    return WebDavConfig(
+        enabled=True,
+        url=get_secret("WEBDAV_URL"),
+        username=get_secret("WEBDAV_USERNAME"),
+        password=get_secret("WEBDAV_PASSWORD"),
+        remote_path=os.getenv("WEBDAV_REMOTE_PATH") or "/"
+    )

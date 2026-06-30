@@ -326,10 +326,21 @@ python -m pytest tests/test_integration.py::TestEpubcheckValidation -v
 
 ## 🗺️ 未来计划 (Roadmap)
 
-为了让 **Ought Gather** 更加易用且适配更多阅读终端，以下功能已列入后续开发计划：
+为了让 **Ought Gather** 更加易用且适配更多阅读终端，后续计划将持续优化。
 
-- [ ] **🌐 支持 WebDAV 协议传输（适配更多设备）**
-  - 突破 Kindle 邮件推送限制。支持将生成的 EPUB 自动同步至坚果云、Nextcloud、本地 NAS 等 WebDAV 云端，无缝适配文石 (Boox)、Kobo (配合 KoboCloud)、KOReader 以及各类移动端阅读 App。
+## WebDAV 配置（可选）
+
+Ought Gather 支持将生成的 EPUB 自动同步至 WebDAV 云端（如坚果云、Nextcloud、本地 NAS 等）。该功能通过环境变量（Secrets）配置：
+
+| 环境变量 | 说明 |
+| --- | --- |
+| `WEBDAV_ENABLED` | 设置为 `true` 以启用 |
+| `WEBDAV_URL` | WebDAV 服务器地址 |
+| `WEBDAV_USERNAME` | WebDAV 用户名 |
+| `WEBDAV_PASSWORD` | WebDAV 密码 |
+| `WEBDAV_REMOTE_PATH` | (可选) 远程存储路径，默认为 `/` |
+
+只要设置了上述环境变量，程序在生成 EPUB 后会自动尝试上传。
 
 ## 项目结构
 ```

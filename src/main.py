@@ -171,11 +171,22 @@ def main():
             logger.error(f"Failed to send email: {e}")
             error_log.append(f"Email sending failed: {str(e)}")
 
-        # 8. 保存去重记录
+        # 8. WebDAV 上传
+        logger.info("Uploading EPUB to WebDAV...")
+        try:
+            from src.uploader.webdav_uploader import WebDavUploader
+            uploader = WebDavUploader()
+            if uploader.upload_epub(epub_path):
+                logger.info("EPUB uploaded to WebDAV")
+        except Exception as e:
+            logger.error(f"Failed to upload to WebDAV: {e}")
+            error_log.append(f"WebDAV upload failed: {str(e)}")
+
+        # 9. 保存去重记录
         logger.info("Saving dedup records...")
         tracker.save()
 
-        # 9. 输出统计信息
+        # 10. 输出统计信息
         stats = tracker.get_stats()
         logger.info("=" * 60)
         logger.info("Ought Gather - Completed")
