@@ -1,8 +1,9 @@
+import os
 from typing import List, Optional
 from bs4 import BeautifulSoup
 import httpx
 
-from src.config import ContentSource, get_secret
+from src.config import ContentSource
 from src.fetchers.base import BaseFetcher, FetchResult, Article
 from src.utils.logger import get_logger
 
@@ -21,7 +22,13 @@ class RaindropFetcher(BaseFetcher):
 
     def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):
         super().__init__(source, global_limit=global_limit, max_retries=max_retries)
-        self.api_key = get_secret("RAINDROP_API_KEY", required=True)
+        api_key = os.environ.get("RAINDROP_API_KEY")
+        if not api_key:
+            raise ValueError(
+                "Required secret 'RAINDROP_API_KEY' is not set. "
+                "Please add it to GitHub Secrets or environment variables."
+            )
+        self.api_key = api_key
 
     def fetch(self) -> FetchResult:
         """

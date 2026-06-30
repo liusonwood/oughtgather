@@ -213,14 +213,6 @@ def get_smtp_config() -> Dict[str, str]:
     }
 
 
-def get_testmail_config() -> Optional[Dict[str, str]]:
-    """获取 TestMail 配置（可选）"""
-    api_key = get_secret("TESTMAIL_APP_API_KEY", required=False)
-    if api_key:
-        return {"api_key": api_key}
-    return None
-
-
 def get_webdav_config() -> Optional[WebDavConfig]:
     """获取 WebDAV 配置（可选）"""
     enabled = os.getenv("WEBDAV_ENABLED", "false").lower() == "true"

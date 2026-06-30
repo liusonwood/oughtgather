@@ -1,4 +1,5 @@
 import pytest
+import os
 from unittest.mock import MagicMock, patch
 from src.config import ContentSource
 from src.fetchers.weather_fetcher import WeatherFetcher
@@ -15,11 +16,9 @@ class TestWeatherFetcher:
             metadata={"date": "tomorrow"}
         )
 
-    @patch("src.fetchers.weather_fetcher.get_secret")
+    @patch.dict(os.environ, {"QWEATHER_KEY": "test_key", "QWEATHER_HOST": "test_host"})
     @patch.object(WeatherFetcher, "_make_request")
-    def test_fetch_success(self, mock_make_request, mock_get_secret, weather_source):
-        mock_get_secret.side_effect = lambda name, required=True: "test_key" if name == "QWEATHER_KEY" else "test_host"
-
+    def test_fetch_success(self, mock_make_request, weather_source):
         # Mock responses
         # 1st response: Geo lookup
         geo_response = MagicMock()
@@ -69,11 +68,9 @@ class TestWeatherFetcher:
         assert "23°C 至 31°C" in article.content
         assert "04:50" in article.content
 
-    @patch("src.fetchers.weather_fetcher.get_secret")
+    @patch.dict(os.environ, {"QWEATHER_KEY": "test_key", "QWEATHER_HOST": "test_host"})
     @patch.object(WeatherFetcher, "_make_request")
-    def test_fetch_resolve_failure(self, mock_make_request, mock_get_secret, weather_source):
-        mock_get_secret.side_effect = lambda name, required=True: "test_key" if name == "QWEATHER_KEY" else "test_host"
-
+    def test_fetch_resolve_failure(self, mock_make_request, weather_source):
         # Mock geo response failure
         geo_response = MagicMock()
         geo_response.json.return_value = {

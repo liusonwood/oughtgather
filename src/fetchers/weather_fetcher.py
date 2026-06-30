@@ -1,7 +1,8 @@
+import os
 from typing import List, Optional
 from urllib.parse import urlencode
 
-from src.config import ContentSource, get_secret
+from src.config import ContentSource
 from src.fetchers.base import BaseFetcher, FetchResult, Article
 from src.utils.logger import get_logger
 
@@ -21,8 +22,15 @@ class WeatherFetcher(BaseFetcher):
 
     def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):
         super().__init__(source, global_limit=global_limit, max_retries=max_retries)
-        self.api_key = get_secret("QWEATHER_KEY", required=True)
-        self.api_host = get_secret("QWEATHER_HOST", required=False) or "devapi.qweather.com"
+        
+        api_key = os.environ.get("QWEATHER_KEY")
+        if not api_key:
+            raise ValueError(
+                "Required secret 'QWEATHER_KEY' is not set. "
+                "Please add it to GitHub Secrets or environment variables."
+            )
+        self.api_key = api_key
+        self.api_host = os.environ.get("QWEATHER_HOST") or "devapi.qweather.com"
 
     def _request_json(self, path: str, params: dict, what: str) -> dict:
         """Sends HTTP request and returns parsed JSON data."""

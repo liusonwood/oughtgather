@@ -1,14 +1,10 @@
-"""
-邮件抓取器模块
-通过 testmail.app API 抓取订阅邮件
-"""
-
+import os
 import re
 from typing import List, Optional
 from urllib.parse import quote
 from bs4 import BeautifulSoup
 
-from src.config import ContentSource, get_testmail_config
+from src.config import ContentSource
 from src.fetchers.base import BaseFetcher, FetchResult, Article
 from src.utils.logger import get_logger
 from src.utils.helpers import format_date
@@ -38,7 +34,8 @@ class MailFetcher(BaseFetcher):
             max_retries: 最大重试次数
         """
         super().__init__(source, global_limit=global_limit, max_retries=max_retries)
-        self.config = get_testmail_config()
+        api_key = os.environ.get("TESTMAIL_APP_API_KEY")
+        self.config = {"api_key": api_key} if api_key else None
 
         if not self.config:
             self.logger.warning(

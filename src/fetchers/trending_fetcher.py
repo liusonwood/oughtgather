@@ -6,14 +6,14 @@
 import json
 import markdown
 import re
+import os
 from datetime import datetime
 from typing import Optional, Dict, Any
 
-from src.config import ContentSource, get_secret
+from src.config import ContentSource
 from src.fetchers.base import BaseFetcher, FetchResult, Article
 from src.utils.logger import get_logger
 from src.utils.helpers import generate_content_id, get_now
-import re
 
 class TrendingFetcher(BaseFetcher):
     """热点分析抓取器"""
@@ -40,12 +40,12 @@ class TrendingFetcher(BaseFetcher):
         super().__init__(source, global_limit=global_limit, max_retries=max_retries)
 
         # 内部获取 OpenRouter 配置
-        api_key = get_secret("OPENROUTER_API_KEY", required=False)
+        api_key = os.environ.get("OPENROUTER_API_KEY")
         if api_key:
             self.config = {
                 "api_key": api_key,
-                "endpoint": get_secret("OPENROUTER_API_ENDPOINT", required=False) or "https://openrouter.ai/api/v1/chat/completions",
-                "model": get_secret("OPENROUTER_MODEL", required=False),
+                "endpoint": os.environ.get("OPENROUTER_API_ENDPOINT") or "https://openrouter.ai/api/v1/chat/completions",
+                "model": os.environ.get("OPENROUTER_MODEL"),
             }
         else:
             self.config = None
@@ -54,8 +54,7 @@ class TrendingFetcher(BaseFetcher):
             )
 
         # 内部获取 Tavily 配置
-        tavily_key = get_secret("TAVILY_API_KEY", required=False)
-        self.tavily_api_key = tavily_key
+        self.tavily_api_key = os.environ.get("TAVILY_API_KEY")
 
 
     def fetch(self) -> FetchResult:
