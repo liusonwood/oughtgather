@@ -100,25 +100,25 @@ on:
 
 | Secret / 环境变量 | 说明 |
 | --- | --- |
+| `CONFIG_JSON` | 完整的 `config.json` 字符串；优先级高于项目根目录的 `config.json` 文件。推荐在 GitHub Actions 中使用，可避免将私有订阅源写入仓库 |
+| `KINDLE_EMAIL` | Kindle 接收邮箱（`@kindle.com`） |
+| `OPENROUTER_API_ENDPOINT` | 自定义 OpenRouter 兼容接口，默认 `https://openrouter.ai/api/v1/chat/completions`。 |
+| `OPENROUTER_API_KEY` | OpenRouter API 密钥，用于调用 LLM 生成热点分析。 |
+| `OPENROUTER_MODEL` | 使用的 LLM 模型名称。 |
+| `QWEATHER_HOST` | 和风天气 API 主机地址。 |
+| `QWEATHER_KEY` | 和风天气 API 密钥，用于获取天气数据。 |
+| `RAINDROPIO_API_KEY` | Raindrop.io 的 API 访问密钥。 |
 | `SMTP_HOST` | 发件邮箱 SMTP 服务器地址，如 `smtp.gmail.com` |
+| `SMTP_PASSWORD` | 发件邮箱密码或应用授权码 |
 | `SMTP_PORT` | 发件邮箱 SMTP 端口；`465` 使用 SSL，`587` 使用 STARTTLS |
 | `SMTP_USERNAME` | 发件邮箱账号 |
-| `SMTP_PASSWORD` | 发件邮箱密码或应用授权码 |
-| `KINDLE_EMAIL` | Kindle 接收邮箱（`@kindle.com`） |
+| `TAVILY_API_KEY` | Tavily API 密钥，用于搜索热点信息。 |
+| `TESTMAIL_APP_API_KEY` | 从 testmail.app 获取的 API Key，用于邮件抓取。 |
 | `WEBDAV_ENABLED` | 设置为 `true` 以启用 WebDAV 上传 |
-| `WEBDAV_URL` | WebDAV 服务器地址 |
-| `WEBDAV_USERNAME` | WebDAV 用户名 |
 | `WEBDAV_PASSWORD` | WebDAV 密码 |
 | `WEBDAV_REMOTE_PATH` | 远程存储路径，默认 `/` |
-| `CONFIG_JSON` | 完整的 `config.json` 字符串；优先级高于项目根目录的 `config.json` 文件。推荐在 GitHub Actions 中使用，可避免将私有订阅源写入仓库 |
-| `TESTMAIL_APP_API_KEY` | 从 testmail.app 获取的 API Key，用于邮件抓取。 |
-| `QWEATHER_KEY` | 和风天气 API 密钥，用于获取天气数据。 |
-| `QWEATHER_HOST` | 和风天气 API 主机地址。 |
-| `OPENROUTER_API_KEY` | OpenRouter API 密钥，用于调用 LLM 生成热点分析。 |
-| `OPENROUTER_API_ENDPOINT` | 自定义 OpenRouter 兼容接口，默认 `https://openrouter.ai/api/v1/chat/completions`。 |
-| `OPENROUTER_MODEL` | 使用的 LLM 模型名称。 |
-| `TAVILY_API_KEY` | Tavily API 密钥，用于搜索热点信息。 |
-| `RAINDROPIO_API_KEY` | Raindrop.io 的 API 访问密钥。 |
+| `WEBDAV_URL` | WebDAV 服务器地址 |
+| `WEBDAV_USERNAME` | WebDAV 用户名 |
 
 
 两种推送方式：

@@ -83,11 +83,16 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           KINDLE_EMAIL: ${{ secrets.KINDLE_EMAIL }}
 
-          # 可选配置
-          TESTMAIL_APP_API_KEY: ${{ secrets.TESTMAIL_APP_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          # 自动注入 Secrets
           OPENROUTER_API_ENDPOINT: ${{ secrets.OPENROUTER_API_ENDPOINT }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL }}
+          QWEATHER_HOST: ${{ secrets.QWEATHER_HOST }}
+          QWEATHER_KEY: ${{ secrets.QWEATHER_KEY }}
+          RAINDROPIO_API_KEY: ${{ secrets.RAINDROPIO_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          TESTMAIL_APP_API_KEY: ${{ secrets.TESTMAIL_APP_API_KEY }}
+
         run: |
           python src/main.py
 
