@@ -12,6 +12,7 @@ from src.config import Config, ContentSource
 from src.fetchers.base import Article, FetchResult
 from src.epub.cover import CoverGenerator
 from src.epub.toc import TOCGenerator
+from src.epub.helpers import generate_toc_link, create_section_divider_page
 from src.processors.image_processor import ImageProcessor
 from src.utils.logger import get_logger
 from src.utils.helpers import get_now
@@ -237,10 +238,6 @@ class EPUBGenerator:
             section_title = self.toc_generator._get_source_title(
                 source, articles, source_title
             )
-            divider = epub.EpubHtml(
-                title=section_title,
-                file_name=f"divider_{divider_id}.xhtml"
-            )
             # 确定返回目录时应该锚定到目录 (nav.xhtml) 中的哪一个条目：
             # - web / trending: 对应扁平链接，锚定到 toc_chapter_{chapter_id}
             # - mail / rss: 对应两级结构，锚定到 toc_section_{divider_id}
@@ -249,7 +246,11 @@ class EPUBGenerator:
             else:
                 target_toc_id = f"toc_section_{divider_id}"
 
-            divider.content = self._generate_section_divider_content(section_title, target_toc_id)
+            divider = create_section_divider_page(
+                section_title=section_title,
+                file_name=f"divider_{divider_id}.xhtml",
+                target_toc_id=target_toc_id
+            )
             book.add_item(divider)
             spine.append(divider)
             divider_id += 1
@@ -297,6 +298,7 @@ class EPUBGenerator:
         safe_author = html.escape(article.author) if article.author else ""
 
         # EPUB 3.0 使用 HTML5 DOCTYPE
+        toc_link = generate_toc_link(f"toc_chapter_{chapter_id}")
         content_html = f"""<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" epub:prefix="z3998: http://www.daisy.org/z3998/2012/vocab/structure/#" lang="zh" xml:lang="zh">
 <head>
@@ -305,7 +307,7 @@ class EPUBGenerator:
 </head>
 <body>
     <h1>{safe_title}</h1>
-    <p class="toc-link"><a href="nav.xhtml#toc_chapter_{chapter_id}">返回目录</a></p>
+    {toc_link}
 """
 
         # 添加元信息
@@ -327,32 +329,6 @@ class EPUBGenerator:
 </html>"""
 
         return content_html
-
-    def _generate_section_divider_content(self, section_title: str, target_toc_id: str) -> str:
-        """
-        生成章节分隔页 HTML 内容 (EPUB 3.0 格式，返回目录链接在标题下方)
-
-        在两个不同"大目录"之间插入，视觉上提示读者进入了新的栏目/分组。
-
-        Args:
-            section_title: 章节/栏目标题
-            target_toc_id: 返回目录链接指向的 TOC 元素的 ID
-
-        Returns:
-            str: HTML 内容
-        """
-        safe_title = html_module.escape(section_title)
-        return f"""<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" epub:prefix="z3998: http://www.daisy.org/z3998/2012/vocab/structure/#" lang="zh" xml:lang="zh">
-<head>
-    <title>{safe_title}</title>
-    <link rel="stylesheet" type="text/css" href="style/default.css"/>
-</head>
-<body>
-    <h1>{safe_title}</h1>
-    <p class="toc-link"><a href="nav.xhtml#{target_toc_id}">返回目录</a></p>
-</body>
-</html>"""
 
     def _add_images_to_chapter(
         self,
@@ -570,7 +546,7 @@ class EPUBGenerator:
 </head>
 <body>
     <h1 class="summary-title">推送汇总</h1>
-    <p class="toc-link" style="text-align: left;"><a href="nav.xhtml#toc_summary">返回目录</a></p>
+    {generate_toc_link("toc_summary")}
 
 
     <div class="card">
@@ -734,7 +710,7 @@ h1 {
 .toc-link {
     margin-top: 2em;
     font-size: 0.9em;
-    text-align: center;
+    text-align: left;
 }
 .toc-link a {
     color: #0066cc;
