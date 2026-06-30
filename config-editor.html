@@ -862,9 +862,112 @@
   </div>
 
   <script>
+    // DYNAMIC_FETCHERS_DATA_START
+    const FETCHERS_SCHEMA = {
+  "mail": {
+    "src_placeholder": "namespace 或 namespace.tag, 例如: abcde.test",
+    "schema": {
+      "metadata.tag": {
+        "type": "text",
+        "label": "tag"
+      },
+      "metadata.tag_prefix": {
+        "type": "text",
+        "label": "tag_prefix"
+      },
+      "metadata.timestamp_from": {
+        "type": "number",
+        "label": "timestamp_from",
+        "placeholder": "毫秒时间戳"
+      },
+      "metadata.timestamp_to": {
+        "type": "number",
+        "label": "timestamp_to",
+        "placeholder": "毫秒时间戳"
+      },
+      "metadata.limit": {
+        "type": "number",
+        "label": "limit"
+      },
+      "metadata.offset": {
+        "type": "number",
+        "label": "offset"
+      }
+    }
+  },
+  "rss": {
+    "src_placeholder": "RSS/Atom URL, 例如: https://hnrss.org/frontpage",
+    "schema": {
+      "full_text": {
+        "type": "select",
+        "label": "全文提取",
+        "options": [
+          "",
+          "N",
+          "Y"
+        ],
+        "hint": "仅 RSS 有效"
+      },
+      "metadata.limit": {
+        "type": "number",
+        "label": "限制条目数 (limit)",
+        "placeholder": "留空使用全局限制"
+      }
+    }
+  },
+  "trending": {
+    "src_placeholder": "关键词, 例如: 人工智能最新发展趋势",
+    "schema": {
+      "goal": {
+        "type": "textarea",
+        "label": "目标 (goal)",
+        "placeholder": "LLM 分析目标，例如: 分析最新的 AI 技术突破..."
+      }
+    }
+  },
+  "weather": {
+    "src_placeholder": "城市名称，例如: 北京 或 Shanghai",
+    "schema": {
+      "metadata.date": {
+        "type": "text",
+        "label": "预报日期 (date)",
+        "placeholder": "today, tomorrow, 2, 或具体日期 YYYY-MM-DD"
+      }
+    }
+  },
+  "web": {
+    "src_placeholder": "网页 URL",
+    "schema": {}
+  }
+};
+    // DYNAMIC_FETCHERS_DATA_END
+
     // ---- State ----
     let sources = [];
     let sourceIdCounter = 0;
+
+    // ---- Auto-update & Save ----
+    function onConfigChange() {
+      // 1. Auto-save to localStorage
+      try {
+        const config = buildConfig();
+        localStorage.setItem('og_config_draft', JSON.stringify(config));
+      } catch (e) {
+        console.error("Auto-save failed", e);
+      }
+
+      // 2. Auto-update preview if visible
+      const preview = document.getElementById('preview');
+      if (preview && preview.style.display === 'block') {
+        const config = buildConfig();
+        preview.textContent = JSON.stringify(config, null, 2);
+      }
+    }
+
+    // Add listeners to global config fields
+    document.getElementById('title-text').addEventListener('input', onConfigChange);
+    document.getElementById('title-img').addEventListener('input', onConfigChange);
+    document.getElementById('global-limit').addEventListener('input', onConfigChange);
 
     // ---- Toast Notification ----
     function showToast(message, type = 'success') {
@@ -876,11 +979,6 @@
       setTimeout(() => toast.remove(), 2500);
     }
 
-    // ---- Title ----
-    document.getElementById('title-text').value = '{每日新闻</br>{time}}';
-    document.getElementById('title-img').value = '';
-    document.getElementById('global-limit').value = '15';
-
     // ---- Source Management ----
     function createEmptySource() {
       return {
@@ -890,17 +988,9 @@
         title: '',
         priority: '',
         keep_link: '',
-        full_text: '',
         chop: '',
         exclude: [],
-        delete: '',
-        metadata_tag: '',
-        metadata_tag_prefix: '',
-        metadata_timestamp_from: '',
-        metadata_timestamp_to: '',
-        metadata_limit: '',
-        metadata_offset: '',
-        goal: ''
+        delete: ''
       };
     }
 
@@ -912,6 +1002,7 @@
       sources.push(s);
       renderSources();
       showToast(`已添加内容源「${s.title || s.type}」`, 'success');
+      onConfigChange();
     }
 
     function removeSource(id) {
@@ -920,15 +1011,17 @@
       sources = sources.filter(s => s._id !== id);
       renderSources();
       showToast(`已删除内容源「${name}」`, 'info');
+      onConfigChange();
     }
 
     function moveSource(id, dir) {
-      const idx = sources.findIndex(s => s._id === id);
+      const idx = sources.findIndex(s => s._id !== id ? false : true); // Adjusted slightly for safety
       const newIdx = idx + dir;
       if (newIdx < 0 || newIdx >= sources.length) return;
       [sources[idx], sources[newIdx]] = [sources[newIdx], sources[idx]];
       renderSources();
       showToast(dir < 0 ? '已上移' : '已下移', 'info');
+      onConfigChange();
     }
 
     function getSource(id) {
@@ -957,6 +1050,7 @@
             }
           }
         }
+        onConfigChange();
       }
     }
 
@@ -966,18 +1060,31 @@
       if (s) s.exclude.push({ type: 'start', value: '' });
       renderSources();
       showToast('已添加排除规则', 'success');
+      onConfigChange();
     }
+
+    // CSS Styling for dynamic badges
+    const styleEl = document.createElement('style');
+    styleEl.innerHTML = `
+      .source-card.type-weather { border-left: 5px solid #dd6b20; }
+      .badge-weather { background: #fffaf0; color: #dd6b20; border: 1px solid rgba(221, 107, 32, 0.15); }
+    `;
+    document.head.appendChild(styleEl);
 
     function removeExclude(sourceId, idx) {
       const s = getSource(sourceId);
       if (s) s.exclude.splice(idx, 1);
       renderSources();
       showToast('已删除排除规则', 'info');
+      onConfigChange();
     }
 
     function updateExclude(sourceId, idx, field, value) {
       const s = getSource(sourceId);
-      if (s && s.exclude[idx]) s.exclude[idx][field] = value;
+      if (s && s.exclude[idx]) {
+        s.exclude[idx][field] = value;
+        onConfigChange();
+      }
     }
 
     // ---- Render ----
@@ -996,7 +1103,9 @@
       const container = document.getElementById('sources-list');
       container.innerHTML = sources.map((s, i) => {
         const badgeClass = `badge-${s.type}`;
-        const typeOptions = ['', 'rss', 'mail', 'web', 'trending']
+        // Populate type options dynamically from FETCHERS_SCHEMA keys
+        const typeKeys = ['', ...Object.keys(FETCHERS_SCHEMA)];
+        const typeOptions = typeKeys
           .map(t => `<option value="${t}" ${s.type === t ? 'selected' : ''}>${t || '-- 请选择 --'}</option>`).join('');
 
         return `
@@ -1004,7 +1113,7 @@
           <div class="source-header">
             <span>
               内容源 #${i + 1}
-              <span class="source-type-badge ${badgeClass}">${s.type}</span>
+              <span class="source-type-badge ${badgeClass}">${s.type || 'none'}</span>
             </span>
             <div>
               <button class="btn btn-outline btn-sm" onclick="moveSource(${s._id}, -1)" ${i === 0 ? 'disabled' : ''}>↑</button>
@@ -1048,16 +1157,6 @@
             </select>
           </div>
 
-          <div class="form-row conditional ${s.type === 'rss' ? 'visible' : ''}" data-show-type="rss">
-            <label>全文提取</label>
-            <select onchange="updateField(${s._id}, 'full_text', this.value)" style="max-width: 120px;">
-              <option value="" ${s.full_text === '' ? 'selected' : ''}>--</option>
-              <option value="N" ${s.full_text === 'N' ? 'selected' : ''}>N</option>
-              <option value="Y" ${s.full_text === 'Y' ? 'selected' : ''}>Y</option>
-            </select>
-            <span class="hint">仅 RSS 有效</span>
-          </div>
-
           <div class="form-row">
             <label>裁剪 (chop)</label>
             <input type="text" value="${escapeHtml(s.chop)}" oninput="updateField(${s._id}, 'chop', this.value)"
@@ -1093,45 +1192,8 @@
             </div>
           </div>
 
-          <!-- Mail metadata (conditional) -->
-          <div class="conditional ${s.type === 'mail' ? 'visible' : ''}" data-show-type="mail" style="margin-top: 10px;">
-            <span class="collapse-toggle" onclick="toggleCollapse(this)">▶ 邮件参数 (metadata)</span>
-            <div class="collapsible" data-collapsible="metadata">
-              <div class="form-row">
-                <label>tag</label>
-                <input type="text" value="${escapeHtml(s.metadata_tag)}" oninput="updateField(${s._id}, 'metadata_tag', this.value)">
-              </div>
-              <div class="form-row">
-                <label>tag_prefix</label>
-                <input type="text" value="${escapeHtml(s.metadata_tag_prefix)}" oninput="updateField(${s._id}, 'metadata_tag_prefix', this.value)">
-              </div>
-              <div class="form-row">
-                <label>timestamp_from</label>
-                <input type="number" value="${s.metadata_timestamp_from}" oninput="updateField(${s._id}, 'metadata_timestamp_from', this.value)" placeholder="毫秒时间戳">
-              </div>
-              <div class="form-row">
-                <label>timestamp_to</label>
-                <input type="number" value="${s.metadata_timestamp_to}" oninput="updateField(${s._id}, 'metadata_timestamp_to', this.value)" placeholder="毫秒时间戳">
-              </div>
-              <div class="form-row">
-                <label>limit</label>
-                <input type="number" value="${s.metadata_limit}" oninput="updateField(${s._id}, 'metadata_limit', parseInt(this.value)||'')" style="max-width: 120px;">
-              </div>
-              <div class="form-row">
-                <label>offset</label>
-                <input type="number" value="${s.metadata_offset}" oninput="updateField(${s._id}, 'metadata_offset', parseInt(this.value)||'')" style="max-width: 120px;">
-              </div>
-            </div>
-          </div>
-
-          <!-- Trending goal (conditional) -->
-          <div class="conditional ${s.type === 'trending' ? 'visible' : ''}" data-show-type="trending" style="margin-top: 10px;">
-            <div class="form-row">
-              <label>目标 (goal)</label>
-              <textarea oninput="updateField(${s._id}, 'goal', this.value)"
-                placeholder="LLM 分析目标，例如: 分析最新的 AI 技术突破...">${escapeHtml(s.goal)}</textarea>
-            </div>
-          </div>
+          <!-- Render dynamic fetcher-specific inputs -->
+          ${renderDynamicFields(s)}
         </div>`;
       }).join('');
 
@@ -1155,12 +1217,83 @@
     }
 
     function getSrcPlaceholder(type) {
-      switch (type) {
-        case 'rss': return 'RSS/Atom URL, 例如: https://hnrss.org/frontpage';
-        case 'mail': return 'namespace 或 namespace.tag, 例如: abcde.test';
-        case 'web': return '网页 URL';
-        case 'trending': return '关键词, 例如: 人工智能最新发展趋势';
-        default: return '';
+      const fetcher = FETCHERS_SCHEMA[type];
+      return fetcher ? fetcher.src_placeholder : '';
+    }
+
+    function renderDynamicFields(s) {
+      const fetcher = FETCHERS_SCHEMA[s.type];
+      if (!fetcher || !fetcher.schema || Object.keys(fetcher.schema).length === 0) {
+        return '';
+      }
+
+      let html = '';
+      const metadataFields = [];
+      const rootFields = [];
+
+      for (const [key, field] of Object.entries(fetcher.schema)) {
+        if (key.startsWith('metadata.')) {
+          metadataFields.push([key, field]);
+        } else {
+          rootFields.push([key, field]);
+        }
+      }
+
+      rootFields.forEach(([key, field]) => {
+        html += renderFieldInput(s, key, field);
+      });
+
+      if (metadataFields.length > 0) {
+        html += `
+          <div style="margin-top: 10px;">
+            <span class="collapse-toggle" onclick="toggleCollapse(this)">▶ 附加参数 (metadata)</span>
+            <div class="collapsible" data-collapsible="metadata">
+              ${metadataFields.map(([key, field]) => renderFieldInput(s, key, field)).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      return html;
+    }
+
+    function renderFieldInput(s, key, field) {
+      const val = s[key] !== undefined ? s[key] : '';
+      const label = field.label || key;
+      const placeholder = field.placeholder || '';
+      const hint = field.hint ? `<span class="hint">${field.hint}</span>` : '';
+
+      if (field.type === 'select') {
+        const optionsHtml = (field.options || [])
+          .map(opt => `<option value="${opt}" ${val === opt ? 'selected' : ''}>${opt || '--'}</option>`)
+          .join('');
+        return `
+          <div class="form-row">
+            <label>${label}</label>
+            <select onchange="updateField(${s._id}, '${key}', this.value)" style="max-width: 120px;">
+              ${optionsHtml}
+            </select>
+            ${hint}
+          </div>
+        `;
+      } else if (field.type === 'textarea') {
+        return `
+          <div class="form-row">
+            <label>${label}</label>
+            <textarea oninput="updateField(${s._id}, '${key}', this.value)" placeholder="${placeholder}">${escapeHtml(val)}</textarea>
+            ${hint}
+          </div>
+        `;
+      } else {
+        const inputType = field.type === 'number' ? 'number' : 'text';
+        const style = field.type === 'number' ? 'style="max-width: 120px;"' : '';
+        return `
+          <div class="form-row">
+            <label>${label}</label>
+            <input type="${inputType}" value="${escapeHtml(val)}" oninput="updateField(${s._id}, '${key}', this.value)" placeholder="${placeholder}" ${style}>
+            ${hint}
+          </div>
+        `;
       }
     }
 
@@ -1188,26 +1321,21 @@
         const hasType = s.type && s.type.trim() !== '';
         const hasSrc  = s.src   && s.src.trim()  !== '';
 
-        // 完全空白的内容源 → 跳过
         if (!hasType && !hasSrc) return;
 
-        // type 必填
         if (!hasType) {
-          errors.push({ level: 'err', msg: `${prefix} 缺少类型 (type)，请选择 rss / mail / web / trending` });
+          errors.push({ level: 'err', msg: `${prefix} 缺少类型 (type)，请选择有效类型` });
         }
 
-        // type 合法值
-        const validTypes = ['rss', 'mail', 'web', 'trending'];
+        const validTypes = Object.keys(FETCHERS_SCHEMA);
         if (hasType && !validTypes.includes(s.type)) {
-          errors.push({ level: 'err', msg: `${prefix} 类型 "${s.type}" 无效，必须为 rss / mail / web / trending` });
+          errors.push({ level: 'err', msg: `${prefix} 类型 "${s.type}" 无效` });
         }
 
-        // src 必填
         if (!hasSrc) {
           errors.push({ level: 'err', msg: `${prefix} 缺少来源地址 (src)` });
         }
 
-        // priority 必须是数字
         if (s.priority !== '' && s.priority !== undefined && s.priority !== null) {
           const p = Number(s.priority);
           if (isNaN(p)) {
@@ -1215,17 +1343,10 @@
           }
         }
 
-        // RSS: full_text 值检查
-        if (s.type === 'rss' && s.full_text && !['Y', 'N', ''].includes(s.full_text)) {
-          errors.push({ level: 'warn', msg: `${prefix} full_text 值 "${s.full_text}" 无效，应为 Y 或 N` });
-        }
-
-        // keep_link 值检查
         if (s.keep_link && !['Y', 'N', ''].includes(s.keep_link)) {
           errors.push({ level: 'warn', msg: `${prefix} keep_link 值 "${s.keep_link}" 无效，应为 Y 或 N` });
         }
 
-        // exclude 规则
         if (Array.isArray(s.exclude)) {
           s.exclude.forEach((ex, idx) => {
             if (!['start', 'end', 'exact'].includes(ex.type)) {
@@ -1236,18 +1357,12 @@
             }
           });
         }
-
-        // trending: goal 提示
-        if (s.type === 'trending' && (!s.goal || s.goal.trim() === '')) {
-          errors.push({ level: 'warn', msg: `${prefix} trending 类型未填写分析目标 (goal)，将使用默认值` });
-        }
       });
 
       return errors;
     }
 
     function showValidationModal(errors) {
-      // 移除旧 modal
       const old = document.getElementById('validation-modal');
       if (old) old.remove();
 
@@ -1298,11 +1413,6 @@
       if (el) el.remove();
     }
 
-    // ---- Init ----
-    document.getElementById('title-text').value = '{每日新闻</br>{time}}';
-    document.getElementById('title-img').value = '';
-    document.getElementById('global-limit').value = '15';
-
     function selfCheck() {
       const errors = validateConfig();
       showValidationModal(errors);
@@ -1314,7 +1424,6 @@
       }
     }
 
-    // 按 Escape 关闭自检弹窗
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closeValidationModal();
     });
@@ -1337,10 +1446,6 @@
             keep_link: s.keep_link
           };
 
-          if (s.type === 'rss') {
-            item.full_text = s.full_text;
-          }
-
           if (s.chop) item.chop = s.chop;
 
           const validExclude = s.exclude.filter(e => e.value.trim() !== '');
@@ -1350,19 +1455,21 @@
 
           if (s.delete && s.delete.trim()) item.delete = s.delete;
 
-          if (s.type === 'mail') {
-            const meta = {};
-            if (s.metadata_tag) meta.tag = s.metadata_tag;
-            if (s.metadata_tag_prefix) meta.tag_prefix = s.metadata_tag_prefix;
-            if (s.metadata_timestamp_from) meta.timestamp_from = parseInt(s.metadata_timestamp_from);
-            if (s.metadata_timestamp_to) meta.timestamp_to = parseInt(s.metadata_timestamp_to);
-            if (s.metadata_limit) meta.limit = parseInt(s.metadata_limit);
-            if (s.metadata_offset !== '' && s.metadata_offset !== undefined) meta.offset = parseInt(s.metadata_offset);
-            if (Object.keys(meta).length > 0) item.metadata = meta;
-          }
-
-          if (s.type === 'trending' && s.goal) {
-            item.goal = s.goal;
+          // Dynamically serialize fields defined in FETCHERS_SCHEMA
+          const fetcher = FETCHERS_SCHEMA[s.type];
+          if (fetcher && fetcher.schema) {
+            for (const key in fetcher.schema) {
+              const val = s[key];
+              if (val !== undefined && val !== null && val !== '') {
+                if (key.startsWith('metadata.')) {
+                  const metaKey = key.split('.')[1];
+                  if (!item.metadata) item.metadata = {};
+                  item.metadata[metaKey] = (fetcher.schema[key].type === 'number') ? parseInt(val) : val;
+                } else {
+                  item[key] = (fetcher.schema[key].type === 'number') ? parseInt(val) : val;
+                }
+              }
+            }
           }
 
           return item;
@@ -1372,7 +1479,6 @@
     }
 
     function generateJSON() {
-      // 先自检：有错误时阻止生成
       const errors = validateConfig();
       const realErrors = errors.filter(e => e.level === 'err');
       if (realErrors.length > 0) {
@@ -1388,7 +1494,6 @@
       preview.style.display = 'block';
 
       if (errors.length > 0) {
-        // 仅有警告，仍然生成
         showToast(`JSON 已生成（有 ${errors.length} 个警告）`, 'info');
       } else {
         showToast(`JSON 已生成，共 ${sources.length} 个内容源`, 'success');
@@ -1451,44 +1556,45 @@
     }
 
     function loadConfig(config) {
-      // Title
       if (config.title) {
         document.getElementById('title-text').value = config.title.text || '';
         document.getElementById('title-img').value = config.title.img || '';
       }
 
-      // Global limit
       document.getElementById('global-limit').value = config.limit || 15;
 
-      // Sources
       sources = [];
       if (Array.isArray(config.body)) {
         config.body.forEach(item => {
           const s = createEmptySource();
-          s.type = item.type || 'rss';
+          s.type = item.type || '';
           s.src = item.src || '';
           s.title = item.title || '';
-          s.priority = item.priority || 10;
-          s.keep_link = item.keep_link || 'Y';
-          s.full_text = item.full_text || 'N';
+          s.priority = item.priority || '';
+          s.keep_link = item.keep_link || '';
           s.chop = item.chop || '';
           s.delete = item.delete || '';
-          s.goal = item.goal || '';
           s.exclude = Array.isArray(item.exclude)
             ? item.exclude.map(e => ({ type: e.type || 'start', value: e.value || '' }))
             : [];
-          if (item.metadata) {
-            s.metadata_tag = item.metadata.tag || '';
-            s.metadata_tag_prefix = item.metadata.tag_prefix || '';
-            s.metadata_timestamp_from = item.metadata.timestamp_from || '';
-            s.metadata_timestamp_to = item.metadata.timestamp_to || '';
-            s.metadata_limit = item.metadata.limit || '';
-            s.metadata_offset = item.metadata.offset || '';
+
+          // Load dynamic fields
+          const fetcher = FETCHERS_SCHEMA[s.type];
+          if (fetcher && fetcher.schema) {
+            for (const key in fetcher.schema) {
+              if (key.startsWith('metadata.')) {
+                const metaKey = key.split('.')[1];
+                s[key] = (item.metadata && item.metadata[metaKey] !== undefined) ? item.metadata[metaKey] : '';
+              } else {
+                s[key] = item[key] !== undefined ? item[key] : '';
+              }
+            }
           }
           sources.push(s);
         });
       }
       renderSources();
+      onConfigChange();
     }
 
     // ---- Drag & Drop Auto-Configuration ----
@@ -1501,7 +1607,6 @@
         return;
       }
 
-      // Sort a copy of sources for rendering the drag & drop list by priority descending (stable sort using natural order as fallback)
       const sortedSources = [...sources].sort((a, b) => {
         const pA = a.priority !== '' && a.priority !== undefined && a.priority !== null ? Number(a.priority) : 0;
         const pB = b.priority !== '' && b.priority !== undefined && b.priority !== null ? Number(b.priority) : 0;
@@ -1538,7 +1643,6 @@
         `;
       }).join('');
 
-      // Re-attach drag-and-drop event listeners to the new drag items
       attachDragEvents();
     }
 
@@ -1550,7 +1654,6 @@
         });
         item.addEventListener('dragend', () => {
           item.classList.remove('dragging');
-          // Only update visual numbering indexes on drag end, do NOT assign priorities automatically
           updateDragItemIndexes();
         });
       });
@@ -1575,7 +1678,6 @@
       let step = parseInt(stepPriorityInput.value);
       if (isNaN(step)) step = 10;
       
-      // Get the current order from the drag-and-drop zone DOM
       const container = document.getElementById('drag-drop-zone');
       if (container) {
         const itemElements = [...container.querySelectorAll('.drag-item')];
@@ -1588,11 +1690,11 @@
               s.priority = currentPriority + (N - 1 - idx) * step;
             }
           });
+          onConfigChange();
           return;
         }
       }
       
-      // Fallback: if DOM is not rendered yet, sort sources by priority descending and assign
       const sorted = [...sources].sort((a, b) => {
         const pA = a.priority !== '' && a.priority !== undefined && a.priority !== null ? Number(a.priority) : 0;
         const pB = b.priority !== '' && b.priority !== undefined && b.priority !== null ? Number(b.priority) : 0;
@@ -1605,6 +1707,7 @@
       sorted.forEach((s, idx) => {
         s.priority = currentPriority + (N - 1 - idx) * step;
       });
+      onConfigChange();
     }
 
     function recalculatePrioritiesFromDrag() {
@@ -1642,9 +1745,8 @@
       const s = getSource(id);
       if (s) {
         s[field] = value;
-        // Update the main sources list DOM directly, but do NOT re-render the drag-drop list
-        // to prevent input blur / focus loss.
         renderSources(false);
+        onConfigChange();
       }
     }
 

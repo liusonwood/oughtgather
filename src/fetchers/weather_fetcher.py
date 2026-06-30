@@ -10,6 +10,14 @@ class WeatherFetcher(BaseFetcher):
     """QWeather API Fetcher for fetching weather forecasts and generating formatted weather reports."""
     
     type_name = "weather"
+    src_placeholder = "城市名称，例如: 北京 或 Shanghai"
+    config_schema = {
+        "metadata.date": {
+            "type": "text",
+            "label": "预报日期 (date)",
+            "placeholder": "today, tomorrow, 2, 或具体日期 YYYY-MM-DD"
+        }
+    }
 
     def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):
         super().__init__(source, global_limit=global_limit, max_retries=max_retries)

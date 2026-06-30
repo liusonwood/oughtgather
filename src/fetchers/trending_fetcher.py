@@ -18,6 +18,14 @@ class TrendingFetcher(BaseFetcher):
     """热点分析抓取器"""
 
     type_name = "trending"
+    src_placeholder = "关键词, 例如: 人工智能最新发展趋势"
+    config_schema = {
+        "goal": {
+            "type": "textarea",
+            "label": "目标 (goal)",
+            "placeholder": "LLM 分析目标，例如: 分析最新的 AI 技术突破..."
+        }
+    }
 
     def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):
         """

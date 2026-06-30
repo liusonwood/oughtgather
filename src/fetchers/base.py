@@ -76,6 +76,8 @@ class BaseFetcher(ABC):
     """基础抓取器抽象类"""
 
     type_name: str = ""
+    src_placeholder: str = ""
+    config_schema: dict = {}
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

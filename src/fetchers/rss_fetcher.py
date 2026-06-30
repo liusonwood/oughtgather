@@ -17,6 +17,20 @@ class RSSFetcher(BaseFetcher):
     """RSS 抓取器"""
 
     type_name = "rss"
+    src_placeholder = "RSS/Atom URL, 例如: https://hnrss.org/frontpage"
+    config_schema = {
+        "full_text": {
+            "type": "select",
+            "label": "全文提取",
+            "options": ["", "N", "Y"],
+            "hint": "仅 RSS 有效"
+        },
+        "metadata.limit": {
+            "type": "number",
+            "label": "限制条目数 (limit)",
+            "placeholder": "留空使用全局限制"
+        }
+    }
     MAX_ENTRIES = 50  # 每个 RSS 源最多抓取的条目数，可通过 metadata.limit 覆盖
 
     def fetch(self) -> FetchResult:

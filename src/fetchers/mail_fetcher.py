@@ -18,6 +18,15 @@ class MailFetcher(BaseFetcher):
     """邮件抓取器"""
 
     type_name = "mail"
+    src_placeholder = "namespace 或 namespace.tag, 例如: abcde.test"
+    config_schema = {
+        "metadata.tag": {"type": "text", "label": "tag"},
+        "metadata.tag_prefix": {"type": "text", "label": "tag_prefix"},
+        "metadata.timestamp_from": {"type": "number", "label": "timestamp_from", "placeholder": "毫秒时间戳"},
+        "metadata.timestamp_to": {"type": "number", "label": "timestamp_to", "placeholder": "毫秒时间戳"},
+        "metadata.limit": {"type": "number", "label": "limit"},
+        "metadata.offset": {"type": "number", "label": "offset"}
+    }
 
     def __init__(self, source: ContentSource, global_limit: int = 15, max_retries: int = 3):
         """

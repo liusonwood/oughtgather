@@ -14,6 +14,8 @@ class WebFetcher(BaseFetcher):
     """网页抓取器"""
 
     type_name = "web"
+    src_placeholder = "网页 URL"
+    config_schema = {}
 
     def fetch(self) -> FetchResult:
         """
