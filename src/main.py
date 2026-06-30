@@ -114,7 +114,7 @@ def main():
 
     # 0. 自动更新 config-editor.html 中的抓取器选项
     try:
-        from scripts.update_editor import update_html_editor
+        from src.update_editor import update_html_editor
         update_html_editor()
     except Exception as e:
         logger.warning(f"Failed to auto-update config-editor.html: {e}")

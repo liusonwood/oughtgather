@@ -267,7 +267,7 @@ on:
 - **自动运行**：运行主入口 `python src/main.py` 会自动扫描抓取器并更新 `config-editor.html`。
 - **手动运行**：单独执行以下脚本，即可手动更新 `config-editor.html` 中的抓取器选项与参数：
   ```bash
-  python scripts/update_editor.py
+  python src/update_editor.py
   ```
 
 顶层字段：
