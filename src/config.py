@@ -65,9 +65,13 @@ class ContentSource:
 
     def __post_init__(self):
         """验证配置"""
-        valid_types = {"mail", "rss", "web", "trending"}
-        if self.type not in valid_types:
-            raise ValueError(f"Invalid type: {self.type}. Must be one of {valid_types}")
+        import src.fetchers
+        from src.fetchers.base import _registry
+
+        if self.type not in _registry:
+            raise ValueError(
+                f"Invalid type: {self.type}. Must be one of {list(_registry.keys())}"
+            )
 
         if not self.src:
             raise ValueError("src is required")
