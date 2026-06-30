@@ -111,6 +111,7 @@ class EPUBGenerator:
         # 12. 设置 Guide 元素，明确指定启动页面为目录 (增加老旧设备兼容性)
         book.guide = [
             {'href': 'start.xhtml', 'title': 'Table of Contents', 'type': 'toc'},
+            {'href': 'cover.xhtml', 'title': 'Cover', 'type': 'cover'},
             {'href': 'start.xhtml', 'title': 'Table of Contents', 'type': 'text'},
             {'href': 'start.xhtml', 'title': 'Start', 'type': 'start'},
         ]
@@ -187,6 +188,7 @@ class EPUBGenerator:
                 file_name='cover.xhtml',
                 uid='cover'
             )
+            cover_page.is_linear = False
             cover_page.content = cover_html
             book.add_item(cover_page)
 
