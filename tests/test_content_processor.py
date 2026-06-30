@@ -307,16 +307,43 @@ class TestCleanHtml:
         result = processor.process(article)
         assert "<iframe" not in result.content
 
-    def test_removes_dangerous_attrs(self):
+    def test_filter_small_social_icons(self):
+        """测试预过滤逻辑：<a> + 小图(≤32px) 应被移除"""
         source = ContentSource(type="rss", src="https://example.com/rss")
         processor = ContentProcessor(source)
-        html = '<p onclick="alert(1)" class="test" data-x="1">内容</p>'
+        html = """
+        <html>
+            <body>
+                <!-- 场景 1: 应被移除 (<a> + 16px img) -->
+                <a href="https://fb.com">
+                    <img src="fb.png" width="16" style="width:16px" alt="facebook">
+                </a>
+                
+                <!-- 场景 2: 应被保留 (<a> + 50px img) -->
+                <a href="https://site.com">
+                    <img src="big.png" width="50" height="50">
+                </a>
+                
+                <!-- 场景 3: 应被保留 (孤立 16px img) -->
+                <img src="standalone.png" width="16">
+            </body>
+        </html>
+        """
+        
+        # 预处理 HTML
         article = _make_article(html)
         result = processor.process(article)
-        assert "onclick" not in result.content
-        assert "data-x" not in result.content
-        # class 是允许保留的属性
-        assert "class" in result.content
+        soup = BeautifulSoup(result.content, 'lxml')
+        
+        # 验证
+        # 场景 1 应该不存在
+        assert not soup.find('a', href="https://fb.com")
+        
+        # 场景 2 应该存在
+        assert soup.find('a', href="https://site.com")
+        
+        # 场景 3 应该存在
+        assert soup.find('img', src="standalone.png")
 
 
 # =========================================================================

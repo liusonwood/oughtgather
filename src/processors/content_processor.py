@@ -266,6 +266,26 @@ class ContentProcessor:
 
         return str(soup)
 
+    def _is_small_rendered_image(self, img_tag: BeautifulSoup) -> bool:
+        """检查图片是否为包含在 <a> 中的渲染尺寸较小的图片"""
+        if not img_tag.find_parent('a'):
+            return False
+
+        # 检查 width/height 属性
+        for attr in ['width', 'height']:
+            val = img_tag.get(attr)
+            if val and val.isdigit() and int(val) <= 32:
+                return True
+
+        # 检查 style 属性
+        style = img_tag.get('style', '').lower()
+        if 'max-width' in style or 'width' in style:
+            matches = re.findall(r'(\d+)px', style)
+            for val in matches:
+                if int(val) <= 32:
+                    return True
+        return False
+
     def _clean_html(self, html: str) -> str:
         """
         清洗 HTML
@@ -281,6 +301,13 @@ class ContentProcessor:
 
         # === 布局清洗：将复杂的、嵌套的邮件/网页模版表格拆解为普通文本流 ===
         self._unwrap_layout_tables(soup)
+
+        # === 预过滤：移除被包含在 <a> 中的社交小图标 ===
+        for img in soup.find_all('img'):
+            if self._is_small_rendered_image(img):
+                parent_a = img.find_parent('a')
+                if parent_a:
+                    parent_a.decompose()
 
         # === EPUB 验证修复规则 ===
 
