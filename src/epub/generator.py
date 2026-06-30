@@ -111,6 +111,7 @@ class EPUBGenerator:
         # 12. 设置 Guide 元素，明确指定启动页面为目录 (增加老旧设备兼容性)
         book.guide = [
             {'href': 'start.xhtml', 'title': 'Table of Contents', 'type': 'toc'},
+            {'href': 'start.xhtml', 'title': 'Cover', 'type': 'cover'},
             {'href': 'start.xhtml', 'title': 'Table of Contents', 'type': 'text'},
             {'href': 'start.xhtml', 'title': 'Start', 'type': 'start'},
         ]
@@ -138,10 +139,10 @@ class EPUBGenerator:
 
             # 设置封面图片 (使用 set_cover 确保 properties="cover-image" 被正确设置)
             # ebooklib 会自动处理 manifest 中的 properties
-            # 设置 create_page=True 让 ebooklib 处理封面，这是最标准兼容性最好的做法
-            book.set_cover(cover_filename, cover_data, create_page=True)
+            # 设置 create_page=False，避免 ebooklib 自动创建可能被错误解析的 XHTML 封面页
+            book.set_cover(cover_filename, cover_data, create_page=False)
 
-            self.logger.info("Cover image set in EPUB")
+            self.logger.info("Cover image set in EPUB (no XHTML page)")
         except Exception as e:
             self.logger.error(f"Failed to add cover: {e}")
 

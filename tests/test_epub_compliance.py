@@ -170,28 +170,12 @@ class TestEpubContent:
                 return zf.read(file_name).decode('utf-8')
 
     def test_cover_not_empty(self, shared_epub):
-        """测试封面XHTML文件非空（避免RSC-016错误）"""
-        with zipfile.ZipFile(shared_epub, 'r') as zf:
-            # 检查封面文件大小
-            try:
-                info = zf.getinfo('EPUB/cover.xhtml')
-            except KeyError:
-                info = zf.getinfo('cover.xhtml')
-
-            file_size = info.file_size
-            assert file_size > 0, f"封面文件大小为{file_size}字节，应为非空"
-
-            print(f"✓ 封面XHTML文件大小为{file_size}字节（非空）")
+        """测试封面XHTML文件非空（已不再使用，跳过）"""
+        pytest.skip("已移除独立的封面XHTML页")
 
     def test_cover_has_img_tag(self, shared_epub):
-        """测试封面XHTML包含img标签引用封面图片"""
-        cover_html = self._read_epub_xhtml(shared_epub, 'cover.xhtml')
-
-        # 检查包含img标签
-        assert '<img' in cover_html, "封面XHTML应包含<img>标签"
-        assert 'cover.jpg' in cover_html, "封面应引用cover.jpg"
-
-        print(f"✓ 封面XHTML包含正确的img标签")
+        """测试封面XHTML包含img标签引用封面图片（已不再使用，跳过）"""
+        pytest.skip("已移除独立的封面XHTML页")
 
     def test_nav_has_landmarks_hidden(self, shared_epub):
         """测试nav.xhtml包含landmarks且设置为hidden（EPUB 3标准地标导航，仅供阅读器内部跳转使用）"""
@@ -230,15 +214,8 @@ class TestEpubContent:
         print(f"✓ 章节XHTML包含正确的命名空间")
 
     def test_css_in_cover_is_escaped(self, shared_epub):
-        """测试封面XHTML中的CSS大括号正确转义"""
-        cover_html = self._read_epub_xhtml(shared_epub, 'cover.xhtml')
-
-        # 检查CSS存在
-        if '<style' in cover_html:
-            # CSS应该包含样式规则（大括号已转义）
-            assert 'margin' in cover_html or 'padding' in cover_html, "CSS应包含样式规则"
-
-            print(f"✓ 封面CSS正确转义")
+        """测试封面XHTML中的CSS大括号正确转义（已不再使用，跳过）"""
+        pytest.skip("已移除独立的封面XHTML页")
 
     def test_html_entities_escaped_in_title(self, shared_epub):
         """测试标题中的HTML特殊字符被转义"""
@@ -369,9 +346,10 @@ class TestEpubMetadata:
 
             # 查找封面引用 (cover)
             # 方案A中不再使用独立的封面 XHTML，Kindle 依靠 metadata/manifest 中的 cover-image 属性识别
-            # cover_ref = guide.find('.//{*}reference[@type="cover"]')
-            # assert cover_ref is not None, "guide应包含type='cover'的引用"
-            # assert cover_ref.get('href') == 'cover.xhtml', f"封面引用href应为'cover.xhtml'，实际为'{cover_ref.get('href')}'"
+            # 将 guide 中的 cover 指向 start.xhtml 以满足 Kindle 对 cover 类型的预期，同时避免 XHTML 封面的问题
+            cover_ref = guide.find('.//{*}reference[@type="cover"]')
+            assert cover_ref is not None, "guide应包含type='cover'的引用"
+            assert cover_ref.get('href') == 'start.xhtml', f"封面引用href应为'start.xhtml'，实际为'{cover_ref.get('href')}'"
 
             # 查找正文起始引用 (text)
             text_ref = guide.find('.//{*}reference[@type="text"]')
@@ -383,7 +361,7 @@ class TestEpubMetadata:
             assert start_ref.get('href') == 'start.xhtml', \
                 f"start引用href应为'start.xhtml'，实际为'{start_ref.get('href')}'"
 
-            print(f"✓ OPF包含完整的guide(toc/text/start)元素，start指向start.xhtml")
+            print(f"✓ OPF包含完整的guide(toc/cover/text/start)元素，cover+start均指向start.xhtml")
 
     def test_language_is_zh(self, shared_epub):
         """测试语言设置为中文"""
