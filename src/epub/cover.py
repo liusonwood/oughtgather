@@ -129,8 +129,8 @@ class CoverGenerator:
                 if img.mode != 'RGB':
                     img = img.convert('RGB')
 
-                # 调整尺寸
-                img = img.resize((self.WIDTH, self.HEIGHT), Image.Resampling.LANCZOS)
+                # 居中裁剪以适配套封面尺寸（而不是拉伸压缩）
+                img = self._center_cover_crop(img, self.WIDTH, self.HEIGHT)
 
                 return img
 
@@ -322,6 +322,41 @@ class CoverGenerator:
             "Install fonts-noto-cjk-extra on Ubuntu or ensure a CJK font is available."
         )
         return ImageFont.load_default()
+
+    @staticmethod
+    def _center_cover_crop(img: Image.Image, target_w: int, target_h: int) -> Image.Image:
+        """
+        居中裁剪图片至目标宽高比（类似 CSS object-fit: cover），
+        而非拉伸压缩。
+
+        Args:
+            img: 原始图片
+            target_w: 目标宽度
+            target_h: 目标高度
+
+        Returns:
+            Image.Image: 裁剪后的图片
+        """
+        src_w, src_h = img.size
+        src_ratio = src_w / src_h
+        target_ratio = target_w / target_h
+
+        if src_ratio > target_ratio:
+            # 源图更宽：以高度为基准，裁剪左右两侧
+            new_h = src_h
+            new_w = int(src_h * target_ratio)
+        else:
+            # 源图更高（或相等）：以宽度为基准，裁剪上下两侧
+            new_w = src_w
+            new_h = int(src_w / target_ratio)
+
+        # 居中裁切
+        left = (src_w - new_w) // 2
+        top = (src_h - new_h) // 2
+        img = img.crop((left, top, left + new_w, top + new_h))
+
+        # 缩放到目标尺寸（仅缩放，不改变内容）
+        return img.resize((target_w, target_h), Image.Resampling.LANCZOS)
 
     def _image_to_bytes(self, img: Image.Image) -> bytes:
         """
