@@ -112,13 +112,13 @@ on:
 | `WEBDAV_REMOTE_PATH` | 远程存储路径，默认 `/` |
 | `CONFIG_JSON` | 完整的 `config.json` 字符串；优先级高于项目根目录的 `config.json` 文件。推荐在 GitHub Actions 中使用，可避免将私有订阅源写入仓库 |
 | `TESTMAIL_APP_API_KEY` | 从 testmail.app 获取的 API Key，用于邮件抓取。 |
+| `QWEATHER_KEY` | 和风天气 API 密钥，用于获取天气数据。 |
+| `QWEATHER_HOST` | 和风天气 API 主机地址。 |
 | `OPENROUTER_API_KEY` | OpenRouter API 密钥，用于调用 LLM 生成热点分析。 |
 | `OPENROUTER_API_ENDPOINT` | 自定义 OpenRouter 兼容接口，默认 `https://openrouter.ai/api/v1/chat/completions`。 |
 | `OPENROUTER_MODEL` | 使用的 LLM 模型名称。 |
 | `TAVILY_API_KEY` | Tavily API 密钥，用于搜索热点信息。 |
 | `RAINDROPIO_API_KEY` | Raindrop.io 的 API 访问密钥。 |
-| `QWEATHER_KEY` | 和风天气 API 密钥，用于获取天气数据。 |
-| `QWEATHER_HOST` | 和风天气 API 主机地址。 |
 
 
 两种推送方式：
