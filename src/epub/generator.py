@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 
 from src.config import Config, ContentSource
 from src.fetchers.base import Article, FetchResult
+from src.processors.content_processor import ContentProcessor
 from src.epub.cover import CoverGenerator
 from src.epub.toc import TOCGenerator
 from src.epub.helpers import generate_toc_link, create_section_divider_page
@@ -64,46 +65,42 @@ class EPUBGenerator:
         toc = self.toc_generator.generate(sections)
         book.toc = toc
 
-        # 初始化 spine（不包含 cover，封面放在 manifest/guide 中作为辅助资源，
-        # 这样 Kindle 打开时会直接进入目录而非封面）
+        # 初始化 spine
         book.spine = []
 
-        # 7. 添加章节 (必须在添加导航文件之前，因为需要其生成 chapter_id)
-        # _add_chapters 会将章节追加到 book.spine
-        self._add_chapters(book, sections)
+        # 7. 添加章节并收集所有独特的 Emoji
+        unique_emojis = set()
+        self._add_chapters(book, sections, unique_emojis)
 
-        # 8. 添加推送汇总章节 (包括运行统计、详细状态和工具介绍)
-        self._add_summary_chapter(book, results, error_log)
+        # 8. 添加推送汇总章节 (包括 Emoji 收集)
+        summary_emojis = self._add_summary_chapter(book, results, error_log)
+        unique_emojis.update(summary_emojis)
+        
+        # 9. 渲染并添加 Emoji 图片 (一次性添加)
+        self._add_rendered_emojis(book, unique_emojis)
 
-        # 9. 手动生成并添加 nav.xhtml (EPUB 3.0 必需)
-        # 使用 EpubHtml 而不是 EpubNav，并手动设置 'nav' 属性，
-        # 这样可以防止 ebooklib 在 write_epub 时用其默认生成的模板覆盖我们的自定义内容。
+        # 10. 手动生成并添加 nav.xhtml
         nav = epub.EpubHtml(title=book.title, file_name='nav.xhtml', uid='nav')
         nav.properties = ['nav']
         nav.content = self._generate_nav_content(book.title, book.toc, is_nav=True)
         nav.add_link(href='style/default.css', rel='stylesheet')
         book.add_item(nav)
 
-        # 9.5. 生成并添加物理目录页 contents.xhtml (取代 nav.xhtml 作为封面后的第一页)
+        # 11. 生成并添加物理目录页 contents.xhtml
         contents = epub.EpubHtml(title="目录", file_name='contents.xhtml', uid='contents')
         contents.content = self._generate_nav_content(book.title, book.toc, is_nav=False)
         contents.add_link(href='style/default.css', rel='stylesheet')
         book.add_item(contents)
 
-        # 10. 将 contents 插入到 spine 中。
-        # 我们希望首次打开电子书时直接进入目录 (contents.xhtml)，因此把 contents 排在最前面。
-        # 封面不加入 spine，仅通过 manifest + guide 引用，阅读器（含 Kindle）会跳过封面直接进入目录。
-        # nav.xhtml 不在 spine 中，仅通过 manifest 定义作为系统导航。
         if isinstance(book.spine, list):
             book.spine.insert(0, contents)
         else:
             book.spine = [contents]
 
-        # 11. 添加样式
+        # 12. 添加样式
         self._add_style(book)
-        self._add_emoji_font(book)
 
-        # 12. 设置 Guide 元素，明确指定启动页面为目录 (增加老旧设备兼容性)
+        # 13. 设置 Guide 元素
         book.guide = [
             {'href': 'contents.xhtml', 'title': 'Table of Contents', 'type': 'toc'},
             {'href': 'contents.xhtml', 'title': 'Cover', 'type': 'cover'},
@@ -111,7 +108,7 @@ class EPUBGenerator:
             {'href': 'contents.xhtml', 'title': 'Start', 'type': 'start'},
         ]
 
-        # 13. 保存文件
+        # 14. 保存文件
         output_path = self._save_book(book)
 
         self.logger.info(f"EPUB 3.0 (compliant) generated: {output_path}")
@@ -173,7 +170,8 @@ class EPUBGenerator:
     def _add_chapters(
         self,
         book: epub.EpubBook,
-        sections: List[Tuple[ContentSource, List[Article], Optional[str]]]
+        sections: List[Tuple[ContentSource, List[Article], Optional[str]]],
+        unique_emojis: set
     ):
         """
         添加章节 (EPUB 3.0 格式)
@@ -227,6 +225,10 @@ class EPUBGenerator:
             for article in articles:
                 # 生成章节内容
                 chapter_content = self._generate_chapter_content(article, chapter_id)
+                
+                # 收集 Emoji 并替换为图片标签
+                unique_emojis.update(ContentProcessor.get_unique_emojis(chapter_content))
+                chapter_content = ContentProcessor.replace_emojis_with_images(chapter_content)
 
                 # 创建章节
                 chapter = epub.EpubHtml(
@@ -326,6 +328,10 @@ class EPUBGenerator:
         url_to_filename = {}
 
         for img in img_tags:
+            # 跳过已经替换为本地 emoji 图片的标签
+            if img.get('class') and 'emoji' in img.get('class'):
+                continue
+            
             # 优先检查懒加载属性 (Bug 3) 和 srcset
             src = None
             
@@ -404,7 +410,7 @@ class EPUBGenerator:
         # BeautifulSoup 会生成完整的 HTML 结构并正确处理转义字符
         chapter.content = str(soup)
 
-    def _add_summary_chapter(self, book: epub.EpubBook, results: List[FetchResult], error_log: List[str] = None):
+    def _add_summary_chapter(self, book: epub.EpubBook, results: List[FetchResult], error_log: List[str] = None) -> set:
         """
         添加推送汇总章节 (EPUB 3.0 格式，包含本次推送的统计数据与工具介绍)
 
@@ -412,6 +418,9 @@ class EPUBGenerator:
             book: EPUB 书籍对象
             results: 抓取与处理结果列表
             error_log: 错误日志列表
+        
+        Returns:
+            set: 汇总章节中发现的唯一 Emoji 集合
         """
         import html
 
@@ -447,7 +456,7 @@ class EPUBGenerator:
                 error_log_content += f"        <li>{safe_error}</li>\n"
             error_log_content += "    </ul>"
         else:
-            error_log_content = "<p style='color: #2e7d32; font-weight: bold;'>🎉 一切正常，本次运行未发生任何错误。</p>"
+            error_log_content = "<p style='color: #2e7d32; font-weight: bold;'><span class=\"emoji\">🎉</span> 一切正常，本次运行未发生任何错误。</p>"
 
         # EPUB 3.0 使用 HTML5 DOCTYPE
         content_html = f"""<!DOCTYPE html>
@@ -519,7 +528,7 @@ class EPUBGenerator:
 
 
     <div class="card">
-        <div class="card-title">ℹ️ 关于 Ought Gather</div>
+        <div class="card-title"><span class="emoji">ℹ️</span> 关于 Ought Gather</div>
         <p class="intro-text">Ought Gather 是一款专为深度阅读与墨水屏爱好者打造的自动化内容聚合与 Kindle 推送工具。在这个算法推荐和信息碎片化的时代，Ought Gather 旨在帮助您重获阅读的主动权。它能够定时从您信任的 RSS、订阅邮件、网页及 AI 热点中提取最纯净的资讯，经过排版净化、图片压缩与智能去重，自动生成符合 EPUB 3.0 标准的精美电子书，并一键推送到您的 Kindle 设备。让您在专注、无干扰的阅读中，重新找回沉浸式思考的力量。</p>
         <p class="intro-text">想要添加或修改订阅源、查看系统说明或贡献代码，请访问 GitHub 项目主页，或使用内置的配置编辑器 <code>config-editor.html</code> 进行可视化管理。</p>
         <p class="intro-text">GitHub 链接：https://github.com/liusonwood/oughtgather</p>
@@ -529,25 +538,31 @@ class EPUBGenerator:
         <div class="card-title">运行数据统计</div>
         <div class="stat-item"><span class="stat-label">推送时间：</span>{push_time}</div>
         <div class="stat-item"><span class="stat-label">数据源总数：</span>{total_sources} 个</div>
-        <div class="stat-item"><span class="stat-label">成功抓取：</span><span class="tag-success">{success_sources}</span> 个</div>
-        <div class="stat-item"><span class="stat-label">抓取失败：</span><span class="tag-failed">{failed_sources}</span> 个</div>
+        <div class="stat-item"><span class="stat-label">成功抓取：</span><span class="tag-success">成功</span>，新增 <span class="tag-success">{success_sources}</span> 个</div>
+        <div class="stat-item"><span class="stat-label">抓取失败：</span><span class="tag-failed">失败</span>，<span class="tag-failed">{failed_sources}</span> 个</div>
         <div class="stat-item"><span class="stat-label">新增文章：</span><span class="tag-success">{total_articles}</span> 篇</div>
     </div>
 
     <div class="card">
-        <div class="card-title">🔌 订阅源详情</div>
+        <div class="card-title"><span class="emoji">🔌</span> 订阅源详情</div>
         <ul class="source-list">
             {source_details}
         </ul>
     </div>
 
     <div class="card">
-        <div class="card-title">⚠️ 异常与错误记录</div>
+        <div class="card-title"><span class="emoji">⚠️</span> 异常与错误记录</div>
         {error_log_content}
     </div>
 
 </body>
 </html>"""
+
+        # 收集 Emoji
+        emojis = ContentProcessor.get_unique_emojis(content_html)
+        
+        # Process Emoji characters in the summary to replace them with images
+        content_html = ContentProcessor.replace_emojis_with_images(content_html)
 
         chapter = epub.EpubHtml(
             title="推送汇总",
@@ -566,6 +581,7 @@ class EPUBGenerator:
             book.spine.append(chapter)
 
         self.logger.info("Summary chapter added to EPUB (linear spine)")
+        return emojis
 
     def _generate_nav_content(
         self,
@@ -668,23 +684,34 @@ class EPUBGenerator:
 </html>"""
         return content
 
-    def _add_emoji_font(self, book: epub.EpubBook):
-        """添加 Emoji 字体"""
-        font_path = "Fonts/NotoEmoji-Regular.ttf"
-        if os.path.exists(font_path):
-            with open(font_path, "rb") as f:
-                font_data = f.read()
-            
-            epub_font = epub.EpubItem(
-                uid="emojifont",
-                file_name="Fonts/NotoEmoji-Regular.ttf",
-                media_type="font/ttf",
-                content=font_data
-            )
-            book.add_item(epub_font)
-            self.logger.info("Emoji font added to EPUB")
-        else:
-            self.logger.warning(f"Emoji font not found at {font_path}, emoji might not display correctly.")
+    def _add_rendered_emojis(self, book: epub.EpubBook, unique_emojis: set):
+        """渲染并添加 Emoji 图片"""
+        from src.utils.emoji_renderer import render_emoji_to_png
+        font_path = "Fonts/NotoEmoji-Medium.ttf"
+        temp_dir = "temp_emoji_images"
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        for emoji in unique_emojis:
+            try:
+                filename = render_emoji_to_png(emoji, font_path, temp_dir)
+                with open(os.path.join(temp_dir, filename), "rb") as f:
+                    image_data = f.read()
+                
+                epub_image = epub.EpubItem(
+                    uid=f"emoji_{filename.replace('.png', '')}",
+                    file_name=f"Images/{filename}",
+                    media_type="image/png",
+                    content=image_data
+                )
+                book.add_item(epub_image)
+                self.logger.info(f"Added emoji image: {filename}")
+            except Exception as e:
+                self.logger.error(f"Failed to render emoji {emoji}: {e}")
+        
+        # 清理临时文件
+        import shutil
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
 
     def _add_style(self, book: epub.EpubBook):
         """添加样式"""
@@ -721,13 +748,14 @@ h1 {
     margin: 0;
 }
 
-/* Emoji 字体样式 */
-@font-face {
-    font-family: "MyEmojiFont";
-    src: url("../Fonts/NotoEmoji-Regular.ttf");
-}
-.emoji {
-    font-family: "MyEmojiFont", sans-serif;
+img.emoji {
+    height: 18px !important;
+    width: 18px !important;
+    vertical-align: middle !important;
+    display: inline-block !important;
+    margin: 0 0.1em !important;
+    border: none !important;
+    object-fit: contain !important;
 }
 
 .link {
@@ -762,7 +790,7 @@ nav li {
     margin: 0.8em 0;
 }
 
-/* 目录 (nav.xhtml) 专属样式，用于在不渲染/忽略 head style 的阅读器中也呈现明显的大小标题差异 */
+/* 目录 (nav.xhtml) 专属样式 */
 #toc h1 {
     text-align: center;
     font-size: 1.4em;

@@ -112,6 +112,37 @@ class ContentProcessor:
         if soup.body:
             return soup.body.decode_contents()
         return str(soup)
+    
+    @staticmethod
+    def get_unique_emojis(html: str) -> set:
+        """提取 HTML 中所有独特的 Emoji 字符"""
+        soup = BeautifulSoup(html, 'lxml')
+        emojis = set()
+        for span in soup.find_all('span', class_='emoji'):
+            emojis.add(span.get_text())
+        return emojis
+
+    @staticmethod
+    def replace_emojis_with_images(html: str) -> str:
+        """将 HTML 中的 <span class="emoji"> 替换为 <img> 标签"""
+        soup = BeautifulSoup(html, 'lxml')
+        for span in soup.find_all('span', class_='emoji'):
+            emoji_char = span.get_text()
+            codepoint = "-".join(f"{ord(c):x}" for c in emoji_char)
+            img_tag = soup.new_tag(
+                'img',
+                src=f"Images/emoji_{codepoint}.png",
+                alt=emoji_char,
+                attrs={
+                    'class': 'emoji',
+                    'style': 'height: 1em; width: 1em; vertical-align: middle; display: inline-block; border: none;'
+                }
+            )
+            span.replace_with(img_tag)
+        
+        if soup.body:
+            return soup.body.decode_contents()
+        return str(soup)
 
     def _apply_exclude(self, html: str) -> str:
         """
