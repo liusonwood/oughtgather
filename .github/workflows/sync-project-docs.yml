@@ -5,6 +5,7 @@ on:
     paths:
       - 'src/fetchers/*.py'
       - 'scripts/update_readme_secrets.py'
+      - 'scripts/update_workflow_secrets.py'
       - 'scripts/update_editor.py'
       - 'README.md'
       - '.github/workflows/daily-gather.yml'
@@ -29,6 +30,7 @@ jobs:
       - name: Run sync scripts
         run: |
           python scripts/update_readme_secrets.py
+          python scripts/update_workflow_secrets.py
           python scripts/update_editor.py
       - name: Commit changes
         run: |

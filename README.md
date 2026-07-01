@@ -370,9 +370,10 @@ class MyFetcher(BaseFetcher):
 │   └── lib/
 ├── img/                # Kindle 效果图片
 ├── Fonts/              # 字体文件 (NotoEmoji-Medium.ttf, README_Emoji.txt, etc.)
-├── scripts/            # 辅助脚本
-│   ├── update_editor.py
-│   └── update_readme_secrets.py
+├───scripts/            # 辅助脚本
+│   ├───update_editor.py
+│   ├───update_readme_secrets.py
+│   └───update_workflow_secrets.py
 ├── src/                # 核心源代码
 │   ├── main.py
 │   ├── config.py
