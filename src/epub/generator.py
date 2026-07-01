@@ -41,12 +41,16 @@ class EPUBGenerator:
         self,
         results: List[FetchResult],
         error_log: List[str] = None,
+        start_time: Optional[float] = None,
         runtime: float = 0.0
     ) -> str:
         """
         生成 EPUB 文件 (EPUB 3.0 格式，符合规范)
         """
-        self.logger.info(f"Generating EPUB, runtime: {runtime}")
+        import time
+        if start_time is not None:
+            runtime = time.time() - start_time
+        self.logger.info(f"Generating EPUB, runtime: {runtime:.2f}s so far")
         # 1. 创建 EPUB 书籍对象
         book = epub.EpubBook()
 
@@ -75,6 +79,8 @@ class EPUBGenerator:
         self._add_chapters(book, sections, unique_emojis)
 
         # 8. 添加推送汇总章节 (包括 Emoji 收集)
+        if start_time is not None:
+            runtime = time.time() - start_time
         summary_emojis = self._add_summary_chapter(book, results, error_log, runtime=runtime)
         unique_emojis.update(summary_emojis)
         

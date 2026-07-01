@@ -173,9 +173,7 @@ def main():
         # 6. 生成 EPUB
         logger.info("Generating EPUB...")
         epub_generator = EPUBGenerator(config)
-        runtime = time.time() - start_time
-        logger.info(f"DEBUG: start_time={start_time}, current={time.time()}, runtime={runtime}")
-        epub_path = epub_generator.generate(processed_results, error_log, runtime=runtime)
+        epub_path = epub_generator.generate(processed_results, error_log, start_time=start_time)
 
         # 7. 发送邮件
         logger.info("Sending EPUB to Kindle...")
