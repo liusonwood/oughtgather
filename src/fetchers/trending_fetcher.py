@@ -137,7 +137,7 @@ class TrendingFetcher(BaseFetcher):
                 payload = {
                     "query": query,
                     "max_results": 3,
-                    "search_depth": "basic"
+                    "search_depth": "advanced"
                 }
                 resp = client.post(
                     "https://api.tavily.com/search",
