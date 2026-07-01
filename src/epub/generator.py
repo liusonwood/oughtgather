@@ -40,11 +40,13 @@ class EPUBGenerator:
     def generate(
         self,
         results: List[FetchResult],
-        error_log: List[str] = None
+        error_log: List[str] = None,
+        runtime: float = 0.0
     ) -> str:
         """
         生成 EPUB 文件 (EPUB 3.0 格式，符合规范)
         """
+        self.logger.info(f"Generating EPUB, runtime: {runtime}")
         # 1. 创建 EPUB 书籍对象
         book = epub.EpubBook()
 
@@ -73,7 +75,7 @@ class EPUBGenerator:
         self._add_chapters(book, sections, unique_emojis)
 
         # 8. 添加推送汇总章节 (包括 Emoji 收集)
-        summary_emojis = self._add_summary_chapter(book, results, error_log)
+        summary_emojis = self._add_summary_chapter(book, results, error_log, runtime=runtime)
         unique_emojis.update(summary_emojis)
         
         # 9. 渲染并添加 Emoji 图片 (一次性添加)
@@ -410,7 +412,7 @@ class EPUBGenerator:
         # BeautifulSoup 会生成完整的 HTML 结构并正确处理转义字符
         chapter.content = str(soup)
 
-    def _add_summary_chapter(self, book: epub.EpubBook, results: List[FetchResult], error_log: List[str] = None) -> set:
+    def _add_summary_chapter(self, book: epub.EpubBook, results: List[FetchResult], error_log: List[str] = None, runtime: float = 0.0) -> set:
         """
         添加推送汇总章节 (EPUB 3.0 格式，包含本次推送的统计数据与工具介绍)
 
@@ -418,6 +420,7 @@ class EPUBGenerator:
             book: EPUB 书籍对象
             results: 抓取与处理结果列表
             error_log: 错误日志列表
+            runtime: 运行耗时 (秒)
         
         Returns:
             set: 汇总章节中发现的唯一 Emoji 集合
@@ -426,10 +429,13 @@ class EPUBGenerator:
 
         error_log = error_log or []
         push_time = get_now().strftime("%Y-%m-%d %H:%M:%S")
+        
         total_sources = len(results)
         success_sources = sum(1 for r in results if r.success)
         failed_sources = sum(1 for r in results if not r.success)
         total_articles = sum(len(r.articles) for r in results)
+        
+        runtime_str = f"{runtime:.1f} 秒"
 
         source_details = ""
         for r in results:
@@ -529,14 +535,17 @@ class EPUBGenerator:
 
     <div class="card">
         <div class="card-title"><span class="emoji">ℹ️</span> 关于 Ought Gather</div>
-        <p class="intro-text">Ought Gather 是一款专为深度阅读与墨水屏爱好者打造的自动化内容聚合与 Kindle 推送工具。在这个算法推荐和信息碎片化的时代，Ought Gather 旨在帮助您重获阅读的主动权。它能够定时从您信任的 RSS、订阅邮件、网页及 AI 热点中提取最纯净的资讯，经过排版净化、图片压缩与智能去重，自动生成符合 EPUB 3.0 标准的精美电子书，并一键推送到您的 Kindle 设备。让您在专注、无干扰的阅读中，重新找回沉浸式思考的力量。</p>
+        <p class="intro-text">Ought Gather 是一款专为深度阅读与墨水屏爱好者打造的自动化内容聚合与 Kindle 推送工具。
+        它能够定时从您信任的 RSS、订阅邮件、网页、 AI 热点等订阅源中提取最纯净的资讯，经过排版净化、图片压缩与智能去重，
+        自动生成符合 EPUB 3.0 标准的精美电子书，并一键推送到您的 Kindle 设备。</p>
         <p class="intro-text">想要添加或修改订阅源、查看系统说明或贡献代码，请访问 GitHub 项目主页，或使用内置的配置编辑器 <code>config-editor.html</code> 进行可视化管理。</p>
-        <p class="intro-text">GitHub 链接：https://github.com/liusonwood/oughtgather</p>
+        <p class="intro-text">GitHub 项目链接：<a href="https://github.com/liusonwood/oughtgather">https://github.com/liusonwood/oughtgather</a></p>
     </div>
     
     <div class="card">
         <div class="card-title">运行数据统计</div>
         <div class="stat-item"><span class="stat-label">推送时间：</span>{push_time}</div>
+        <div class="stat-item"><span class="stat-label">运行耗时：</span>{runtime_str}</div>
         <div class="stat-item"><span class="stat-label">数据源总数：</span>{total_sources} 个</div>
         <div class="stat-item"><span class="stat-label">成功抓取：</span><span class="tag-success">成功</span>，新增 <span class="tag-success">{success_sources}</span> 个</div>
         <div class="stat-item"><span class="stat-label">抓取失败：</span><span class="tag-failed">失败</span>，<span class="tag-failed">{failed_sources}</span> 个</div>
