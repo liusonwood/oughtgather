@@ -191,6 +191,8 @@ class EPUBGenerator:
             book.spine = []
         spine = book.spine
 
+        chapters_to_process = []  # [(chapter, article)]
+
         for source, articles, source_title in sections:
             # 在该分组的第一篇文章前插入章节分隔页，显示所属栏目标题
             section_title = self.toc_generator._get_source_title(
@@ -239,12 +241,110 @@ class EPUBGenerator:
                 )
                 chapter.content = chapter_content
 
-                # 添加图片
-                self._add_images_to_chapter(book, chapter, article)
-
+                chapters_to_process.append((chapter, article))
                 book.add_item(chapter)
                 spine.append(chapter)  # 添加到 spine（阅读顺序）
                 chapter_id += 1
+
+        # 1. 收集所有章节中唯一的图片 URL 及其 referer (article.url)
+        self.logger.info("Gathering all unique image URLs from chapters...")
+        unique_images = {}  # image_src -> referer_url
+        for chapter, article in chapters_to_process:
+            if not chapter.content:
+                continue
+            soup = BeautifulSoup(chapter.content, 'lxml')
+            for img in soup.find_all('img'):
+                src, _ = self._extract_image_src(img)
+                if src and not src.startswith('data:'):
+                    if src not in unique_images:
+                        unique_images[src] = article.url
+
+        # 2. 并发下载和处理图片
+        import concurrent.futures
+        download_results = {}  # image_src -> (filename, img_data) or None
+        if unique_images:
+            self.logger.info(f"Downloading {len(unique_images)} images concurrently...")
+            max_workers = min(len(unique_images), 10)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_to_src = {
+                    executor.submit(self.image_processor.download_and_process, src, referer): src
+                    for src, referer in unique_images.items()
+                }
+                for future in concurrent.futures.as_completed(future_to_src):
+                    src = future_to_src[future]
+                    try:
+                        res = future.result()
+                        download_results[src] = res
+                    except Exception as e:
+                        self.logger.error(f"Image download thread failed for {src}: {e}")
+                        download_results[src] = None
+
+        # 3. 顺序更新每个章节的 HTML 并组装电子书
+        self.logger.info("Updating image references sequentially and adding images to book...")
+        for chapter, article in chapters_to_process:
+            if not chapter.content:
+                continue
+                
+            soup = BeautifulSoup(chapter.content, 'lxml')
+            img_tags = soup.find_all('img')
+            
+            if not img_tags:
+                continue
+
+            # 用于存储本章节已处理的图片 URL，避免在同一章节中重复处理
+            url_to_filename = {}
+
+            for img in img_tags:
+                src, remote_attrs = self._extract_image_src(img)
+                
+                # 彻底移除所有干扰属性，防止残留远程链接
+                for attr in remote_attrs:
+                    if img.has_attr(attr):
+                        del img[attr]
+
+                if not src or src.startswith('data:'):
+                    if not src:
+                        img.decompose()
+                    continue
+
+                # 如果本章节已经处理过这个 URL
+                if src in url_to_filename:
+                    img['src'] = f"images/{url_to_filename[src]}"
+                    continue
+
+                # 获取处理后的结果
+                result = download_results.get(src)
+
+                if result:
+                    filename, img_data = result
+                    url_to_filename[src] = filename
+
+                    # 检查是否已经添加过这个 item
+                    image_uid = f"image_{filename}"
+                    is_already_added = False
+                    for item in book.items:
+                        if item.id == image_uid:
+                            is_already_added = True
+                            break
+
+                    if not is_already_added:
+                        epub_image = epub.EpubItem(
+                            uid=image_uid,
+                            file_name=f"images/{filename}",
+                            media_type="image/jpeg",
+                            content=img_data
+                        )
+                        book.add_item(epub_image)
+
+                    # 更新图片 URL
+                    img['src'] = f"images/{filename}"
+                else:
+                    # 处理失败：彻底移除标签，绝不保留 http 引用
+                    self.logger.debug(f"Removing image tag (processing failed or skipped): {src}")
+                    img.decompose()
+
+            # 将修改后的 HTML 写回 chapter.content
+            chapter.content = str(soup)
 
         # 设置书籍的阅读顺序
         book.spine = spine
@@ -303,6 +403,41 @@ class EPUBGenerator:
 
         return content_html
 
+    def _extract_image_src(self, img) -> Tuple[Optional[str], List[str]]:
+        """
+        从 img 标签中提取真实的图片 URL，并返回需要清理的远程属性列表
+        """
+        # 跳过已经替换为本地 emoji 图片的标签
+        if img.get('class') and 'emoji' in img.get('class'):
+            return None, []
+            
+        src = None
+        remote_attrs = ['data-src', 'data-original', 'data-actualsrc', 'data-lazy-src', 'srcset', 'data-srcset', 'file', 'zoom-target', 'original']
+        
+        # 检查 srcset (Bug 4)
+        srcset = img.get('data-srcset') or img.get('srcset')
+        if srcset:
+            candidates = []
+            for part in srcset.split(','):
+                parts = part.strip().split()
+                if parts:
+                    candidates.append(parts[0])
+            if candidates:
+                src = candidates[-1]
+        
+        # 检查懒加载属性
+        if not src:
+            for attr in remote_attrs:
+                val = img.get(attr)
+                if val and not any(ext in val.lower() for ext in ['.gif', '.svg']):
+                    src = val
+                    break
+        
+        if not src:
+            src = img.get('src')
+            
+        return src, remote_attrs
+
     def _add_images_to_chapter(
         self,
         book: epub.EpubBook,
@@ -310,7 +445,7 @@ class EPUBGenerator:
         article: Article
     ):
         """
-        添加图片到章节
+        添加图片到章节 (保持向后兼容及测试调用支持)
 
         Args:
             book: EPUB 书籍对象
@@ -326,41 +461,11 @@ class EPUBGenerator:
         if not img_tags:
             return
 
-        # 用于存储已处理的图片 URL，避免在同一章节中重复处理
+        # 用于存储已处理 of 图片 URL，避免在同一章节中重复处理
         url_to_filename = {}
 
         for img in img_tags:
-            # 跳过已经替换为本地 emoji 图片的标签
-            if img.get('class') and 'emoji' in img.get('class'):
-                continue
-            
-            # 优先检查懒加载属性 (Bug 3) 和 srcset
-            src = None
-            
-            # 记录所有可能包含远程 URL 的属性，以便清理
-            remote_attrs = ['data-src', 'data-original', 'data-actualsrc', 'data-lazy-src', 'srcset', 'data-srcset', 'file', 'zoom-target', 'original']
-            
-            # 检查 srcset (Bug 4)
-            srcset = img.get('data-srcset') or img.get('srcset')
-            if srcset:
-                candidates = []
-                for part in srcset.split(','):
-                    parts = part.strip().split()
-                    if parts:
-                        candidates.append(parts[0])
-                if candidates:
-                    src = candidates[-1]
-            
-            # 检查懒加载属性
-            if not src:
-                for attr in remote_attrs:
-                    val = img.get(attr)
-                    if val and not any(ext in val.lower() for ext in ['.gif', '.svg']):
-                        src = val
-                        break
-            
-            if not src:
-                src = img.get('src')
+            src, remote_attrs = self._extract_image_src(img)
             
             # 彻底移除所有干扰属性，防止残留远程链接
             for attr in remote_attrs:
@@ -755,6 +860,8 @@ h1 {
 
 .weather-item {
     margin: 0;
+    padding: 0;
+    line-height: 0.8;
 }
 
 img.emoji {

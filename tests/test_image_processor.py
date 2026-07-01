@@ -328,3 +328,29 @@ class TestDownloadAndProcess:
         processor.processed_images = [("a.jpg", b"data1"), ("b.jpg", b"data2")]
         processor.clear()
         assert len(processor.processed_images) == 0
+
+    @patch.object(ImageProcessor, "_download_image")
+    def test_concurrent_image_processing(self, mock_download):
+        """测试在并发环境下 ImageProcessor 是否线程安全并且状态正确"""
+        import concurrent.futures
+        mock_download.return_value = _make_image_bytes(200, 200)
+
+        processor = ImageProcessor()
+        urls = [f"https://example.com/{i}.jpg" for i in range(20)]
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            results = list(executor.map(processor.download_and_process, urls))
+
+        # 检查是否所有图片都处理成功
+        assert len(results) == 20
+        assert all(res is not None for res in results)
+        
+        # 检查 processed_images 是否记录了所有图片而没有竞态丢失
+        assert len(processor.processed_images) == 20
+        
+        # 验证总大小和清空操作
+        total_size = processor.get_total_size()
+        assert total_size > 0
+        
+        processor.clear()
+        assert len(processor.processed_images) == 0

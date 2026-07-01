@@ -5,6 +5,7 @@
 
 import io
 import os
+import threading
 from typing import List, Tuple, Optional
 from urllib.parse import urlparse
 import httpx
@@ -17,7 +18,7 @@ class ImageProcessor:
     """图片处理器"""
 
     MAX_SIZE_KB = 600  # 单张图片最大大小（KB）- 提高以保留更多细节
-    MAX_WIDTH = 1200  # 最大宽度 - 适配现代 Kindle (300 ppi) 和大屏阅读器
+    MAX_WIDTH = 1200  # 最大宽度 - 适配 modern Kindle (300 ppi) 和大屏阅读器
     MAX_HEIGHT = 1800  # 最大高度 - 适配常见阅读器视口
     JPEG_QUALITY = 88  # JPEG 质量 - 提高以获得更清晰的图片
     MIN_WIDTH = 120  # 最小宽度（过滤头像、图标、表情等装饰性小图）
@@ -27,6 +28,7 @@ class ImageProcessor:
         """初始化图片处理器"""
         self.logger = get_logger()
         self.processed_images: List[Tuple[str, bytes]] = []  # (filename, data)
+        self._lock = threading.Lock()
 
     def download_and_process(self, url: str, base_url: Optional[str] = None) -> Optional[Tuple[str, bytes]]:
         """
@@ -57,7 +59,8 @@ class ImageProcessor:
                 return None
 
             filename, image_data = result
-            self.processed_images.append((filename, image_data))
+            with self._lock:
+                self.processed_images.append((filename, image_data))
             size_kb = len(image_data) / 1024
             self.logger.info(f"Successfully processed image: {filename} ({size_kb:.1f}KB) from {url}")
             return result
@@ -245,7 +248,8 @@ class ImageProcessor:
         Returns:
             int: 总大小（字节）
         """
-        return sum(len(data) for _, data in self.processed_images)
+        with self._lock:
+            return sum(len(data) for _, data in self.processed_images)
 
     def get_total_size_mb(self) -> float:
         """
@@ -258,4 +262,5 @@ class ImageProcessor:
 
     def clear(self):
         """清除已处理的图片"""
-        self.processed_images.clear()
+        with self._lock:
+            self.processed_images.clear()

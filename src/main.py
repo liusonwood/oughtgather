@@ -124,23 +124,42 @@ def main():
         logger.info("Initializing dedup tracker...")
         tracker = DedupTracker()
 
-        # 3. 抓取内容
-        logger.info("Fetching content...")
+        # 3. 抓取内容（并发处理）
+        logger.info("Fetching content concurrently...")
         results = []
         error_log = []
 
-        for source in config.body:
+        import concurrent.futures
+
+        def fetch_source(source: ContentSource) -> FetchResult:
             try:
                 fetcher = get_fetcher(source, global_limit=config.limit)
-                result = fetcher.fetch_with_retry()
-                results.append(result)
-
-                if not result.success:
-                    error_log.append(f"[{source.type}] {source.src}: {result.error}")
-
+                return fetcher.fetch_with_retry()
             except Exception as e:
                 logger.error(f"Failed to fetch {source.src}: {e}")
-                error_log.append(f"[{source.type}] {source.src}: {str(e)}")
+                return FetchResult(source=source, articles=[], success=False, error=str(e))
+
+        # 限制最大线程数为 10，避免过度消耗资源
+        max_workers = min(len(config.body), 10) if config.body else 1
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # 提交所有抓取任务，保留 config.body 的顺序
+            future_to_source = {
+                executor.submit(fetch_source, source): source
+                for source in config.body
+            }
+
+            # 按照原始顺序回收结果，保证顺序稳定
+            for future in future_to_source:
+                source = future_to_source[future]
+                try:
+                    result = future.result()
+                    results.append(result)
+                    if not result.success:
+                        error_log.append(f"[{source.type}] {source.src}: {result.error}")
+                except Exception as e:
+                    logger.error(f"Fetcher thread failed for {source.src}: {e}")
+                    error_log.append(f"[{source.type}] {source.src}: {str(e)}")
+                    results.append(FetchResult(source=source, articles=[], success=False, error=str(e)))
 
         # 4. 处理结果（去重、内容处理）
         logger.info("Processing results...")
