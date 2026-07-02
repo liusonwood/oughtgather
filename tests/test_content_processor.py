@@ -722,3 +722,71 @@ class TestLayoutTableCleaning:
         assert 'height="200"' in result.content
         assert 'width: 300px' in result.content
         assert 'height: 200px' in result.content
+
+
+# =========================================================================
+# URL 规范化与过滤测试
+# =========================================================================
+
+class TestUrlNormalization:
+    """测试 content_processor 对于非法或相对 URL 的规范化与过滤行为"""
+
+    def test_url_with_space_quoted(self):
+        """测试 URL 中的空格应该被转换为 %20"""
+        source = ContentSource(type="web", src="https://example.com")
+        processor = ContentProcessor(source)
+        html = '<p>See <a href="https://example.com/elon musk">Elon Musk</a></p>'
+        article = _make_article(html)
+        result = processor.process(article)
+        assert 'href="https://example.com/elon%20musk"' in result.content
+
+    def test_relative_url_resolved_with_base_url(self):
+        """测试相对 URL 能够根据 article.url 被正确解析为绝对 URL"""
+        source = ContentSource(type="web", src="https://gushiwen.org")
+        processor = ContentProcessor(source)
+        html = '<p>Goto <a href="/user/wode.aspx">My Page</a></p>'
+        # Article url is https://example.com/test
+        article = Article(title="Test", content=html, url="https://gushiwen.org/shiwens/default.aspx")
+        result = processor.process(article)
+        assert 'href="https://gushiwen.org/user/wode.aspx"' in result.content
+
+    def test_relative_url_with_query_resolved(self):
+        """测试带查询参数的相对 URL 被正确解析且保留查询参数"""
+        source = ContentSource(type="web", src="https://gushiwen.org")
+        processor = ContentProcessor(source)
+        html = '<p>Filter <a href="/shiwens/default.aspx?cstr=%e5%ae%8b%e4%bb%a3">Song Dynasty</a></p>'
+        article = Article(title="Test", content=html, url="https://gushiwen.org/home")
+        result = processor.process(article)
+        assert 'href="https://gushiwen.org/shiwens/default.aspx?cstr=%e5%ae%8b%e4%bb%a3"' in result.content
+
+    def test_unresolved_relative_url_unwrapped(self):
+        """测试无法解析的相对 URL (例如无 base_url) 的 a 标签会被 unwrap"""
+        source = ContentSource(type="web", src="https://gushiwen.org")
+        processor = ContentProcessor(source)
+        html = '<p>Go <a href="/items/123">Item</a></p>'
+        # 如果 article.url 也是相对的或者无效的，无法得到 valid absolute URL，则 a 标签应该被 unwrap
+        article = Article(title="Test", content=html, url="/invalid-relative-base")
+        result = processor.process(article)
+        # a 标签应当被 unwrap，只留下文本
+        assert '<a' not in result.content
+        assert 'Go Item' in result.content
+
+    def test_anchor_link_preserved(self):
+        """测试本页内的锚链接 (#anchor) 能够被完好保留"""
+        source = ContentSource(type="web", src="https://example.com")
+        processor = ContentProcessor(source)
+        html = '<p>Read <a href="#footnote-1">Footnote</a></p>'
+        article = _make_article(html)
+        result = processor.process(article)
+        assert 'href="#footnote-1"' in result.content
+
+    def test_invalid_scheme_unwrapped(self):
+        """测试非主流或非法 schema 的链接 (如 javascript: 或者是 ftp:) 应当被 unwrap"""
+        source = ContentSource(type="web", src="https://example.com")
+        processor = ContentProcessor(source)
+        html = '<p>Click <a href="javascript:alert(1)">Here</a> or <a href="ftp://files.com">FTP</a></p>'
+        article = _make_article(html)
+        result = processor.process(article)
+        assert '<a' not in result.content
+        assert 'Click Here or FTP' in result.content
+

@@ -66,7 +66,7 @@ class ContentProcessor:
             article.content = self._remove_links(article.content)
 
         # 3. 清洗 HTML
-        article.content = self._clean_html(article.content)
+        article.content = self._clean_html(article.content, base_url=article.url)
 
         # 4. 确保 HTML 格式正确
         article.content = self._ensure_valid_html(article.content)
@@ -131,7 +131,7 @@ class ContentProcessor:
             codepoint = "-".join(f"{ord(c):x}" for c in emoji_char)
             img_tag = soup.new_tag(
                 'img',
-                src=f"Images/emoji_{codepoint}.png",
+                src=f"images/emoji_{codepoint}.png",
                 alt=emoji_char,
                 attrs={
                     'class': 'emoji',
@@ -379,18 +379,67 @@ class ContentProcessor:
                     return True
         return False
 
-    def _clean_html(self, html: str) -> str:
+    def _clean_html(self, html: str, base_url: Optional[str] = None) -> str:
         """
         清洗 HTML
         移除不需要的标签和属性，修复 EPUB 验证错误
 
         Args:
             html: HTML 内容
+            base_url: 基础 URL，用于将相对链接解析为绝对链接
 
         Returns:
             str: 清洗后的 HTML 片段
         """
         soup = BeautifulSoup(html, 'lxml')
+
+        # === 处理 a 标签的 href 属性，防止 EPUB 验证由于非法或相对链接失败 ===
+        from urllib.parse import urlparse, urljoin
+        for a_tag in list(soup.find_all('a')):
+            href = a_tag.get('href')
+            if href is None:
+                continue
+            
+            href_str = href.strip()
+            if not href_str:
+                a_tag.unwrap()
+                continue
+                
+            # 保留本页面内的锚点链接
+            if href_str.startswith('#'):
+                continue
+                
+            try:
+                parsed = urlparse(href_str)
+            except Exception as e:
+                self.logger.warning(f"Failed to parse URL '{href_str}': {e}")
+                a_tag.unwrap()
+                continue
+                
+            # 校验 scheme，如果是相对 URL (即无 scheme) 或者非法 scheme
+            if not parsed.scheme or parsed.scheme.lower() not in ('http', 'https', 'mailto', 'tel'):
+                if base_url:
+                    try:
+                        resolved_url = urljoin(base_url, href_str)
+                        parsed_resolved = urlparse(resolved_url)
+                        if parsed_resolved.scheme.lower() in ('http', 'https'):
+                            href_str = resolved_url
+                        else:
+                            a_tag.unwrap()
+                            continue
+                    except Exception as e:
+                        self.logger.warning(f"Failed to resolve relative URL '{href_str}' with base '{base_url}': {e}")
+                        a_tag.unwrap()
+                        continue
+                else:
+                    a_tag.unwrap()
+                    continue
+                    
+            # 替换空格为 %20 (比如 'elon musk' 转换)
+            if ' ' in href_str:
+                href_str = href_str.replace(' ', '%20')
+                
+            a_tag['href'] = href_str
 
         # === 布局清洗：将复杂的、嵌套的邮件/网页模版表格拆解为普通文本流 ===
         self._unwrap_layout_tables(soup)

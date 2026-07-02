@@ -398,8 +398,8 @@ class EPUBGenerator:
         # 添加正文（正文已经由 ContentProcessor 处理过，应该是安全的 HTML 片段）
         content_html += f"<div class='content'>{article.content}</div>"
 
-        # 添加原文链接
-        if article.url and not article.url.startswith('mailto:'):
+        # 添加原文链接 (仅保留 http/https 的合法绝对链接)
+        if article.url and (article.url.startswith('http://') or article.url.startswith('https://')):
             safe_url = html.escape(article.url)
             content_html += f"<p class='link'>原文链接: <a href='{safe_url}'>{safe_url}</a></p>"
 
@@ -819,7 +819,7 @@ class EPUBGenerator:
                 
                 epub_image = epub.EpubItem(
                     uid=f"emoji_{filename.replace('.png', '')}",
-                    file_name=f"Images/{filename}",
+                    file_name=f"images/{filename}",
                     media_type="image/png",
                     content=image_data
                 )
